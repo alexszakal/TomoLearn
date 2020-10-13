@@ -11,8 +11,9 @@ public:
 	}
 	Object2D(std::string imageFilePath, std::array<double, 2> objPixSizes={0.1, 0.1});
 	void display(std::string title);
+	std::array<double, 2> getPixSizes();
 private:
 	cimg_library::CImg<uint16_t> cimg_image;
 	cimg_library::CImgDisplay cimg_window;
-	std::array<double, 2> objPixSizes;
+	const std::array<double, 2> objPixSizes;
 };

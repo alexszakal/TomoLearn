@@ -6,7 +6,7 @@
 int main(){
 	std::cout << "Parallel beam projection simulation" << std::endl;
 	//Reading Shepp-Logan phantom
-	Object2D phantom("Phantoms/SheppLogan.png");
+	Object2D phantom(std::string("Phantoms/SheppLogan.png") );
 	phantom.display("Shepp-Logan phantom");
 
 	return 0;
