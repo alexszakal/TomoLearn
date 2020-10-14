@@ -14,4 +14,6 @@ void Gen1CT::measure(const std::vector<double>& angles, int raysPerPixel){
 	const int numAngles = angles.size();
 
 	Matrix sinogram(numAngles, Row(pixNum)); //Matrix with (pixNum)x(numAngles) size
+
+
 }
