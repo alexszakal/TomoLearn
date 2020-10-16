@@ -1,19 +1,30 @@
+#pragma once
+
 #include <CImg.h>
 #include <string>
 #include <array>
 #include <cstdint>
+#include <vector>
+
+typedef std::vector<double> Row ;
+typedef  std::vector<Row> Matrix;
 
 class Object2D{
 public:
-	Object2D():objPixSizes{1,1}{  //Default constructor, initialize an empty image
-		cimg_image =cimg_library::CImg<uint16_t>();
-		cimg_window = cimg_library::CImgDisplay();
-	}
-	Object2D(std::string imageFilePath, std::array<double, 2> objPixSizes={0.1, 0.1});
+	Object2D():cimg_image{},cimg_window{},objPixSizes{1,1}{}  //Default constructor, initialize an empty image
+	Object2D(const std::string& imageFilePath, const std::array<double, 2>& objPixSizes={0.1, 0.1});
 	void display(std::string title);
 	std::array<double, 2> getPixSizes();
+	std::array<unsigned int, 2> getNumberOfPixels();
+	double linear_atY(int xPixelValue, double yCoordinateInMM);
 private:
 	cimg_library::CImg<uint16_t> cimg_image;
 	cimg_library::CImgDisplay cimg_window;
 	const std::array<double, 2> objPixSizes;
+	std::array<double, 2> objectSizeInMM;
+
+	std::vector<double> xValues;
+	std::vector<double> yValues;
+
+
 };
