@@ -35,7 +35,14 @@ std::array<unsigned int, 2> Object2D::getNumberOfPixels(){
 
 double Object2D::linear_atY(int xPixelValue, double yCoordinateInMM){
 	double yCoordinateInPixel = (-1*objectSizeInMM[1]/2 + yCoordinateInMM) / objPixSizes[0];
-	return cimg_image.linear_atY()
+	if (yCoordinateInPixel < 0) return 0;
+
+	//Linear interpolation
+	double neighbor0 = cimg_image(xPixelValue, floor(yCoordinateInPixel) );
+	double neighbor1 = cimg_image(xPixelValue, ceil(yCoordinateInPixel) );
+
+	return cimg_image(xPixelValue, neighbor0) + (cimg_image(xPixelValue, neighbor1) - cimg_image(xPixelValue, neighbor0)) /
+			(neighbor1-neighbor0) * (yCoordinateInPixel-neighbor0);
 }
 
 
