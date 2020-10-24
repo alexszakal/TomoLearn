@@ -32,17 +32,26 @@ void Gen1CT::measure(const std::vector<double>& angles, int raysPerPixel){
 
 	double t, theta;
 	for(int pixI=0; pixI<pixNum; ++pixI){
+		t=pixPositions[pixI];
 		for(int angI=0; angI<numAngles; ++angI){
-			t=pixPositions[pixI];
-			theta = angles[angI];
+			theta = std::fmod(angles[angI], M_PI);
 			double sinTheta = sin(theta);
 			double cosTheta = cos(theta);
 
-			for(int objectXIndex=0; objectXIndex < object -> getNumberOfPixels()[0]; ++objectXIndex){
-				double objectYinMM = t*sinTheta+ (t*cosTheta - object->getXValueAtPix(objectXIndex))/sinTheta*cosTheta;
-				double tmp = object->linear_atY(objectXIndex, objectYinMM) / std::abs(sinTheta)*object->getPixSizes()[0];
-				sinogram[pixI][angI] += tmp;
+			if( (theta > M_PI/4 ) && (theta < 3*M_PI/4)  ){
+				for(int objectXIndex=0; objectXIndex < object -> getNumberOfPixels()[0]; ++objectXIndex){
+					double objectYinMM = t*sinTheta+ (t*cosTheta - object->getXValueAtPix(objectXIndex))/sinTheta*cosTheta;
+					double tmp = object->linear_atY(objectXIndex, objectYinMM) / std::abs(sinTheta)*object->getPixSizes()[0];
+					sinogram[pixI][angI] += tmp;
+				}
+			} else{
+				for(int objectYIndex=0; objectYIndex < object -> getNumberOfPixels()[1]; ++objectYIndex){
+					double objectXinMM = t*cosTheta - (object->getYValueAtPix(objectYIndex)-t*sinTheta)/cosTheta*sinTheta;
+					double tmp= object->linear_atX(objectYIndex, objectXinMM) / std::abs(cosTheta)*object->getPixSizes()[1];
+					sinogram[pixI][angI] += tmp;
+				}
 			}
+
 		}
 	}
 

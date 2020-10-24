@@ -17,10 +17,11 @@ public:
 	std::array<double, 2> getPixSizes();
 	std::array<unsigned int, 2> getNumberOfPixels();
 	double linear_atY(int xPixelValue, double yCoordinateInMM);
+	double linear_atX(int yPixelValue, double xCoordinateInMM);
 	double getXValueAtPix(int pixValue);
 	double getYValueAtPix(int pixValue);
 private:
-	cimg_library::CImg<uint16_t> cimg_image;
+	cimg_library::CImg<uint8_t> cimg_image;
 	cimg_library::CImgDisplay cimg_window;
 	const std::array<double, 2> objPixSizes;  //Size of a single pixel
 	std::array<double, 2> objectSizeInMM;

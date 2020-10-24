@@ -18,7 +18,7 @@ Object2D::Object2D(const std::string& imageFilePath, const std::array<double, 2>
 
 	for(unsigned int i=0; i<cimg_image._width; ++i){
 		xPixCentresInMM[i]=-1*objectSizeInMM[0]/2 + i*objPixSizes[0] + objPixSizes[0]/2;
-		yPixCentresInMM[i]=-1*objectSizeInMM[0]/2 + i*objPixSizes[1] + objPixSizes[1]/2;
+		yPixCentresInMM[i]=   objectSizeInMM[0]/2 - i*objPixSizes[1] - objPixSizes[1]/2;
 	}
 }
 
@@ -49,6 +49,22 @@ double Object2D::linear_atY(int xPixelValue, double yCoordinateInMM){
 	double neighbor1 = cimg_image(xPixelValue, ceil(yCoordinateInPixel) );
 
 	return neighbor0 + (neighbor1 - neighbor0) * (yCoordinateInPixel - floor(yCoordinateInPixel));
+}
+
+double Object2D::linear_atX(int yPixelValue, double xCoordinateInMM){
+	double xCoordinateInPixel = (objectSizeInMM[0]/2 + xCoordinateInMM) / objPixSizes[0];
+	if (xCoordinateInPixel < 0.5){
+			return 0;
+	}
+	if (xCoordinateInPixel > cimg_image._width-0.5) {
+			return 0;
+	}
+
+	//Linear interpolation
+	double neighbor0 = cimg_image(floor(xCoordinateInPixel), yPixelValue);
+	double neighbor1 = cimg_image(ceil(xCoordinateInPixel), yPixelValue);
+
+	return neighbor0 + (neighbor1 - neighbor0) * (xCoordinateInPixel - floor(xCoordinateInPixel));
 }
 
 double Object2D::getXValueAtPix(int pixValue){

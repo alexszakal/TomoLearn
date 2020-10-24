@@ -14,9 +14,9 @@ int main(){
 	Gen1CT ct(200, 200);
 	ct.putObject(&phantom);
 
-	constexpr int numProjections{140};
+	constexpr int numProjections{180};
 	std::vector<double> angles(numProjections);
-	for(int i=0; i<numProjections; i++){angles[i]=(i+20.0)/180.0*M_PI;}
+	for(int i=0; i<numProjections; i++){angles[i]=i/180.0*M_PI;}
 	ct.measure(angles);
 
 	int tmpi;
