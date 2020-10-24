@@ -22,11 +22,11 @@ public:
 private:
 	cimg_library::CImg<uint16_t> cimg_image;
 	cimg_library::CImgDisplay cimg_window;
-	const std::array<double, 2> objPixSizes;
+	const std::array<double, 2> objPixSizes;  //Size of a single pixel
 	std::array<double, 2> objectSizeInMM;
 
-	std::vector<double> xValues;
-	std::vector<double> yValues;
+	std::vector<double> xPixCentresInMM;  //
+	std::vector<double> yPixCentresInMM;
 
 
 };

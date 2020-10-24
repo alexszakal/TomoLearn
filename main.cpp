@@ -11,10 +11,10 @@ int main(){
 	Object2D phantom(std::string("Phantoms/SheppLogan.png") );
 	phantom.display("Shepp-Logan phantom");
 
-	Gen1CT ct(10, 10);
+	Gen1CT ct(200, 200);
 	ct.putObject(&phantom);
 
-	constexpr int numProjections{10};
+	constexpr int numProjections{140};
 	std::vector<double> angles(numProjections);
 	for(int i=0; i<numProjections; i++){angles[i]=(i+20.0)/180.0*M_PI;}
 	ct.measure(angles);
