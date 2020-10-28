@@ -1,6 +1,11 @@
 #include <iostream>
 #include <cmath>
+
 #include <CImg.h>
+#ifdef Success       //Because otherwise Eigen not compile
+  #undef Success
+#endif
+
 #include <TomoLearnS/Object2D.hpp>
 #include <TomoLearnS/Gen1CT.hpp>
 
@@ -18,6 +23,7 @@ int main(){
 	std::vector<double> angles(numProjections);
 	for(int i=0; i<numProjections; i++){angles[i]=i/180.0*M_PI;}
 	ct.measure(angles);
+	ct.displayMeasurement();
 
 	int tmpi;
 	std::cin>>tmpi;

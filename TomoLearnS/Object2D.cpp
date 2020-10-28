@@ -1,5 +1,10 @@
 #include <TomoLearnS/Object2D.hpp>
+
 #include <CImg.h>
+#ifdef Success       //Because otherwise Eigen not compile
+  #undef Success
+#endif
+
 #include <cstdint>
 #include <iostream>
 #include <vector>
