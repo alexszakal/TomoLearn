@@ -19,7 +19,7 @@ public:
 	Object2D(const std::string& imageFilePath, const std::array<double, 2>& objPixSizes={0.1, 0.1});
 	void display(std::string title);
 	std::array<double, 2> getPixSizes();
-	std::array<unsigned int, 2> getNumberOfPixels();
+	std::array<int, 2> getNumberOfPixels();
 	double linear_atY(int xPixelValue, double yCoordinateInMM);
 	double linear_atX(int yPixelValue, double xCoordinateInMM);
 	double getXValueAtPix(int pixValue);

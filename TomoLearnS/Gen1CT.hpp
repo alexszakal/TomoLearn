@@ -12,16 +12,22 @@ public:
 	void measure(const std::vector<double>& angles, int raysPerPixel=1);
 	void filteredBackProjection();
 	void displayMeasurement();
+	void backProject(const std::vector<int>& numberOfRecPoints, const std::vector<double>& resolution);
 
 private:
 	const double detWidth;
 	const int pixNum;
-	int numAngles;
-	std::vector<double> pixPositions;
 	Object2D* object;
-	Eigen::MatrixXd sinogramE;
+	int numAngles;
+	std::vector<double> angs;
+	std::vector<double> pixPositions;
+
+	Eigen::MatrixXd sinogram;
 	cimg_library::CImg<uint16_t> sinoImage;
 	cimg_library::CImgDisplay sinoWindow;
 
+	Eigen::MatrixXd backprojection;
+	cimg_library::CImg<uint16_t> BPImage;
+	cimg_library::CImgDisplay BPWindow;
 
 };

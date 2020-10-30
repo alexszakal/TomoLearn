@@ -36,8 +36,8 @@ std::array<double,2> Object2D::getPixSizes(){
 	return objPixSizes;
 }
 
-std::array<unsigned int, 2> Object2D::getNumberOfPixels(){
-	return std::array<unsigned int, 2>{cimg_image._width, cimg_image._height};
+std::array<int, 2> Object2D::getNumberOfPixels(){
+	return std::array<int, 2>{static_cast<int>(cimg_image._width), static_cast<int>(cimg_image._height)};
 }
 
 double Object2D::linear_atY(int xPixelValue, double yCoordinateInMM){
