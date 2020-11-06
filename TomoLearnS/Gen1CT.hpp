@@ -13,6 +13,7 @@ public:
 	void filteredBackProjection();
 	void displayMeasurement();
 	void backProject(const std::vector<int>& numberOfRecPoints, const std::vector<double>& resolution);
+	void FBP(std::vector<int> numberOfRecPoints, std::vector<double> resolution);
 
 private:
 	const double detWidth;
@@ -29,5 +30,9 @@ private:
 	Eigen::MatrixXd backprojection;
 	cimg_library::CImg<uint16_t> BPImage;
 	cimg_library::CImgDisplay BPWindow;
+
+	Eigen::MatrixXd filteredBP;
+	cimg_library::CImg<uint16_t> FBPImage;
+	cimg_library::CImgDisplay FBPWindow;
 
 };

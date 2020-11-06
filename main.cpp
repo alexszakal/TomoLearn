@@ -3,7 +3,7 @@
 #include <chrono>
 
 #include <CImg.h>
-#ifdef Success       //Because otherwise Eigen not compile
+#ifdef Success       //Because otherwise Eigen not compile (EIgen <-> CImg interference)
   #undef Success
 #endif
 
@@ -17,15 +17,17 @@ int main(){
 	Object2D phantom(std::string("Phantoms/SheppLogan.png") );
 	phantom.display("Shepp-Logan phantom");
 
-	Gen1CT ct(200, 200);
+	Gen1CT ct(200, 1000);  //width, pixNum
 	ct.putObject(&phantom);
 
 	constexpr int numProjections{180};
 	std::vector<double> angles(numProjections);
 	for(int i=0; i<numProjections; i++){angles[i]=i/180.0*M_PI;}
 	ct.measure(angles);
-	ct.displayMeasurement();
 
+
+	ct.FBP(std::vector<int>{1024,1024}, std::vector<double>{0.1, 0.1});
+	ct.displayMeasurement();
 	ct.backProject(std::vector<int>{1024,1024}, std::vector<double>{0.1, 0.1});
 
 	int tmpi;

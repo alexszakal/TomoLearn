@@ -1,4 +1,9 @@
+#define EIGEN_FFTW_DEFAULT
+#include <unsupported/Eigen/FFT>
+
 #include <TomoLearnS/Gen1CT.hpp>
+#include <TomoLearnS/Object2D.hpp>
+#include <matplotlibcpp/matplotlibcpp.h>
 #include <iostream>
 #include <cassert>
 #include <cmath>
@@ -124,6 +129,47 @@ void Gen1CT::backProject(const std::vector<int>& numberOfRecPoints, const std::v
 	}
 
 	BPWindow = cimg_library::CImgDisplay(BPImage, "Backprojection");
+
+}
+
+void Gen1CT::FBP(std::vector<int> numberOfRecPoints, std::vector<double> resolution){
+	//Filtered Backprojection using Ram-Lak filter
+
+	//Fourier transform of the Sinogram:
+	Eigen::FFT<double> fft;
+	Eigen::MatrixXcd fftOfSinogram = Eigen::MatrixXcd::Zero(pixNum, numAngles);
+	for(int i=0; i<sinogram.cols(); i++){
+		fftOfSinogram.col(i) = fft.fwd(sinogram.col(i));
+		/*if(i==1){
+			std::cout<<std::endl<<"Fourier transzformalt:\n";
+			for(int j=0; j<pixNum; j++)
+				std::cout<<fftOfSinogram(j,i)<<std::endl;
+		}*/
+	}
+
+	//The Ram-Lak filter
+	Eigen::ArrayXd freqFilter = Eigen::ArrayXd::Zero(pixNum,1);
+	for(int i=0; i<pixNum; i++){
+		if(pixNum/2-std::abs(pixNum/2-i) <= 1000)
+			freqFilter(i,0)=pixNum/2-std::abs(pixNum/2-i);
+		else
+			freqFilter(i,0)=0;
+	}
+	//plot the Ram-Lak
+	//matplotlibcpp::plot(std::vector<float> (&freqFilter[0], freqFilter.data()+freqFilter.cols()*freqFilter.rows()) );
+	//matplotlibcpp::show();
+
+	//Multiply with filter
+	for(int i=0; i<fftOfSinogram.cols(); ++i){
+		fftOfSinogram.col(i) = fftOfSinogram.col(i).array() * freqFilter;
+	}
+
+	//IFFT of filtered sinogram
+	for(int i=0; i<fftOfSinogram.cols(); i++){
+		sinogram.col(i) = fft.inv(fftOfSinogram.col(i));
+	}
+
+
 
 }
 
