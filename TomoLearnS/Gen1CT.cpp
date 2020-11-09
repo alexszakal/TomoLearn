@@ -140,35 +140,49 @@ void Gen1CT::FBP(std::vector<int> numberOfRecPoints, std::vector<double> resolut
 	Eigen::MatrixXcd fftOfSinogram = Eigen::MatrixXcd::Zero(pixNum, numAngles);
 	for(int i=0; i<sinogram.cols(); i++){
 		fftOfSinogram.col(i) = fft.fwd(sinogram.col(i));
-		/*if(i==1){
+		if(i==30){
 			std::cout<<std::endl<<"Fourier transzformalt:\n";
 			for(int j=0; j<pixNum; j++)
-				std::cout<<fftOfSinogram(j,i)<<std::endl;
-		}*/
+				std::cout<<fftOfSinogram(j,i) << std::endl;
+		}
 	}
 
 	//The Ram-Lak filter
 	Eigen::ArrayXd freqFilter = Eigen::ArrayXd::Zero(pixNum,1);
 	for(int i=0; i<pixNum; i++){
-		if(pixNum/2-std::abs(pixNum/2-i) <= 1000)
-			freqFilter(i,0)=pixNum/2-std::abs(pixNum/2-i);
+		if(pixNum/2-std::abs(pixNum/2-i) <= 300)
+			freqFilter(i,0)=static_cast<double>( (pixNum/2-std::abs(pixNum/2-i)) ) /300/300;
 		else
 			freqFilter(i,0)=0;
 	}
 	//plot the Ram-Lak
-	//matplotlibcpp::plot(std::vector<float> (&freqFilter[0], freqFilter.data()+freqFilter.cols()*freqFilter.rows()) );
-	//matplotlibcpp::show();
+	matplotlibcpp::plot(std::vector<float> (&freqFilter[0], freqFilter.data()+freqFilter.cols()*freqFilter.rows()) );
+	matplotlibcpp::show();
+
+	//plot the fftOfSino before multiplying
+	Eigen::MatrixXd sinoPlot =fftOfSinogram.col(30).real();
+	matplotlibcpp::plot(std::vector<float> (&sinoPlot(0), sinoPlot.data()+sinoPlot.cols()*sinoPlot.rows()) );
+	matplotlibcpp::show();
 
 	//Multiply with filter
 	for(int i=0; i<fftOfSinogram.cols(); ++i){
 		fftOfSinogram.col(i) = fftOfSinogram.col(i).array() * freqFilter;
 	}
 
+	//plot the fftOfSino after multiplying
+	sinoPlot =fftOfSinogram.col(30).real();
+	matplotlibcpp::plot(std::vector<float> (&sinoPlot(0), sinoPlot.data()+sinoPlot.cols()*sinoPlot.rows()) );
+	matplotlibcpp::show();
+
 	//IFFT of filtered sinogram
 	for(int i=0; i<fftOfSinogram.cols(); i++){
 		sinogram.col(i) = fft.inv(fftOfSinogram.col(i));
 	}
 
+	//plot the ifft of fftOfSino after multiplying
+	sinoPlot =sinogram.col(30).real();
+	matplotlibcpp::plot(std::vector<float> (&sinoPlot(0), sinoPlot.data()+sinoPlot.cols()*sinoPlot.rows()) );
+	matplotlibcpp::show();
 
 
 }

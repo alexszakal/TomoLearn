@@ -24,10 +24,11 @@ int main(){
 	std::vector<double> angles(numProjections);
 	for(int i=0; i<numProjections; i++){angles[i]=i/180.0*M_PI;}
 	ct.measure(angles);
-
+	ct.displayMeasurement();
 
 	ct.FBP(std::vector<int>{1024,1024}, std::vector<double>{0.1, 0.1});
 	ct.displayMeasurement();
+
 	ct.backProject(std::vector<int>{1024,1024}, std::vector<double>{0.1, 0.1});
 
 	int tmpi;

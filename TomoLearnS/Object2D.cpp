@@ -19,14 +19,14 @@ Object2D::Object2D(const std::string& imageFilePath, const std::array<double, 2>
 	for(uint i=0; i<cimg_image._height; ++i){
 		for(uint j=0; j<cimg_image._width; ++j){
 			image(i,j) = cimg_image(j,i);
-			if (i==500) cimg_image(j,i) = 255;
+			//if (i==500) cimg_image(j,i) = 255;  //DEBUG
 		}
 	}
 	//DEBUG: Show a cut of the image
-	int rowIdx=500;
+/*	int rowIdx=500;
 	Eigen::VectorXd imageCut = image.row(rowIdx);
 	matplotlibcpp::plot(std::vector<float> (&imageCut[0], imageCut.data()+imageCut.cols()*imageCut.rows()) );
-	matplotlibcpp::show(False);
+	matplotlibcpp::show(False); */
 	//END DEBUG
 
 	xPixCentresInMM = std::vector<double>( cimg_image._width  );
