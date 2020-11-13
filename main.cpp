@@ -17,17 +17,17 @@ int main(){
 	Object2D phantom(std::string("Phantoms/SheppLogan.png") );
 	phantom.display("Shepp-Logan phantom");
 
-	Gen1CT ct(200, 1000);  //width, pixNum
+	Gen1CT ct(95, 128);  //width[mm], pixNum
 	ct.putObject(&phantom);
 
-	constexpr int numProjections{180};
+	const int numProjections{110};
 	std::vector<double> angles(numProjections);
-	for(int i=0; i<numProjections; i++){angles[i]=i/180.0*M_PI;}
+	for(int i=0; i<numProjections; i++){angles[i]=i/static_cast<double>(numProjections)*M_PI;}
 	ct.measure(angles);
 	ct.displayMeasurement();
 
 	ct.FBP(std::vector<int>{1024,1024}, std::vector<double>{0.1, 0.1});
-	ct.displayMeasurement();
+	//ct.displayMeasurement();
 
 	ct.backProject(std::vector<int>{1024,1024}, std::vector<double>{0.1, 0.1});
 

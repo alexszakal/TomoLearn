@@ -5,7 +5,7 @@
   #undef Success
 #endif
 
-#include <matplotlibcpp/matplotlibcpp.h>
+#include <matplotlibcpp/matplotlibcpp_old.h>
 
 #include <cstdint>
 #include <iostream>
@@ -18,16 +18,9 @@ Object2D::Object2D(const std::string& imageFilePath, const std::array<double, 2>
 	image = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>::Zero(cimg_image._height, cimg_image._width);
 	for(uint i=0; i<cimg_image._height; ++i){
 		for(uint j=0; j<cimg_image._width; ++j){
-			image(i,j) = cimg_image(j,i);
-			//if (i==500) cimg_image(j,i) = 255;  //DEBUG
+			image(i,j) = cimg_image(j,i);   //Indexes are swapped due to different conventions in Eigen and cimg
 		}
 	}
-	//DEBUG: Show a cut of the image
-/*	int rowIdx=500;
-	Eigen::VectorXd imageCut = image.row(rowIdx);
-	matplotlibcpp::plot(std::vector<float> (&imageCut[0], imageCut.data()+imageCut.cols()*imageCut.rows()) );
-	matplotlibcpp::show(False); */
-	//END DEBUG
 
 	xPixCentresInMM = std::vector<double>( cimg_image._width  );
 	yPixCentresInMM = std::vector<double>( cimg_image._height );
@@ -40,6 +33,12 @@ Object2D::Object2D(const std::string& imageFilePath, const std::array<double, 2>
 		xPixCentresInMM[i]=-1*objectSizeInMM[0]/2 + i*objPixSizes[0] + objPixSizes[0]/2;
 		yPixCentresInMM[i]=   objectSizeInMM[0]/2 - i*objPixSizes[1] - objPixSizes[1]/2;
 	}
+
+	/*//DEBUG show values along lower ellipses
+	Eigen::VectorXd slice = image.row(821);
+	matplotlibcpp::plot(std::vector<float> (&slice[0], slice.data()+slice.cols()*slice.rows()) );
+	matplotlibcpp::show(False);
+*/
 }
 
 void Object2D::display(std::string title){
@@ -57,34 +56,31 @@ std::array<int, 2> Object2D::getNumberOfPixels(){
 
 double Object2D::linear_atY(int xPixelValue, double yCoordinateInMM){
 	double yCoordinateInPixel = (objectSizeInMM[1]/2 - yCoordinateInMM) / objPixSizes[1];
-	if (yCoordinateInPixel < 0.5){
+
+	int lowerPixelIndex = floor(yCoordinateInPixel);
+	int higherPixelIndex = ceil(yCoordinateInPixel);
+	if( ( lowerPixelIndex < 0 ) || ( higherPixelIndex > static_cast<int>(cimg_image._height)-1 ) )
 		return 0;
-	}
-	if (yCoordinateInPixel > cimg_image._height-0.5) {
-		return 0;
-	}
 
 	//Linear interpolation
-	double neighbor0 = cimg_image(xPixelValue, floor(yCoordinateInPixel) );
-	double neighbor1 = cimg_image(xPixelValue, ceil(yCoordinateInPixel) );
+	double neighbor0 = cimg_image(xPixelValue, lowerPixelIndex );
+	double neighbor1 = cimg_image(xPixelValue, higherPixelIndex );
 
-	return neighbor0 + (neighbor1 - neighbor0) * (yCoordinateInPixel - floor(yCoordinateInPixel));
+	return neighbor0 + (neighbor1 - neighbor0) * (yCoordinateInPixel - lowerPixelIndex);
 }
 
 double Object2D::linear_atX(int yPixelValue, double xCoordinateInMM){
 	double xCoordinateInPixel = (objectSizeInMM[0]/2 + xCoordinateInMM) / objPixSizes[0];
-	if (xCoordinateInPixel < 0.5){
-			return 0;
-	}
-	if (xCoordinateInPixel > cimg_image._width-0.5) {
-			return 0;
-	}
+	int lowerPixelIndex = floor(xCoordinateInPixel);
+	int higherPixelIndex = ceil(xCoordinateInPixel);
+	if( ( lowerPixelIndex < 0 ) || ( higherPixelIndex > static_cast<int>(cimg_image._height)-1 ) )
+		return 0;
 
 	//Linear interpolation
-	double neighbor0 = cimg_image(floor(xCoordinateInPixel), yPixelValue);
-	double neighbor1 = cimg_image(ceil(xCoordinateInPixel), yPixelValue);
+	double neighbor0 = cimg_image(lowerPixelIndex, yPixelValue);
+	double neighbor1 = cimg_image(higherPixelIndex, yPixelValue);
 
-	return neighbor0 + (neighbor1 - neighbor0) * (xCoordinateInPixel - floor(xCoordinateInPixel));
+	return neighbor0 + (neighbor1 - neighbor0) * (xCoordinateInPixel - lowerPixelIndex);
 }
 
 double Object2D::getXValueAtPix(int pixValue){
