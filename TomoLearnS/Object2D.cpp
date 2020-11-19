@@ -91,4 +91,8 @@ double Object2D::getYValueAtPix(int pixValue){
 	return yPixCentresInMM[pixValue];
 }
 
+const Eigen::MatrixXd& Object2D::getDataAsEigenMatrixRef() const{
+	return image;
+}
+
 

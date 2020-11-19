@@ -14,6 +14,9 @@ public:
 	void displayMeasurement();
 	void backProject(const std::vector<int>& numberOfRecPoints, const std::vector<double>& resolution);
 	void FBP(std::vector<int> numberOfRecPoints, std::vector<double> resolution);
+	void FBP_bandlimited(std::vector<int> numberOfRecPoints, std::vector<double> resolution);
+	const Eigen::MatrixXd& getSinogram() const;
+	const std::vector<double>& getPixPositions() const;
 
 private:
 	const double detWidth;

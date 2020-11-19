@@ -81,12 +81,19 @@ void Gen1CT::displayMeasurement(){
 	double minInt = sinogram.minCoeff();
 	for(int i=0; i<pixNum; ++i){
 		for(int j=0; j<numAngles; ++j){
-			sinoImage(i,j) = (static_cast<uint16_t>(sinogram(i,j)-minInt)/(maxInt-minInt)*65530);
+			sinoImage(i,j) = static_cast<uint16_t>((sinogram(i,j)-minInt)/(maxInt-minInt)*65530);
 		}
 	}
 
 	sinoWindow = cimg_library::CImgDisplay(sinoImage, "Sinogram");
 	//sinoWindow.wait();
+
+	//DEBUG
+	/*matplotlibcpp::figure(44);
+	Eigen::VectorXd proj = sinogram.col(0);
+	matplotlibcpp::plot(std::vector<float> (&proj[0], proj.data()+proj.cols()*proj.rows()) );
+	matplotlibcpp::show();
+    */
 }
 
 void Gen1CT::backProject(const std::vector<int>& numberOfRecPoints, const std::vector<double>& resolution){
@@ -115,72 +122,107 @@ void Gen1CT::backProject(const std::vector<int>& numberOfRecPoints, const std::v
 	}
 
 	//For each point in real space
+	double offset = detWidth/2 - detWidth/pixNum/2;
+	double invPixRes = pixNum/detWidth;
+	double minPixPosition = pixPositions[0];
+	double maxPixPosition = pixPositions[pixNum-1];
 	for(int xIdx=0; xIdx<numberOfRecPoints[0]; ++xIdx){
 		for(int yIdx=0; yIdx<numberOfRecPoints[1]; ++yIdx){
 			//For every angle
 			for(unsigned int thIdx=0; thIdx<angs.size(); ++thIdx){
 				//Add the corresponding interpolated points from the sinogram
 				double tValue = xValues[xIdx]*cosTheta[thIdx] + yValues[yIdx]*sinTheta[thIdx];
-				if( (tValue<pixPositions[0]) || (tValue > pixPositions[pixNum-1]))
+				if( (tValue<minPixPosition) || (tValue > maxPixPosition))
 					continue;
-				double pixIdx= (tValue + detWidth/2 - detWidth/pixNum/2) / (detWidth/pixNum);
-				double valueInLowerPixel  = sinogram(floor(pixIdx), thIdx);
+				double pixIdx= (tValue + offset) * invPixRes;
+				double floorPixIdx = floor(pixIdx);
+				double valueInLowerPixel  = sinogram(floorPixIdx, thIdx);
 				double valueInHigherPixel = sinogram(ceil(pixIdx), thIdx);
 
-				backprojection(xIdx, yIdx) += valueInLowerPixel + (valueInHigherPixel - valueInLowerPixel) * (pixIdx-floor(pixIdx));
+				backprojection(xIdx, yIdx) += valueInLowerPixel + (valueInHigherPixel - valueInLowerPixel) * (pixIdx-floorPixIdx);
 			}
 		}
 	}
+	//Multiply with dTheta
+	backprojection = backprojection*M_PI/angs.size();
 
 	auto stop = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 	std::cout << "Reconstruction took " << duration.count() << " milliseconds" << std::endl;
+
+	//DEBUG
+	//for( int i=0; i<numberOfRecPoints[1]; ++i){
+	//		std::cout << std::endl << "Index: "<< i << "  Image: " << object->getDataAsEigenMatrixRef().row(821)(i)   << "  Reconst: " << backprojection(i,821);
+	//}
+	std::cout << std::endl << "Ratio of reconstructed and real (768. pixel): " << backprojection(768,821) / object->getDataAsEigenMatrixRef().row(821)(768);
 
 	BPImage = cimg_library::CImg<uint16_t>(numberOfRecPoints[0], numberOfRecPoints[1], 1, 1);
 	double maxInt = backprojection.maxCoeff();
 	double minInt =backprojection.minCoeff();
 	for(int i=0; i<numberOfRecPoints[0]; ++i){
 		for(int j=0; j<numberOfRecPoints[1]; ++j){
-			BPImage(i,j) = (static_cast<uint16_t>(backprojection(i,j)-minInt)/(maxInt-minInt)*65536);
+			BPImage(i,j) = static_cast<uint16_t>((backprojection(i,j)-minInt)/(maxInt-minInt)*65536);
 		}
 	}
 
 	BPWindow = cimg_library::CImgDisplay(BPImage, "Backprojection");
 
-	//DEBUG slice throughg the small ellipses
-	Eigen::VectorXd slice = backprojection.col(821);
-	matplotlibcpp::figure(2);
-	matplotlibcpp::plot(std::vector<float> (&slice[0], slice.data()+slice.cols()*slice.rows()) );
+	//DEBUG slice through the small ellipses
+	Eigen::VectorXd BPSlice = backprojection.col(821);
+	Eigen::VectorXd ObjSlice = object->getDataAsEigenMatrixRef().row(821);
+	matplotlibcpp::figure(27);
+	matplotlibcpp::plot(std::vector<float> (&BPSlice[0], BPSlice.data()+BPSlice.cols()*BPSlice.rows()) );
+	matplotlibcpp::plot(std::vector<float> (&ObjSlice[0], ObjSlice.data()+ObjSlice.cols()*ObjSlice.rows()) );
 	matplotlibcpp::show(False);
+
 
 }
 
 void Gen1CT::FBP(std::vector<int> numberOfRecPoints, std::vector<double> resolution){
+	/**
+	 * Filtered BackProjection
+	 * Input:
+	 * 		-numberOfRecPoints [1]
+	 * 		-resolution [mm]
+	 * Output:
+	 * 		None
+	 */
+
 	//Filtered Backprojection using Ram-Lak filter
 	std::cout << "Filtering started" << std::endl;
 	auto start = std::chrono::high_resolution_clock::now();
 
-	//Fourier transform of the Sinogram:
+	//Zero padding of the sinogram
+	std::cout << "\n Eredeti pixnum: " << pixNum;
+	int pixNumPadded = 2*pixNum-1;
+	std::cout << "\n Padded pixnum: " << pixNumPadded;
+	pixNumPadded = std::pow(2, std::ceil(std::log2(pixNumPadded)));
+	std::cout << "\n Padded pixnum power2: " << pixNumPadded <<"\n";
+
+	Eigen::MatrixXd paddedSinogram = Eigen::MatrixXd::Zero(pixNumPadded, numAngles);
+	int startIndex=floor((pixNumPadded-pixNum)/2);
+	paddedSinogram.block(startIndex, 0, pixNum, numAngles) = sinogram;
+
+	//Fourier transform of the padded Sinogram:
 	Eigen::FFT<double> fft;
-	Eigen::MatrixXcd fftOfSinogram = Eigen::MatrixXcd::Zero(pixNum, numAngles);
-	for(int i=0; i<sinogram.cols(); i++){
-		fftOfSinogram.col(i) = fft.fwd(sinogram.col(i));
+	Eigen::MatrixXcd fftOfSinogram = Eigen::MatrixXcd::Zero(pixNumPadded, numAngles);
+	for(int i=0; i<paddedSinogram.cols(); i++){
+		fftOfSinogram.col(i) = fft.fwd(paddedSinogram.col(i));
 	}
 
 	//The Ram-Lak filter
-	//Eigen::ArrayXd freqFilter = Eigen::ArrayXd::Ones(pixNum,1)*3;
-	Eigen::ArrayXd freqFilter = Eigen::ArrayXd::Zero(pixNum,1);
-	for(int i=0; i<pixNum; i++){
-		if(pixNum/2-std::abs(pixNum/2-i) <= 700)
-			freqFilter(i,0)=static_cast<double>( (pixNum/2-std::abs(pixNum/2-i)) )/(pixNum/2) *2*M_PI/180;
+	Eigen::ArrayXd freqFilter = Eigen::ArrayXd::Zero(pixNumPadded,1);
+	for(int i=0; i<pixNumPadded; i++){
+		if(pixNumPadded/2-std::abs(pixNumPadded/2-i) <= 700)
+			freqFilter(i,0)=static_cast<double>( (pixNumPadded/2-std::abs(pixNumPadded/2-i)) )/(pixNumPadded/2);
 		else
 			freqFilter(i,0)=0;
 	}
-	/*//DEBUG plot the Ram-Lak
+	//DEBUG plot the Ram-Lak
 	matplotlibcpp::figure(3);
 	matplotlibcpp::plot(std::vector<float> (&freqFilter[0], freqFilter.data()+freqFilter.cols()*freqFilter.rows()) );
 	matplotlibcpp::show(False);
-*/
+
 
 	//Multiply with filter
 	for(int i=0; i<fftOfSinogram.cols(); ++i){
@@ -189,8 +231,10 @@ void Gen1CT::FBP(std::vector<int> numberOfRecPoints, std::vector<double> resolut
 
 	//IFFT of filtered sinogram
 	for(int i=0; i<fftOfSinogram.cols(); i++){
-		sinogram.col(i) = fft.inv(fftOfSinogram.col(i)).real();
+		paddedSinogram.col(i) = fft.inv(fftOfSinogram.col(i)).real();
 	}
+
+	sinogram=detWidth/pixNum*paddedSinogram.block(startIndex,0, pixNum, numAngles);
 
 	auto stop = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
@@ -198,7 +242,104 @@ void Gen1CT::FBP(std::vector<int> numberOfRecPoints, std::vector<double> resolut
 
 }
 
+const Eigen::MatrixXd& Gen1CT::getSinogram() const {
+	return sinogram;
+}
 
+const std::vector<double>& Gen1CT::getPixPositions() const {
+	return pixPositions;
+}
+
+void Gen1CT::FBP_bandlimited(std::vector<int> numberOfRecPoints, std::vector<double> resolution){
+	/**
+	 * Filtered BackProjection
+	 * Input:
+	 * 		-numberOfRecPoints [1]
+	 * 		-resolution [mm]
+	 * Output:
+	 * 		None
+	 */
+
+	//Filtered Backprojection using Ram-Lak filter
+	//Timing
+	std::cout << "Filtering started" << std::endl;
+	auto start = std::chrono::high_resolution_clock::now();
+
+	//Zero padding of the sinogram
+	int pixNumPadded = std::pow(2, std::ceil(std::log2(2*pixNum-1)));
+	std::cout << "\nOriginal pixNum:" << pixNum << " ZeroPadded to: " << pixNumPadded <<"\n";
+
+	Eigen::MatrixXd paddedSinogram = Eigen::MatrixXd::Zero(pixNumPadded, numAngles);
+	int startIndex=floor((pixNumPadded-pixNum)/2);
+	paddedSinogram.block(startIndex, 0, pixNum, numAngles) = sinogram;
+
+	//DEBUG
+	cimg_library::CImg<uint16_t> paddedImage = cimg_library::CImg<uint16_t>(pixNumPadded, numAngles, 1, 1);
+	double maxInt = paddedSinogram.maxCoeff();
+	double minInt = paddedSinogram.minCoeff();
+	for(int i=0; i<pixNumPadded; ++i){
+		for(int j=0; j<numAngles; ++j){
+			paddedImage(i,j) = static_cast<uint16_t>((paddedSinogram(i,j)-minInt)/(maxInt-minInt)*65530);
+		}
+	}
+	cimg_library::CImgDisplay paddedImageDisplay = cimg_library::CImgDisplay(paddedImage, "PaddedImage");
+	paddedImageDisplay.wait();
+	//DEBUG END
+
+	//Fourier transform of the padded Sinogram:
+	Eigen::FFT<double> fft;
+	Eigen::MatrixXcd fftOfSinogram = Eigen::MatrixXcd::Zero(pixNumPadded, numAngles);
+	for(int i=0; i<paddedSinogram.cols(); i++){
+		fftOfSinogram.col(i) = fft.fwd(paddedSinogram.col(i));
+	}
+
+	//Construct the filter
+	Eigen::MatrixXcd freqFilter = Eigen::MatrixXd::Zero(pixNumPadded,1);
+	Eigen::MatrixXd filter = Eigen::MatrixXd::Zero(pixNumPadded,1);
+
+	double tau=detWidth/pixNum;
+	filter(0)=1/(4*tau*tau);
+	for(int i=0; i<pixNumPadded/4; ++i){
+		int idx= i*2+1;
+		filter(idx) = -1/std::pow(idx*M_PI*tau, 2);
+		filter(pixNumPadded-idx) = filter(idx);
+	}
+	Eigen::FFT<double> fft2;
+	freqFilter.col(0)=fft2.fwd(filter.col(0));
+
+	//Low-pass filter to suppress the noise
+	int maxFreq=256;
+	for(int i=maxFreq+1; i<=pixNumPadded/2; ++i ){
+		freqFilter(i)=0;
+		freqFilter(pixNumPadded-i)=0;
+	}
+
+	//DEBUG plot the Ram-Lak
+	matplotlibcpp::figure(3);
+	Eigen::MatrixXd absVector = freqFilter.imag().array().pow(2) + freqFilter.real().array().pow(2) ;
+	absVector = absVector.array().pow(0.5);
+	std::cout << "\n H(0)= " << absVector(0);
+	matplotlibcpp::plot(std::vector<float> (&absVector(0), absVector.data()+absVector.cols()*absVector.rows()) );
+	matplotlibcpp::show();
+
+
+	//Multiply with filter
+	for(int i=0; i<fftOfSinogram.cols(); ++i){
+		fftOfSinogram.col(i) = fftOfSinogram.col(i).array() * freqFilter.array();
+	}
+
+	//IFFT of filtered sinogram
+	for(int i=0; i<fftOfSinogram.cols(); i++){
+		paddedSinogram.col(i) = tau * fft.inv(fftOfSinogram.col(i)).real();
+	}
+
+	sinogram=paddedSinogram.block(startIndex,0, pixNum, numAngles);
+
+	auto stop = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+	std::cout << "Filtering took " << duration.count() << " milliseconds" << std::endl;
+
+}
 
 
 
