@@ -32,26 +32,25 @@ void testFBP(){
 
 	std::cout << "Parallel beam FBP simulation" << std::endl;
 	//Reading Shepp-Logan phantom
-	Object2D phantom(std::string("Phantoms/ModifiedSheppLogan.png") );
-	phantom.display("Shepp-Logan phantom");
+	//Object2D phantom(std::string("Phantoms/ModifiedSheppLogan_asymmetric.png") );
+	//phantom.display("Modified Shepp-Logan phantom");
 
 	Gen1CT ct(110, 1024);  //width[mm], pixNum
-	ct.putObject(&phantom);
+	ct.addPhantom("SL", "Phantoms/ModifiedSheppLogan_asymmetric.png");
+	ct.addPhantom("SL", "Phantoms/SheppLogan.png");
+	ct.displayPhantom("SL");
 
 	const int numProjections{180};
-	std::vector<double> angles(numProjections);
-	for(int i=0; i<numProjections; i++){angles[i]=i/static_cast<double>(numProjections)*M_PI;}
-	ct.measure(angles);
-	ct.displayMeasurement();
+	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0, 180/180*M_PI);
 
-	//ct.FBP(std::vector<int>{1024,1024}, std::vector<double>{0.1, 0.1});
-	ct.FBP_bandlimited(std::vector<int>{1024,1024}, std::vector<double>{0.1, 0.1});
-	//ct.FBP_bandlimited(std::vector<int>{128,128}, std::vector<double>{1, 1});
+//	ct.measure(angles);
+/*	ct.displayMeasurement();
+
+	ct.FBP(std::vector<int>{1024,1024}, std::vector<double>{0.1, 0.1});
 	//ct.displayMeasurement();
 
 	ct.backProject(std::vector<int>{1024,1024}, std::vector<double>{0.1, 0.1});
-	//ct.backProject(std::vector<int>{128,128}, std::vector<double>{1, 1});
-
+*/
 	int tmpi;
 	std::cin>>tmpi;
 
@@ -61,7 +60,7 @@ void testRadonTransform(){
 	/**
 	 * Compare the numerical and analytic Radon transform of an ellipse
 	 */
-
+/*
 	std::cout << "Parallel beam projection simulation" << std::endl;
 	//Reading single ellipse phantom
 	Object2D phantom(std::string("Phantoms/singleEllipse.png") );
@@ -69,7 +68,7 @@ void testRadonTransform(){
 
 	//generate RadonTransform
 	Gen1CT ct(95, 128);  //width[mm], pixNum
-	ct.putObject(&phantom);
+	ct.addPhantom(&phantom);
 	const int numProjections{180};
 	std::vector<double> angles(numProjections);
 	for(int i=0; i<numProjections; i++){angles[i]=i/static_cast<double>(numProjections)*M_PI;}
@@ -123,6 +122,8 @@ void testRadonTransform(){
 
 	int tmpi;
 	std::cin>>tmpi;
+
+*/
 }
 
 

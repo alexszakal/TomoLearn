@@ -2,40 +2,51 @@
 
 #include <TomoLearnS/Object2D.hpp>
 #include <vector>
+#include <string>
+#include <map>
 #include <Eigen/Dense>
+
 
 class Gen1CT{
 public:
-	Gen1CT();
-	Gen1CT(double detWidth, int pixNum);
-	void putObject(Object2D *object);
-	void measure(const std::vector<double>& angles, int raysPerPixel=1);
-	void filteredBackProjection();
-	void displayMeasurement();
-	void backProject(const std::vector<int>& numberOfRecPoints, const std::vector<double>& resolution);
-	void FBP(std::vector<int> numberOfRecPoints, std::vector<double> resolution);
-	void FBP_bandlimited(std::vector<int> numberOfRecPoints, std::vector<double> resolution);
-	const Eigen::MatrixXd& getSinogram() const;
-	const std::vector<double>& getPixPositions() const;
+	Gen1CT();      //REGI
+	Gen1CT(double detWidth, int pixNum);    //REGI
+
+	void addPhantom(const std::string& label, const std::string& phantomImageSource, std::array<double, 2> pixSizes={0.1, 0.1});
+	void displayPhantom(const std::string& label);
+
+	void measure(const std::string& label, const Eigen::VectorXd& angles, const std::string& scanLabel);
+	void displayMeasurement();    //REGI
+
+	void filteredBackProjection();    //REGI
+	void backProject(const std::vector<int>& numberOfRecPoints, const std::vector<double>& resolution);    //REGI
+	void FBP(std::vector<int> numberOfRecPoints, std::vector<double> resolution);    //REGI
+	void FBP_bandlimited(std::vector<int> numberOfRecPoints, std::vector<double> resolution);    //REGI
+	const Eigen::MatrixXd& getSinogram() const;    //REGI
+	const std::vector<double>& getPixPositions() const;    //REGI
 
 private:
-	const double detWidth;
-	const int pixNum;
-	Object2D* object;
-	int numAngles;
-	std::vector<double> angs;
-	std::vector<double> pixPositions;
+	const double detWidth;    //REGI
+	const int pixNum;    //REGI
+	Object2D* object;    //REGI
+	int numAngles;    //REGI
 
-	Eigen::MatrixXd sinogram;
-	cimg_library::CImg<uint16_t> sinoImage;
-	cimg_library::CImgDisplay sinoWindow;
+	std::map<std::string, Object2D> phantoms;
+	std::map<std::string, Object2D> scans;
 
-	Eigen::MatrixXd backprojection;
-	cimg_library::CImg<uint16_t> BPImage;
-	cimg_library::CImgDisplay BPWindow;
+	Eigen::VectorXd angs;    //REGI
+	std::vector<double> pixPositions;    //REGI
 
-	Eigen::MatrixXd filteredBP;
-	cimg_library::CImg<uint16_t> FBPImage;
-	cimg_library::CImgDisplay FBPWindow;
+	Eigen::MatrixXd sinogram;    //REGI
+	cimg_library::CImg<uint16_t> sinoImage;    //REGI
+	cimg_library::CImgDisplay sinoWindow;    //REGI
+
+	Eigen::MatrixXd backprojection;    //REGI
+	cimg_library::CImg<uint16_t> BPImage;    //REGI
+	cimg_library::CImgDisplay BPWindow;    //REGI
+
+	Eigen::MatrixXd filteredBP;    //REGI
+	cimg_library::CImg<uint16_t> FBPImage;    //REGI
+	cimg_library::CImgDisplay FBPWindow;    //REGI
 
 };

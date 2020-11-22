@@ -4,11 +4,11 @@
 
 class CTScan{
 public:
-	CTScan(std::string scanID, int pixNum, double detWidth, int numAngles);
+	CTScan(std::string scanID, int pixNum, double detWidth, int numAngles);     //REGI
 private:
-	const std::string scanID;
-	const int pixNum;
-	const double detWidth;
-	const int numAngles;
-	Eigen::MatrixXd sinogram;
+	const std::string scanID;    //REGI
+	const int pixNum;    //REGI
+	const double detWidth;    //REGI
+	const int numAngles;    //REGI
+	Eigen::MatrixXd sinogram;    //REGI
 };

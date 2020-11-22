@@ -10,10 +10,11 @@
 #include <cmath>
 #include <chrono>
 
-
+    //REGI
 Gen1CT::Gen1CT():detWidth{100},pixNum{100},object{nullptr},numAngles{0}{
 	};
 
+//REGI
 Gen1CT::Gen1CT(double detWidth, int pixNum):detWidth{detWidth},pixNum{pixNum},object{nullptr},numAngles{0}{
 	pixPositions.resize(pixNum);
 	double pixelDistance{detWidth/pixNum};
@@ -22,15 +23,36 @@ Gen1CT::Gen1CT(double detWidth, int pixNum):detWidth{detWidth},pixNum{pixNum},ob
 	}
 };
 
-void Gen1CT::putObject(Object2D* sampleObject){
-	object = sampleObject;
+void Gen1CT::addPhantom(const std::string& label, const std::string& phantomImageSource, std::array<double, 2> pixSizes){
+	/** Add a phantom to the Phantom Library
+	 *
+	 */
+	auto it = phantoms.find(label);
+	if(it != phantoms.end()){
+		std::cout << std::endl << "WARNING! A phantom with label \"" << label << "\"is already loaded!!! Overwriting!!!";
+		phantoms.erase(it);
+	}
+	phantoms.emplace(label, Object2D(label,phantomImageSource,pixSizes));
 }
 
-void Gen1CT::measure(const std::vector<double>& angles, int raysPerPixel){
-	std::cout << "Radon transformation started" << std::endl;
+void Gen1CT::displayPhantom(const std::string& label){
+	if(phantoms.find(label) != phantoms.end())
+		phantoms[label].display();
+	else
+		std::cout << std::endl << "ERROR!! Label: \"" << label << "\" could not be found!! Skipping the display.";
+}
+
+//REGI
+void Gen1CT::measure(const std::string& phantomLabel, const Eigen::VectorXd& angles, const std::string& scanLabel){
+	std::cout << std::endl << "Radon transformation started" << std::endl;
 	auto start = std::chrono::high_resolution_clock::now();
 
 	assert(object!=nullptr);
+
+	if(phantoms.find(phantomLabel) == phantoms.end()){
+		std::cout << std::endl << "ERROR!!! The phantom with label \"" << phantomLabel << "\" does not exist. Aborting the measurement!";
+		return;
+	}
 
 	angs=angles;
 	numAngles = angles.size();
@@ -73,6 +95,7 @@ void Gen1CT::measure(const std::vector<double>& angles, int raysPerPixel){
 	std::cout << "Radon took " << duration.count() << " milliseconds" << std::endl;
 }
 
+//REGI
 void Gen1CT::displayMeasurement(){
 
 	sinoImage=cimg_library::CImg<uint16_t>(pixNum, numAngles, 1, 1);
@@ -96,6 +119,7 @@ void Gen1CT::displayMeasurement(){
     */
 }
 
+//REGI
 void Gen1CT::backProject(const std::vector<int>& numberOfRecPoints, const std::vector<double>& resolution){
 	std::cout << "Backprojection started" << std::endl;
 	auto start = std::chrono::high_resolution_clock::now();
@@ -178,79 +202,18 @@ void Gen1CT::backProject(const std::vector<int>& numberOfRecPoints, const std::v
 
 }
 
-void Gen1CT::FBP(std::vector<int> numberOfRecPoints, std::vector<double> resolution){
-	/**
-	 * Filtered BackProjection
-	 * Input:
-	 * 		-numberOfRecPoints [1]
-	 * 		-resolution [mm]
-	 * Output:
-	 * 		None
-	 */
-
-	//Filtered Backprojection using Ram-Lak filter
-	std::cout << "Filtering started" << std::endl;
-	auto start = std::chrono::high_resolution_clock::now();
-
-	//Zero padding of the sinogram
-	std::cout << "\n Eredeti pixnum: " << pixNum;
-	int pixNumPadded = 2*pixNum-1;
-	std::cout << "\n Padded pixnum: " << pixNumPadded;
-	pixNumPadded = std::pow(2, std::ceil(std::log2(pixNumPadded)));
-	std::cout << "\n Padded pixnum power2: " << pixNumPadded <<"\n";
-
-	Eigen::MatrixXd paddedSinogram = Eigen::MatrixXd::Zero(pixNumPadded, numAngles);
-	int startIndex=floor((pixNumPadded-pixNum)/2);
-	paddedSinogram.block(startIndex, 0, pixNum, numAngles) = sinogram;
-
-	//Fourier transform of the padded Sinogram:
-	Eigen::FFT<double> fft;
-	Eigen::MatrixXcd fftOfSinogram = Eigen::MatrixXcd::Zero(pixNumPadded, numAngles);
-	for(int i=0; i<paddedSinogram.cols(); i++){
-		fftOfSinogram.col(i) = fft.fwd(paddedSinogram.col(i));
-	}
-
-	//The Ram-Lak filter
-	Eigen::ArrayXd freqFilter = Eigen::ArrayXd::Zero(pixNumPadded,1);
-	for(int i=0; i<pixNumPadded; i++){
-		if(pixNumPadded/2-std::abs(pixNumPadded/2-i) <= 700)
-			freqFilter(i,0)=static_cast<double>( (pixNumPadded/2-std::abs(pixNumPadded/2-i)) )/(pixNumPadded/2);
-		else
-			freqFilter(i,0)=0;
-	}
-	//DEBUG plot the Ram-Lak
-	matplotlibcpp::figure(3);
-	matplotlibcpp::plot(std::vector<float> (&freqFilter[0], freqFilter.data()+freqFilter.cols()*freqFilter.rows()) );
-	matplotlibcpp::show(False);
-
-
-	//Multiply with filter
-	for(int i=0; i<fftOfSinogram.cols(); ++i){
-		fftOfSinogram.col(i) = fftOfSinogram.col(i).array() * freqFilter;
-	}
-
-	//IFFT of filtered sinogram
-	for(int i=0; i<fftOfSinogram.cols(); i++){
-		paddedSinogram.col(i) = fft.inv(fftOfSinogram.col(i)).real();
-	}
-
-	sinogram=detWidth/pixNum*paddedSinogram.block(startIndex,0, pixNum, numAngles);
-
-	auto stop = std::chrono::high_resolution_clock::now();
-	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-	std::cout << "Filtering took " << duration.count() << " milliseconds" << std::endl;
-
-}
-
+//REGI
 const Eigen::MatrixXd& Gen1CT::getSinogram() const {
 	return sinogram;
 }
 
+//REGI
 const std::vector<double>& Gen1CT::getPixPositions() const {
 	return pixPositions;
 }
 
-void Gen1CT::FBP_bandlimited(std::vector<int> numberOfRecPoints, std::vector<double> resolution){
+//REGI
+void Gen1CT::FBP(std::vector<int> numberOfRecPoints, std::vector<double> resolution){
 	/**
 	 * Filtered BackProjection
 	 * Input:
@@ -308,7 +271,7 @@ void Gen1CT::FBP_bandlimited(std::vector<int> numberOfRecPoints, std::vector<dou
 	freqFilter.col(0)=fft2.fwd(filter.col(0));
 
 	//Low-pass filter to suppress the noise
-	int maxFreq=256;
+	int maxFreq=1024;
 	for(int i=maxFreq+1; i<=pixNumPadded/2; ++i ){
 		freqFilter(i)=0;
 		freqFilter(pixNumPadded-i)=0;
