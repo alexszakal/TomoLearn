@@ -47,16 +47,20 @@ void Gen1CT::measure(const std::string& phantomLabel, const Eigen::VectorXd& ang
 	std::cout << std::endl << "Radon transformation started" << std::endl;
 	auto start = std::chrono::high_resolution_clock::now();
 
-	assert(object!=nullptr);
-
 	if(phantoms.find(phantomLabel) == phantoms.end()){
-		std::cout << std::endl << "ERROR!!! The phantom with label \"" << phantomLabel << "\" does not exist. Aborting the measurement!";
+		std::cout << std::endl << "ERROR!!! The phantom with label \"" << phantomLabel << "\" does not exist. Aborting the Radon transformation!";
 		return;
 	}
 
-	angs=angles;
 	numAngles = angles.size();
 
+	auto it = scans.find(scanLabel);
+	if(it != scans.end()){
+		std::cout << std::endl << "WARNING! A scan with label \"" << phantomLabel << "\" already exists!!! Overwriting!!!";
+		scans.erase(it);
+	}
+	scans.emplace(scanLabel, CTScan(scanLabel,pixNum, detWidth, numAngles));
+	/*
 	sinogram = Eigen::MatrixXd::Zero(pixNum, numAngles);
 
 	std::array<double,2> pixSizes = object->getPixSizes();
@@ -90,6 +94,7 @@ void Gen1CT::measure(const std::string& phantomLabel, const Eigen::VectorXd& ang
 			}
 		}
 	}
+	*/
 	auto stop = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds >(stop - start);
 	std::cout << "Radon took " << duration.count() << " milliseconds" << std::endl;

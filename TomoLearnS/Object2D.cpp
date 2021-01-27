@@ -1,5 +1,7 @@
 #include <TomoLearnS/Object2D.hpp>
 
+#include <cstdint>
+
 #include <CImg.h>
 #ifdef Success       //Because otherwise Eigen not compile
   #undef Success
@@ -7,16 +9,18 @@
 
 #include <matplotlibcpp/matplotlibcpp_old.h>
 
-#include <cstdint>
+
 #include <iostream>
 #include <vector>
 #include <array>
 
-Object2D::Object2D(const std::string& label, const std::string& imageFilePath, const std::array<double, 2>& objPixSizes):
-																	objPixSizes{objPixSizes}, label{label}{
+Object2D::Object2D(const std::string& label,
+		           const std::string& imageFilePath,
+				   const std::array<double, 2>& objPixSizes):
+															objPixSizes{objPixSizes},
+															label{label}{
 	//Read the image file
-    cimg_library::CImg<uint16_t> imageLoader;
-	imageLoader = cimg_library::CImg<uint16_t>(imageFilePath.c_str());
+    cimg_library::CImg<uint16_t> imageLoader(imageFilePath.c_str());
 	//Copy data to Eigen::MatrixXd
 	objData = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>::Zero(imageLoader._width, imageLoader._height);
 	for(uint i=0; i<imageLoader._width; ++i){
@@ -26,17 +30,19 @@ Object2D::Object2D(const std::string& label, const std::string& imageFilePath, c
 	}
 
 	numberOfPixels = {static_cast<int>(objData.rows()), static_cast<int>(objData.cols())};
-	xPixCentreCoords = std::vector<double>( objData.cols()  );
-	yPixCentreCoords = std::vector<double>( objData.rows() );
+	xPixCentreCoords = std::vector<double>( objData.rows()  );
+	yPixCentreCoords = std::vector<double>( objData.cols() );
 
-	objWidthHeight = std::array<double, 2>{numberOfPixels[0] * objPixSizes[0], numberOfPixels[1] * objPixSizes[1]};
+	objWidthHeightInMM = std::array<double, 2>{numberOfPixels[0] * objPixSizes[0], numberOfPixels[1] * objPixSizes[1]};
 
 	std::cout << std:: endl << "Object in \"" << imageFilePath << "\" loaded" << std::endl <<
-			"size [mm*mm]: " << objWidthHeight[0] << " * "<< objWidthHeight[1]<< std::endl;
+			"W*H [mm*mm]: " << objWidthHeightInMM[0] << " * "<< objWidthHeightInMM[1]<< std::endl;
 
 	for(unsigned int i=0; i<imageLoader._width; ++i){
-		xPixCentreCoords[i]=-1*objWidthHeight[0]/2 + i*objPixSizes[0] + objPixSizes[0]/2;
-		yPixCentreCoords[i]=   objWidthHeight[0]/2 - i*objPixSizes[1] - objPixSizes[1]/2;
+		xPixCentreCoords[i]=-1*objWidthHeightInMM[0]/2 + i*objPixSizes[0] + objPixSizes[0]/2;
+	}
+	for(unsigned int i=0; i<imageLoader._height; ++i){
+		yPixCentreCoords[i]=   objWidthHeightInMM[0]/2 - i*objPixSizes[1] - objPixSizes[1]/2;
 	}
 
 	/*//DEBUG show values along lower ellipses
@@ -46,14 +52,32 @@ Object2D::Object2D(const std::string& label, const std::string& imageFilePath, c
 */
 }
 
-void Object2D::display(std::string title){
+Object2D::Object2D(const std::array<int, 2>& numberOfPixels, const std::array<double, 2>& objPixSizes):
+		objPixSizes{objPixSizes}, numberOfPixels{numberOfPixels} {
+
+	objData = Eigen::MatrixXd::Zero(numberOfPixels[0], numberOfPixels[1]);
+
+	objWidthHeightInMM[0]=numberOfPixels[0]*objPixSizes[0];
+    objWidthHeightInMM[1]=numberOfPixels[1]*objPixSizes[1];
+
+    for(int i=0; i<numberOfPixels[0]; ++i){
+    	xPixCentreCoords[i]=-1*objWidthHeightInMM[0]/2 + i*objPixSizes[0] + objPixSizes[0]/2;
+    }
+    for(int i=0; i<numberOfPixels[1]; ++i){
+    	yPixCentreCoords[i]=   objWidthHeightInMM[0]/2 - i*objPixSizes[1] - objPixSizes[1]/2;
+    }
+
+
+}
+
+void Object2D::display(const std::string& title, bool isInteractive){
 	std::stringstream ss;
 	ss << title << " Label: " << label << " " << numberOfPixels[0] << " x " << numberOfPixels[1] << " points; "
 			                                     << objPixSizes[0] << " x " << objPixSizes[1] << " pixSize"
-									             << objWidthHeight[0] << " x " << objWidthHeight[1] << " width x height";
-	title = ss.str();
+									             << objWidthHeightInMM[0] << " x " << objWidthHeightInMM[1] << " w x h";
+	std::string longTitle = ss.str();
 
-	cimg_image=cimg_library::CImg<uint16_t>(numberOfPixels[0], numberOfPixels[1], 1, 1);
+	cimg_image.assign(numberOfPixels[0], numberOfPixels[1], 1, 1);
 
 	double maxInt = objData.maxCoeff();
 	double minInt = objData.minCoeff();
@@ -64,7 +88,14 @@ void Object2D::display(std::string title){
 		}
 	}
 
-	cimg_window = cimg_library::CImgDisplay(cimg_image, title.c_str());
+	if(isInteractive){
+		cimg_image.display(cimg_window, true,0, true);
+		cimg_window.set_title("%s", longTitle.c_str());
+	}
+	else{
+		cimg_window = cimg_library::CImgDisplay(cimg_image, longTitle.c_str());
+	}
+
 }
 
 std::array<double,2> Object2D::getPixSizes() const{
@@ -85,7 +116,7 @@ double Object2D::linear_atY(int xPixelValue, double yCoordinateInMM) const{
 	/** Linear interpolation in X direction at yCoordinateInMM exactly at xPixelValue
 	 *
 	 */
-	double yCoordinateInPixel = (objWidthHeight[1]/2 - yCoordinateInMM) / objPixSizes[1];
+	double yCoordinateInPixel = (objWidthHeightInMM[1]/2 - yCoordinateInMM) / objPixSizes[1];
 
 	int lowerPixelIndex = floor(yCoordinateInPixel);
 	int higherPixelIndex = ceil(yCoordinateInPixel);
@@ -103,7 +134,7 @@ double Object2D::linear_atX(int yPixelValue, double xCoordinateInMM) const{
 	/** Linear interpolation in X direction at xCoordinateInMM exactly at yPixelValue
 	 *
 	 */
-	double xCoordinateInPixel = (objWidthHeight[0]/2 + xCoordinateInMM) / objPixSizes[0];
+	double xCoordinateInPixel = (objWidthHeightInMM[0]/2 + xCoordinateInMM) / objPixSizes[0];
 	int lowerPixelIndex = floor(xCoordinateInPixel);
 	int higherPixelIndex = ceil(xCoordinateInPixel);
 	if( ( lowerPixelIndex < 0 ) || ( higherPixelIndex > static_cast<int>(cimg_image._height)-1 ) )

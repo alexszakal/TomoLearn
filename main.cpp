@@ -20,7 +20,10 @@ void testFBP();
 int main(){
 	//testRadonTransform();
 
-	testFBP();
+    testFBP();
+
+	int tmpi;
+	std::cin>>tmpi;
 
 	return 0;
 }
@@ -36,21 +39,25 @@ void testFBP(){
 	//phantom.display("Modified Shepp-Logan phantom");
 
 	Gen1CT ct(110, 1024);  //width[mm], pixNum
+	//ct.addPhantom("SL", "Phantoms/SheppLogan.png");
+	//ct.addPhantom("SL", "Phantoms/SheppLogan_asymmetric.png");
+	//ct.addPhantom("SL", "Phantoms/ModifiedSheppLogan.png");
 	ct.addPhantom("SL", "Phantoms/ModifiedSheppLogan_asymmetric.png");
-	ct.addPhantom("SL", "Phantoms/SheppLogan.png");
+
 	ct.displayPhantom("SL");
 
 	const int numProjections{180};
 	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0, 180/180*M_PI);
 
-//	ct.measure(angles);
-/*	ct.displayMeasurement();
+	//ct.measure("SL", angles, "SLsinogram");
+/*	ct.displayMeasurement("SLsinogram");
 
 	ct.FBP(std::vector<int>{1024,1024}, std::vector<double>{0.1, 0.1});
 	//ct.displayMeasurement();
 
 	ct.backProject(std::vector<int>{1024,1024}, std::vector<double>{0.1, 0.1});
 */
+
 	int tmpi;
 	std::cin>>tmpi;
 

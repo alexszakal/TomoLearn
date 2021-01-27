@@ -1,11 +1,11 @@
 #pragma once
 
 #include <TomoLearnS/Object2D.hpp>
+#include <TomoLearnS/CTScan.hpp>
 #include <vector>
 #include <string>
 #include <map>
 #include <Eigen/Dense>
-
 
 class Gen1CT{
 public:
@@ -32,7 +32,7 @@ private:
 	int numAngles;    //REGI
 
 	std::map<std::string, Object2D> phantoms;
-	std::map<std::string, Object2D> scans;
+	std::map<std::string, CTScan> scans;
 
 	Eigen::VectorXd angs;    //REGI
 	std::vector<double> pixPositions;    //REGI
