@@ -47,20 +47,8 @@ void Gen1CT::measure(const std::string& phantomLabel, const Eigen::VectorXd& ang
 	std::cout << std::endl << "Radon transformation started" << std::endl;
 	auto start = std::chrono::high_resolution_clock::now();
 
-	if(phantoms.find(phantomLabel) == phantoms.end()){
-		std::cout << std::endl << "ERROR!!! The phantom with label \"" << phantomLabel << "\" does not exist. Aborting the Radon transformation!";
-		return;
-	}
-
 	numAngles = angles.size();
 
-	auto it = scans.find(scanLabel);
-	if(it != scans.end()){
-		std::cout << std::endl << "WARNING! A scan with label \"" << phantomLabel << "\" already exists!!! Overwriting!!!";
-		scans.erase(it);
-	}
-	scans.emplace(scanLabel, CTScan(scanLabel,pixNum, detWidth, numAngles));
-	/*
 	sinogram = Eigen::MatrixXd::Zero(pixNum, numAngles);
 
 	std::array<double,2> pixSizes = object->getPixSizes();
@@ -94,14 +82,27 @@ void Gen1CT::measure(const std::string& phantomLabel, const Eigen::VectorXd& ang
 			}
 		}
 	}
-	*/
+
 	auto stop = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds >(stop - start);
 	std::cout << "Radon took " << duration.count() << " milliseconds" << std::endl;
+
+	//Move the sinogram to CTScans map
+	if(phantoms.find(phantomLabel) == phantoms.end()){
+		std::cout << std::endl << "ERROR!!! The phantom with label \"" << phantomLabel << "\" does not exist. Aborting the Radon transformation!";
+		return;
+	}
+
+	auto it = scans.find(scanLabel);
+	if(it != scans.end()){
+		std::cout << std::endl << "WARNING! A scan with label \"" << phantomLabel << "\" already exists!!! Overwriting!!!";
+		scans.erase(it);
+	}
+	scans.emplace(scanLabel, CTScan(scanLabel,sinogram,pixNum, detWidth, angles));
 }
 
 //REGI
-void Gen1CT::displayMeasurement(){
+void Gen1CT::displayMeasurement(const std::string& label){
 
 	sinoImage=cimg_library::CImg<uint16_t>(pixNum, numAngles, 1, 1);
 
@@ -115,13 +116,6 @@ void Gen1CT::displayMeasurement(){
 
 	sinoWindow = cimg_library::CImgDisplay(sinoImage, "Sinogram");
 	//sinoWindow.wait();
-
-	//DEBUG
-	/*matplotlibcpp::figure(44);
-	Eigen::VectorXd proj = sinogram.col(0);
-	matplotlibcpp::plot(std::vector<float> (&proj[0], proj.data()+proj.cols()*proj.rows()) );
-	matplotlibcpp::show();
-    */
 }
 
 //REGI

@@ -5,7 +5,7 @@
 
 class CTScan : public Object2D{
 public:
-	CTScan(std::string scanID, int pixNum, double detWidth, int numAngles);     //REGI
+	CTScan(std::string scanID, Eigen::MatrixXd sinogram, int pixNum, double detWidth, const Eigen::VectorXd& angles);
 private:
-	const std::string scanID;    //REGI
+	const std::string scanID;
 };

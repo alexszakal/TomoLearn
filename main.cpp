@@ -22,8 +22,8 @@ int main(){
 
     testFBP();
 
-	int tmpi;
-	std::cin>>tmpi;
+
+	std::cin.ignore();
 
 	return 0;
 }
@@ -34,25 +34,26 @@ void testFBP(){
 	 */
 
 	std::cout << "Parallel beam FBP simulation" << std::endl;
-	//Reading Shepp-Logan phantom
-	//Object2D phantom(std::string("Phantoms/ModifiedSheppLogan_asymmetric.png") );
-	//phantom.display("Modified Shepp-Logan phantom");
 
-	Gen1CT ct(110, 1024);  //width[mm], pixNum
+	int detWidthInMM{110};
+	int detPixNum{1024};
+	Gen1CT ct(detWidthInMM, detPixNum);
+
+	//Reading Shepp-Logan phantom
 	//ct.addPhantom("SL", "Phantoms/SheppLogan.png");
 	//ct.addPhantom("SL", "Phantoms/SheppLogan_asymmetric.png");
 	//ct.addPhantom("SL", "Phantoms/ModifiedSheppLogan.png");
-	ct.addPhantom("SL", "Phantoms/ModifiedSheppLogan_asymmetric.png");
+	ct.addPhantom("SL", "Phantoms/ModifiedSheppLogan_asymmetric.png"); //default pixSize: 0.1mm x 0.1mm
 
 	ct.displayPhantom("SL");
 
 	const int numProjections{180};
 	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0, 180/180*M_PI);
 
-	//ct.measure("SL", angles, "SLsinogram");
-/*	ct.displayMeasurement("SLsinogram");
+	ct.measure("SL", angles, "SLsinogram");
+	ct.displayMeasurement("SLsinogram");
 
-	ct.FBP(std::vector<int>{1024,1024}, std::vector<double>{0.1, 0.1});
+/*	ct.FBP(std::vector<int>{1024,1024}, std::vector<double>{0.1, 0.1});
 	//ct.displayMeasurement();
 
 	ct.backProject(std::vector<int>{1024,1024}, std::vector<double>{0.1, 0.1});

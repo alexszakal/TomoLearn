@@ -12,13 +12,18 @@
 
 class Object2D{
 public:
-	Object2D():objPixSizes{1,1},objWidthHeightInMM{0,0},numberOfPixels{0,0},cimg_image{},cimg_window{}{}  //Default constructor, initialize an empty image   //REGI
+	//Default constructor, initialize an empty image   //REGI
+	Object2D():objPixSizes{1,1},objWidthHeightInMM{0,0},numberOfPixels{0,0},cimg_image{},cimg_window{}{}
+	//Constructor for init with data from file
 	Object2D(const std::string& label, const std::string& imageFilePath, const std::array<double, 2>& objPixSizes={0.1, 0.1});
-	Object2D(const std::array<int, 2>& numberOfPixels, const std::array<double, 2>& objPixSizes);
+	//Constructor of a zero-initialized Object2D
+	Object2D(const std::string& label, const std::array<int, 2>& numberOfPixels, const std::array<double, 2>& objPixSizes);
 
 	void display(const std::string& title="", bool isInterractive=true);
 	std::array<double, 2> getPixSizes() const;
 	std::array<int, 2> getNumberOfPixels() const;
+
+	//Functions for measurement
 	double linear_atY(int xPixelValue, double yCoordinateInMM) const;
 	double linear_atX(int yPixelValue, double xCoordinateInMM) const;
 	double getXValueAtPix(int pixValue) const ;

@@ -16,7 +16,7 @@ public:
 	void displayPhantom(const std::string& label);
 
 	void measure(const std::string& label, const Eigen::VectorXd& angles, const std::string& scanLabel);
-	void displayMeasurement();    //REGI
+	void displayMeasurement(const std::string& label);
 
 	void filteredBackProjection();    //REGI
 	void backProject(const std::vector<int>& numberOfRecPoints, const std::vector<double>& resolution);    //REGI
@@ -26,8 +26,8 @@ public:
 	const std::vector<double>& getPixPositions() const;    //REGI
 
 private:
-	const double detWidth;    //REGI
-	const int pixNum;    //REGI
+	const double detWidth;
+	const int pixNum;
 	Object2D* object;    //REGI
 	int numAngles;    //REGI
 

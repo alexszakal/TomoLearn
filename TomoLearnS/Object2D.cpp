@@ -52,8 +52,12 @@ Object2D::Object2D(const std::string& label,
 */
 }
 
-Object2D::Object2D(const std::array<int, 2>& numberOfPixels, const std::array<double, 2>& objPixSizes):
-		objPixSizes{objPixSizes}, numberOfPixels{numberOfPixels} {
+/* Initialize an Object2D with zeros*/
+Object2D::Object2D(const std::string& labelIn,
+		           const std::array<int, 2>& numberOfPixels,
+		           const std::array<double, 2>& objPixSizes): label{labelIn}, // @suppress("Symbol is not resolved")
+		        		                                      objPixSizes{objPixSizes}, // @suppress("Symbol is not resolved")
+															  numberOfPixels{numberOfPixels} { // @suppress("Symbol is not resolved")
 
 	objData = Eigen::MatrixXd::Zero(numberOfPixels[0], numberOfPixels[1]);
 
@@ -61,13 +65,11 @@ Object2D::Object2D(const std::array<int, 2>& numberOfPixels, const std::array<do
     objWidthHeightInMM[1]=numberOfPixels[1]*objPixSizes[1];
 
     for(int i=0; i<numberOfPixels[0]; ++i){
-    	xPixCentreCoords[i]=-1*objWidthHeightInMM[0]/2 + i*objPixSizes[0] + objPixSizes[0]/2;
+    	xPixCentreCoords.push_back(-1*objWidthHeightInMM[0]/2 + i*objPixSizes[0] + objPixSizes[0]/2);
     }
     for(int i=0; i<numberOfPixels[1]; ++i){
-    	yPixCentreCoords[i]=   objWidthHeightInMM[0]/2 - i*objPixSizes[1] - objPixSizes[1]/2;
+    	yPixCentreCoords.push_back(objWidthHeightInMM[0]/2 - i*objPixSizes[1] - objPixSizes[1]/2);
     }
-
-
 }
 
 void Object2D::display(const std::string& title, bool isInteractive){
