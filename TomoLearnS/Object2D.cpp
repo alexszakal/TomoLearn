@@ -72,6 +72,29 @@ Object2D::Object2D(const std::string& labelIn,
     }
 }
 
+//Initialize object with data in Eigen::MatrixXd
+Object2D::Object2D(const std::string& label,
+		           const Eigen::MatrixXd& inData,
+				   double detWidth,
+				   const Eigen::VectorXd& angles):
+		                            label{label} {
+	objData=inData;
+	numberOfPixels[0]=objData.size()[0];
+	numberOfPixels[1]=objData.size()[1];
+	objPixSizes[0]=detWidth/numberOfPixels[0];
+	objPixSizes[1]=angles.size()/numberOfPixels[1];
+
+	xPixCentreCoords.reserve(numberOfPixels[0]);
+	for(int i=0; i<numberOfPixels[0]; i++){
+		xPixCentreCoords[i]=-1*objWidthHeightInMM[0]/2+(i+0.5)*objPixSizes[0];
+	}
+	yPixCentreCoords.reserve(numberOfPixels[1]);
+	for(int i=0; i<numberOfPixels[1]; i++){
+			yPixCentreCoords[i]=-1*objWidthHeightInMM[1]/2+(i+0.5)*objPixSizes[1];
+	}
+
+}
+
 void Object2D::display(const std::string& title, bool isInteractive){
 	std::stringstream ss;
 	ss << title << " Label: " << label << " " << numberOfPixels[0] << " x " << numberOfPixels[1] << " points; "

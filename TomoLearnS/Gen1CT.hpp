@@ -32,7 +32,7 @@ private:
 	int numAngles;    //REGI
 
 	std::map<std::string, Object2D> phantoms;
-	std::map<std::string, CTScan> scans;
+	std::map<std::string, Object2D> scans;
 
 	Eigen::VectorXd angs;    //REGI
 	std::vector<double> pixPositions;    //REGI

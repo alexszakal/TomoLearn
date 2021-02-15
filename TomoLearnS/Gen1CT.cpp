@@ -9,6 +9,7 @@
 #include <cassert>
 #include <cmath>
 #include <chrono>
+#include <array>
 
     //REGI
 Gen1CT::Gen1CT():detWidth{100},pixNum{100},object{nullptr},numAngles{0}{
@@ -43,7 +44,9 @@ void Gen1CT::displayPhantom(const std::string& label){
 }
 
 //REGI
-void Gen1CT::measure(const std::string& phantomLabel, const Eigen::VectorXd& angles, const std::string& scanLabel){
+void Gen1CT::measure(const std::string& phantomLabel,
+		             const Eigen::VectorXd& angles,
+		             const std::string& scanLabel){
 	std::cout << std::endl << "Radon transformation started" << std::endl;
 	auto start = std::chrono::high_resolution_clock::now();
 
@@ -99,6 +102,8 @@ void Gen1CT::measure(const std::string& phantomLabel, const Eigen::VectorXd& ang
 		scans.erase(it);
 	}
 	scans.emplace(scanLabel, CTScan(scanLabel,sinogram,pixNum, detWidth, angles));
+
+	Object2D(scanLabel, sinogram, detWidth, angles);
 }
 
 //REGI

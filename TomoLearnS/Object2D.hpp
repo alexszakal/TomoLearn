@@ -18,6 +18,8 @@ public:
 	Object2D(const std::string& label, const std::string& imageFilePath, const std::array<double, 2>& objPixSizes={0.1, 0.1});
 	//Constructor of a zero-initialized Object2D
 	Object2D(const std::string& label, const std::array<int, 2>& numberOfPixels, const std::array<double, 2>& objPixSizes);
+	//Constructor for initializing with Eigen::Matrix
+	Object2D(const std::string& label, const Eigen::MatrixXd& inData, double detWidth, const Eigen::VectorXd& angles);
 
 	void display(const std::string& title="", bool isInterractive=true);
 	std::array<double, 2> getPixSizes() const;
@@ -35,7 +37,7 @@ private:
 	//2nd index (col number) -> Y direction
 	Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> objData;
 	//Axes parameters
-	const std::array<double, 2> objPixSizes;   //Size of a single pixel
+	std::array<double, 2> objPixSizes;   //Size of a single pixel
 	std::array<double, 2> objWidthHeightInMM;
 	std::array<int, 2> numberOfPixels;
 
