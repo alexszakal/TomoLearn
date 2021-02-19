@@ -14,11 +14,10 @@
 #include <vector>
 #include <array>
 
-Object2D::Object2D(const std::string& label,
-		           const std::string& imageFilePath,
+Object2D::Object2D(const std::string& imageFilePath,
 				   const std::array<double, 2>& objPixSizes):
-															objPixSizes{objPixSizes},
-															label{label}{
+															objPixSizes{objPixSizes}
+				   {
 	//Read the image file
     cimg_library::CImg<uint16_t> imageLoader(imageFilePath.c_str());
 	//Copy data to Eigen::MatrixXd
@@ -42,7 +41,7 @@ Object2D::Object2D(const std::string& label,
 		xPixCentreCoords[i]=-1*objWidthHeightInMM[0]/2 + i*objPixSizes[0] + objPixSizes[0]/2;
 	}
 	for(unsigned int i=0; i<imageLoader._height; ++i){
-		yPixCentreCoords[i]=   objWidthHeightInMM[0]/2 - i*objPixSizes[1] - objPixSizes[1]/2;
+		yPixCentreCoords[i]=   objWidthHeightInMM[1]/2 - i*objPixSizes[1] - objPixSizes[1]/2;
 	}
 
 	/*//DEBUG show values along lower ellipses
@@ -53,10 +52,8 @@ Object2D::Object2D(const std::string& label,
 }
 
 /* Initialize an Object2D with zeros*/
-Object2D::Object2D(const std::string& labelIn,
-		           const std::array<int, 2>& numberOfPixels,
-		           const std::array<double, 2>& objPixSizes): label{labelIn}, // @suppress("Symbol is not resolved")
-		        		                                      objPixSizes{objPixSizes}, // @suppress("Symbol is not resolved")
+Object2D::Object2D(const std::array<int, 2>& numberOfPixels,
+		           const std::array<double, 2>& objPixSizes): objPixSizes{objPixSizes}, // @suppress("Symbol is not resolved")
 															  numberOfPixels{numberOfPixels} { // @suppress("Symbol is not resolved")
 
 	objData = Eigen::MatrixXd::Zero(numberOfPixels[0], numberOfPixels[1]);
@@ -73,16 +70,18 @@ Object2D::Object2D(const std::string& labelIn,
 }
 
 //Initialize object with data in Eigen::MatrixXd
-Object2D::Object2D(const std::string& label,
-		           const Eigen::MatrixXd& inData,
+Object2D::Object2D(const Eigen::MatrixXd& inData,
 				   double detWidth,
-				   const Eigen::VectorXd& angles):
-		                            label{label} {
+				   const Eigen::VectorXd& angles){
 	objData=inData;
-	numberOfPixels[0]=objData.size()[0];
-	numberOfPixels[1]=objData.size()[1];
+	numberOfPixels[0]=objData.rows();
+	numberOfPixels[1]=objData.cols();
+
+	objWidthHeightInMM[0]=detWidth;
 	objPixSizes[0]=detWidth/numberOfPixels[0];
-	objPixSizes[1]=angles.size()/numberOfPixels[1];
+
+	objWidthHeightInMM[1]=numberOfPixels[1]*(angles[1]-angles[0]);
+	objPixSizes[1]=angles[1]-angles[0];         //Suppose that angles are distributed uniformly
 
 	xPixCentreCoords.reserve(numberOfPixels[0]);
 	for(int i=0; i<numberOfPixels[0]; i++){
@@ -95,33 +94,9 @@ Object2D::Object2D(const std::string& label,
 
 }
 
-void Object2D::display(const std::string& title, bool isInteractive){
-	std::stringstream ss;
-	ss << title << " Label: " << label << " " << numberOfPixels[0] << " x " << numberOfPixels[1] << " points; "
-			                                     << objPixSizes[0] << " x " << objPixSizes[1] << " pixSize"
-									             << objWidthHeightInMM[0] << " x " << objWidthHeightInMM[1] << " w x h";
-	std::string longTitle = ss.str();
-
-	cimg_image.assign(numberOfPixels[0], numberOfPixels[1], 1, 1);
-
-	double maxInt = objData.maxCoeff();
-	double minInt = objData.minCoeff();
-	double normFactor = 65530/(maxInt-minInt);
-	for(int i=0; i<numberOfPixels[0]; ++i){
-		for(int j=0; j<numberOfPixels[1]; ++j){
-			cimg_image(i,j) = static_cast<uint16_t>((objData(i,j)-minInt)*normFactor);
-		}
-	}
-
-	if(isInteractive){
-		cimg_image.display(cimg_window, true,0, true);
-		cimg_window.set_title("%s", longTitle.c_str());
-	}
-	else{
-		cimg_window = cimg_library::CImgDisplay(cimg_image, longTitle.c_str());
-	}
-
-}
+/*Object2D::Object2D(Object2D&& objToMove){
+	std::cout << "\nObject2D move constructor called!\n";
+}*/
 
 std::array<double,2> Object2D::getPixSizes() const{
 	/** Return the size of pixels in units of the coordinate system
@@ -137,54 +112,7 @@ std::array<int, 2> Object2D::getNumberOfPixels() const{
 	return numberOfPixels;
 }
 
-double Object2D::linear_atY(int xPixelValue, double yCoordinateInMM) const{
-	/** Linear interpolation in X direction at yCoordinateInMM exactly at xPixelValue
-	 *
-	 */
-	double yCoordinateInPixel = (objWidthHeightInMM[1]/2 - yCoordinateInMM) / objPixSizes[1];
 
-	int lowerPixelIndex = floor(yCoordinateInPixel);
-	int higherPixelIndex = ceil(yCoordinateInPixel);
-	if( ( lowerPixelIndex < 0 ) || ( higherPixelIndex > static_cast<int>(cimg_image._height)-1 ) )
-		return 0;
-
-	//Linear interpolation
-	double neighbor0 = cimg_image(xPixelValue, lowerPixelIndex );
-	double neighbor1 = cimg_image(xPixelValue, higherPixelIndex );
-
-	return neighbor0 + (neighbor1 - neighbor0) * (yCoordinateInPixel - lowerPixelIndex);
-}
-
-double Object2D::linear_atX(int yPixelValue, double xCoordinateInMM) const{
-	/** Linear interpolation in X direction at xCoordinateInMM exactly at yPixelValue
-	 *
-	 */
-	double xCoordinateInPixel = (objWidthHeightInMM[0]/2 + xCoordinateInMM) / objPixSizes[0];
-	int lowerPixelIndex = floor(xCoordinateInPixel);
-	int higherPixelIndex = ceil(xCoordinateInPixel);
-	if( ( lowerPixelIndex < 0 ) || ( higherPixelIndex > static_cast<int>(cimg_image._height)-1 ) )
-		return 0;
-
-	//Linear interpolation
-	double neighbor0 = cimg_image(lowerPixelIndex, yPixelValue);
-	double neighbor1 = cimg_image(higherPixelIndex, yPixelValue);
-
-	return neighbor0 + (neighbor1 - neighbor0) * (xCoordinateInPixel - lowerPixelIndex);
-}
-
-double Object2D::getXValueAtPix(int pixIndex) const{
-	/** Get the X value at the index pixIndex
-	 *
-	 */
-	return xPixCentreCoords[pixIndex];
-}
-
-double Object2D::getYValueAtPix(int pixIndex) const{
-	/** Get the Y value at the index pixIndex
-	 *
-	 */
-	return yPixCentreCoords[pixIndex];
-}
 
 const Eigen::MatrixXd& Object2D::getDataAsEigenMatrixRef() const{
 	/** Get the internal data structure as const reference

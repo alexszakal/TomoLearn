@@ -22,7 +22,6 @@ int main(){
 
     testFBP();
 
-
 	std::cin.ignore();
 
 	return 0;
@@ -42,22 +41,24 @@ void testFBP(){
 	//Reading Shepp-Logan phantom
 	//ct.addPhantom("SL", "Phantoms/SheppLogan.png");
 	//ct.addPhantom("SL", "Phantoms/SheppLogan_asymmetric.png");
-	//ct.addPhantom("SL", "Phantoms/ModifiedSheppLogan.png");
-	ct.addPhantom("SL", "Phantoms/ModifiedSheppLogan_asymmetric.png"); //default pixSize: 0.1mm x 0.1mm
+	//ct.addPhantom("SL_symm", "Phantoms/ModifiedSheppLogan.png");
+	ct.addPhantom("SL_asym", "Phantoms/ModifiedSheppLogan_asymmetric.png"); //default pixSize: 0.1mm x 0.1mm
+	//ct.addPhantom("SD", "Phantoms/SingleDot.png"); //Single dot Phantom
 
-	ct.displayPhantom("SL");
+	std::string activePhantom{"SL_asym"};
+
+	ct.displayPhantom(activePhantom);
 
 	const int numProjections{180};
 	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0, 180/180*M_PI);
 
-	ct.measure("SL", angles, "SLsinogram");
-	ct.displayMeasurement("SLsinogram");
+	ct.measure(activePhantom, angles, "Sinogram");
+	ct.displayMeasurement("Sinogram");
 
-/*	ct.FBP(std::vector<int>{1024,1024}, std::vector<double>{0.1, 0.1});
+	//ct.FBP(std::vector<int>{1024,1024}, std::vector<double>{0.1, 0.1});
 	//ct.displayMeasurement();
 
-	ct.backProject(std::vector<int>{1024,1024}, std::vector<double>{0.1, 0.1});
-*/
+	//ct.backProject(std::vector<int>{1024,1024}, std::vector<double>{0.1, 0.1});
 
 	int tmpi;
 	std::cin>>tmpi;
