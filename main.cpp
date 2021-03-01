@@ -16,6 +16,20 @@
 void testRadonTransform();
 void testFBP();
 
+//TODO: Object2D-be atvinni a display-hez tartozo reszeket, hogy elkeruljuk a code duplikaciot
+//TODO: Miutan atkerult a display az Object2D-be, ruleOf5 alkalmazasa
+//TODO: A display() fuggveny tegye fel a feliratot!
+//TODO: Legyen konfiguralhato a filterezes -> Kell egy filter osztaly
+//TODO: Valahogy a szurt szinogramokat is el kell menteni (lehetne egy map, ahol a key a filter osztaly?? )
+//TODO: A backproject mentse el a dolgokat egy FBPReconst osztalyba
+//TODO: Visszavetitest felgyorsitani
+//TODO: Gyorsabb elorevetites a cache jobb hasznalataval
+//TODO: Visszaallitott kep es a phantom osszehasonlitasa egy vonal menten (ugy mint a CImg demoban van)
+
+
+// Next step:
+//TTOK: Legyen konfiguralhato a filterezes -> Kell ra egy osztaly!!!
+
 //Parallel geometry
 int main(){
 	//testRadonTransform();
@@ -41,9 +55,9 @@ void testFBP(){
 	//Reading Shepp-Logan phantom
 	//ct.addPhantom("SL", "Phantoms/SheppLogan.png");
 	//ct.addPhantom("SL", "Phantoms/SheppLogan_asymmetric.png");
-	//ct.addPhantom("SL_symm", "Phantoms/ModifiedSheppLogan.png");
+	ct.addPhantom("SL_symm", "Phantoms/ModifiedSheppLogan.png");
 	ct.addPhantom("SL_asym", "Phantoms/ModifiedSheppLogan_asymmetric.png"); //default pixSize: 0.1mm x 0.1mm
-	//ct.addPhantom("SD", "Phantoms/SingleDot.png"); //Single dot Phantom
+	ct.addPhantom("SD", "Phantoms/SingleDot.png"); //Single dot Phantom
 
 	std::string activePhantom{"SL_asym"};
 
@@ -55,10 +69,7 @@ void testFBP(){
 	ct.measure(activePhantom, angles, "Sinogram");
 	ct.displayMeasurement("Sinogram");
 
-	//ct.FBP(std::vector<int>{1024,1024}, std::vector<double>{0.1, 0.1});
-	//ct.displayMeasurement();
-
-	//ct.backProject(std::vector<int>{1024,1024}, std::vector<double>{0.1, 0.1});
+	ct.filteredBackProject("Sinogram", std::array<int,2>{1024, 1024}, std::array<double,2>{0.1, 0.1} );
 
 	int tmpi;
 	std::cin>>tmpi;

@@ -1,17 +1,15 @@
-/*
- * Reconst.hpp
- *
- *  Created on: 2021. febr. 16.
- *      Author: szakal
- */
+#pragma once
+#include <TomoLearnS/Object2D.hpp>
+#include <string>
 
-#ifndef RECONST_HPP_
-#define RECONST_HPP_
-
-class Reconst{
-
+class Reconst : public Object2D{
+public:
+	Reconst(std::string scanID, Eigen::MatrixXd recImage,
+			const std::array<int, 2>& numberOfPixels, const std::array<double, 2>& objPixSizes);
+	void display();
+private:
+	std::string scanID;
 };
 
 
 
-#endif /* RECONST_HPP_ */
