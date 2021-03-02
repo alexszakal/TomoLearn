@@ -18,17 +18,14 @@ class Phantom : public Object2D{
 public:
 	Phantom(const std::string& label, const std::string& imageFilePath,
 			const std::array<double, 2>& objPixSizes);
-	Phantom(Phantom&& p) = default;
-	~Phantom();
-	void display();
 
 private:
-std::string label;
-cimg_library::CImg<uint16_t> cimg_image;
-cimg_library::CImgDisplay cimg_window;
-std::thread displayThread;
+	std::string label;
+
 
 };
+
+
 
 
 #endif /* PHANTOM_HPP_ */

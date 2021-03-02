@@ -16,7 +16,6 @@
 void testRadonTransform();
 void testFBP();
 
-//TODO: Object2D-be atvinni a display-hez tartozo reszeket, hogy elkeruljuk a code duplikaciot
 //TODO: Miutan atkerult a display az Object2D-be, ruleOf5 alkalmazasa
 //TODO: A display() fuggveny tegye fel a feliratot!
 //TODO: Legyen konfiguralhato a filterezes -> Kell egy filter osztaly
@@ -29,6 +28,8 @@ void testFBP();
 
 // Next step:
 //TTOK: Legyen konfiguralhato a filterezes -> Kell ra egy osztaly!!!
+//      ---- Filter konstruktoraban a RamLak ellenorizze hogy a cutOff parameter jo-e
+//		---- RamLak filter implementalasa
 
 //Parallel geometry
 int main(){

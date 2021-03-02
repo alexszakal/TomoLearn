@@ -7,6 +7,8 @@
 #include <TomoLearnS/Phantom.hpp>
 #include <TomoLearnS/Reconst.hpp>
 #include <TomoLearnS/CTScan.hpp>
+#include <TomoLearnS/Filter.hpp>
+
 
 #include <matplotlibcpp/matplotlibcpp_old.h>
 #include <iostream>
@@ -44,7 +46,7 @@ void Gen1CT::addPhantom(const std::string& label, const std::string& phantomImag
 
 void Gen1CT::displayPhantom(const std::string& label, const std::string& title){
 	if(phantoms.find(label) != phantoms.end()){
-		phantoms.at(label).display();
+		phantoms.at(label).display(label);
 	}
 	else
 		std::cout << std::endl << "ERROR!! Label: \"" << label << "\" could not be found!! Skipping the display.";
@@ -126,7 +128,7 @@ auto start = std::chrono::high_resolution_clock::now();
 
 void Gen1CT::displayMeasurement(const std::string& label){
 	if(scans.find(label) != scans.end()){
-			scans.at(label).display();
+			scans.at(label).display(label);
 		}
 		else
 			std::cout << std::endl << "ERROR!! Label: \"" << label << "\" could not be found!! Skipping the display.";
@@ -224,7 +226,7 @@ void Gen1CT::backProject(const CTScan& sinogram,
 
 
 //#define FILTERING_DEBUG
-CTScan Gen1CT::applyFilter(const std::string& sinogramID){
+CTScan Gen1CT::applyFilter(const std::string& sinogramID, Filter filter){
 	/**
 	 * Filtering using Ram-Lak filter
 	 * Input:
@@ -269,45 +271,16 @@ CTScan Gen1CT::applyFilter(const std::string& sinogramID){
 		fftOfSinogram.col(i) = fft.fwd(paddedSinogram.col(i));
 	}
 
-	//Construct the filter
-	Eigen::MatrixXcd freqFilter = Eigen::MatrixXd::Zero(pixNumPadded,1);
-	Eigen::MatrixXd filter = Eigen::MatrixXd::Zero(pixNumPadded,1);
-
-	double tau=detWidth/pixNum;
-	filter(0)=1/(4*tau*tau);
-	for(int i=0; i<pixNumPadded/4; ++i){
-		int idx= i*2+1;
-		filter(idx) = -1/std::pow(idx*M_PI*tau, 2);
-		filter(pixNumPadded-idx) = filter(idx);
-	}
-	Eigen::FFT<double> fft2;
-	freqFilter.col(0)=fft2.fwd(filter.col(0));
-
-	//Low-pass filter to suppress the noise
-	int maxFreq=1024;
-	for(int i=maxFreq+1; i<=pixNumPadded/2; ++i ){
-		freqFilter(i)=0;
-		freqFilter(pixNumPadded-i)=0;
-	}
-
-#ifdef FILTERING_DEBUG  //Show the filter
-	matplotlibcpp::figure(3);
-	Eigen::MatrixXd absVector = freqFilter.imag().array().pow(2) + freqFilter.real().array().pow(2) ;
-	absVector = absVector.array().pow(0.5);
-	std::cout << "\n H(0)= " << absVector(0);
-	matplotlibcpp::plot(std::vector<float> (&absVector(0), absVector.data()+absVector.cols()*absVector.rows()) );
-	matplotlibcpp::show();
-#endif
-
-	//Multiply with filter
-	for(int i=0; i<fftOfSinogram.cols(); ++i){
-		fftOfSinogram.col(i) = fftOfSinogram.col(i).array() * freqFilter.array();
-	}
+////ITT KELL FILTEREZNI!!!!!
+	filter(fftOfSinogram);
 
 	//IFFT of filtered sinogram
+	double tau=detWidth/pixNum;
+	std::cout << "\nTau: "<<tau<<'\n';
 	for(int i=0; i<fftOfSinogram.cols(); i++){
 		paddedSinogram.col(i) = tau * fft.inv(fftOfSinogram.col(i)).real();
 	}
+
 
 	//sinogram=paddedSinogram.block(startIndex,0, pixNum, numAngles);
 
@@ -324,12 +297,9 @@ void Gen1CT::filteredBackProject(std::string sinogramID,
 			                    const std::array<int,2>& numberOfRecPoints,
 								const std::array<double,2>& resolution ){
 	//Apply filter on the sinogram
-	CTScan filteredScan = applyFilter(sinogramID);
-	filteredScan.display();
+	CTScan filteredScan = applyFilter(sinogramID, Filter(FilterType::RamLak) );
+	filteredScan.display(sinogramID + " filtered");
 	backProject(filteredScan, numberOfRecPoints,resolution);
-
-
-
 }
 
 

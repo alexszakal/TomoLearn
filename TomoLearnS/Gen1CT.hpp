@@ -4,6 +4,7 @@
 #include <TomoLearnS/CTScan.hpp>
 #include <TomoLearnS/Phantom.hpp>
 #include <TomoLearnS/Reconst.hpp>
+#include <TomoLearnS/Filter.hpp>
 
 #include <vector>
 #include <string>
@@ -28,7 +29,7 @@ public:
 			                 const std::array<int,2>& numberOfRecPoints,
 							 const std::array<double,2>& resolution );
 
-	CTScan applyFilter(const std::string& sinogramID);
+	CTScan applyFilter(const std::string& sinogramID, Filter filter);
 	void backProject(const CTScan& sinogram, const std::array<int,2>& numberOfRecPoints,
 			                                 const std::array<double,2>& resolution);
 

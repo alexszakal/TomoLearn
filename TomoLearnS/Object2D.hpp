@@ -9,6 +9,7 @@
 #include <array>
 #include <cstdint>
 #include <vector>
+#include <thread>
 
 class Object2D{
 public:
@@ -22,28 +23,39 @@ public:
 	Object2D(const Eigen::MatrixXd& inData, double detWidth, const Eigen::VectorXd& angles);
 
 	Object2D(Object2D&& objToMove) = default;
+	~Object2D();
 
 	std::array<double, 2> getPixSizes() const;
 	std::array<int, 2> getNumberOfPixels() const;
+
+	const Eigen::MatrixXd& getDataAsEigenMatrixRef() const;
 
 	//Functions for measurement
 	double linear_atY(int xPixelValue, double yCoordinateInMM) const;
 	double linear_atX(int yPixelValue, double xCoordinateInMM) const;
 	double getXValueAtPix(int pixValue) const ;
 	double getYValueAtPix(int pixValue) const;
-	const Eigen::MatrixXd& getDataAsEigenMatrixRef() const;
+
+	void display(const std::string& label);
+
 private:
 	//Raw Data
 	//1st index (row number) -> X direction
 	//2nd index (col number) -> Y direction
 	Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> objData;
+
 	//Axes parameters
+	std::array<int, 2> numberOfPixels;
 	std::array<double, 2> objPixSizes;   //Size of a single pixel
 	std::array<double, 2> objWidthHeightInMM;
-	std::array<int, 2> numberOfPixels;
 
 	std::vector<double> xPixCentreCoords;
 	std::vector<double> yPixCentreCoords;
+
+	//Display
+	cimg_library::CImg<uint16_t> cimg_image;
+	cimg_library::CImgDisplay cimg_window;
+	std::thread displayThread;
 
 };
 
@@ -100,3 +112,5 @@ inline double Object2D::getYValueAtPix(int pixIndex) const{
 	 */
 	return yPixCentreCoords[pixIndex];
 }
+
+
