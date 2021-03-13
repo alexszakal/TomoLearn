@@ -12,6 +12,7 @@
 
 #include <matplotlibcpp/matplotlibcpp_old.h>
 #include <iostream>
+#include <fstream>
 #include <cassert>
 #include <cmath>
 #include <chrono>
@@ -55,10 +56,9 @@ void Gen1CT::displayPhantom(const std::string& label, const std::string& title){
 void Gen1CT::measure(const std::string& phantomLabel,
 		             const Eigen::VectorXd& angles,
 		             const std::string& scanLabel){
-	/* Idomeres kezdete helyesen
+
 	std::cout << std::endl << "Radon transformation started" << std::endl;
 	auto start = std::chrono::high_resolution_clock::now();
-*/
 
 	int numAngles = angles.size();
 
@@ -75,12 +75,13 @@ void Gen1CT::measure(const std::string& phantomLabel,
 
 	double t;
 	const double piPer4 = M_PI/4;
-	const double hpiPer4 = 3*M_PI/4;
 
 	std::vector<double>	thetaVector,
 	                    sinThetaVector, cosThetaVector,
 	                    tanThetaVector, cotThetaVector,
 	                    absSinThetaInvVector, absCosThetaInvVector;
+	std::vector<bool> interpIsInY;
+
 	for(int i=0; i<numAngles; i++){
 		thetaVector.push_back( std::fmod(angles[i], 2*M_PI) );
 		sinThetaVector.push_back( sin(thetaVector[i]) );
@@ -89,17 +90,17 @@ void Gen1CT::measure(const std::string& phantomLabel,
 		cotThetaVector.push_back( 1/tanThetaVector[i] );
 		absSinThetaInvVector.push_back( 1/std::abs(sinThetaVector[i]) );
 		absCosThetaInvVector.push_back( 1/std::abs(cosThetaVector[i]) );
+
+		interpIsInY.push_back( ( (thetaVector[i] > piPer4 ) && (thetaVector[i] < 3*piPer4) ) ||
+				                 ( (thetaVector[i] > 5*piPer4 ) && (thetaVector[i] < 7*piPer4) ) );
 	}
 
-//Idomeres ideiglenes kezdete
-std::cout << std::endl << "Radon transformation started" << std::endl;
-auto start = std::chrono::high_resolution_clock::now();
 	for(int pixI=0; pixI<pixNum; ++pixI){
 
 		t=pixPositions[pixI];
 		for(int angI=0; angI<numAngles; ++angI){
 
-			if( (thetaVector[angI] > piPer4 ) && (thetaVector[angI] < hpiPer4)  ){
+			if( interpIsInY[angI] ){
 				for(int objectXIndex=0; objectXIndex < numberOfPixels[0]; ++objectXIndex){
 					double objectYinMM = t*sinThetaVector[angI]+ (t*cosThetaVector[angI] - actualPhantom.getXValueAtPix(objectXIndex))*cotThetaVector[angI];
 					sinogram(pixI, angI) += actualPhantom.linear_atY(objectXIndex, objectYinMM) * absSinThetaInvVector[angI]*pixSizes[0];
@@ -124,6 +125,15 @@ auto start = std::chrono::high_resolution_clock::now();
 		scans.erase(it);
 	}
 	scans.emplace(scanLabel, CTScan(scanLabel,sinogram, detWidth, angles));
+
+	std::string filname{"sinogramNew.dat"};
+		std::ofstream fil(filname.c_str() );
+		if(fil){
+			fil << sinogram;
+			fil.close();
+			std::cout<<"\n  File written \n";
+		} else
+			std::cout << "\n File not opened!\n";
 }
 
 void Gen1CT::displayMeasurement(const std::string& label){
@@ -134,7 +144,7 @@ void Gen1CT::displayMeasurement(const std::string& label){
 			std::cout << std::endl << "ERROR!! Label: \"" << label << "\" could not be found!! Skipping the display.";
 }
 
-void Gen1CT::backProject(const CTScan& sinogram,
+Eigen::MatrixXd Gen1CT::backProject(const CTScan& sinogram,
 						 const std::array<int,2>& numberOfRecPoints,
 		                 const std::array<double,2>& resolution){
 	std::cout << "Backprojection started" << std::endl;
@@ -201,7 +211,7 @@ void Gen1CT::backProject(const CTScan& sinogram,
 	//TODO mukodjon a kovetkezo sor
 	//std::cout << std::endl << "Ratio of reconstructed and real (768. pixel): " << backprojection(768,821) / object->getDataAsEigenMatrixRef().row(821)(768);
 
-	//cimg_library::CImg<uint16_t> BPImage = cimg_library::CImg<uint16_t>(numberOfRecPoints[0], numberOfRecPoints[1], 1, 1);
+	/* Regi kijelzes
 	cimg_library::CImg<uint16_t> BPImage (numberOfRecPoints[0], numberOfRecPoints[1], 1, 1);
 	double maxInt = backprojection.maxCoeff();
 	double minInt =backprojection.minCoeff();
@@ -212,16 +222,8 @@ void Gen1CT::backProject(const CTScan& sinogram,
 	}
 	cimg_library::CImgDisplay BPImageDisplay;
 	BPImage.display(BPImageDisplay, true,0, true);
-
-
-	//DEBUG slice through the small ellipses
-	//TODO Mukodjon ez a teszt. Inkabb kulon legyen a main()-ben
-  //Eigen::VectorXd BPSlice = backprojection.col(821);
-  //Eigen::VectorXd ObjSlice = object->getDataAsEigenMatrixRef().row(821);
-  //matplotlibcpp::figure(27);
-  //matplotlibcpp::plot(std::vector<float> (&BPSlice[0], BPSlice.data()+BPSlice.cols()*BPSlice.rows()) );
-  //matplotlibcpp::plot(std::vector<float> (&ObjSlice[0], ObjSlice.data()+ObjSlice.cols()*ObjSlice.rows()) );
-  //matplotlibcpp::show(False);
+	*/
+	return backprojection;
 }
 
 
@@ -278,12 +280,22 @@ CTScan Gen1CT::applyFilter(const std::string& sinogramID, Filter filter){
 	double tau=detWidth/pixNum;
 	std::cout << "\nTau: "<<tau<<'\n';
 	for(int i=0; i<fftOfSinogram.cols(); i++){
-		paddedSinogram.col(i) = tau * fft.inv(fftOfSinogram.col(i)).real();
+		paddedSinogram.col(i) = 1/tau * fft.inv(fftOfSinogram.col(i)).real();
 	}
 
 
 	//sinogram=paddedSinogram.block(startIndex,0, pixNum, numAngles);
 
+	//DEBUG write out the filtered sinogram
+	std::string filname{"filteredNew.dat"};
+	std::ofstream fil(filname.c_str() );
+	if(fil){
+		fil << paddedSinogram.block(startIndex,0, pixNum, numAngles);
+		fil.close();
+		std::cout<<"\n  File written \n";
+	} else
+		std::cout << "\n File not opened!\n";
+///////////////////////////////////////////////////6
 
 	auto stop = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
@@ -295,11 +307,44 @@ CTScan Gen1CT::applyFilter(const std::string& sinogramID, Filter filter){
 
 void Gen1CT::filteredBackProject(std::string sinogramID,
 			                    const std::array<int,2>& numberOfRecPoints,
-								const std::array<double,2>& resolution ){
+								const std::array<double,2>& resolution,
+								FilterType filterType,
+								double cutOffFreq,
+								const std::string& imageID){
 	//Apply filter on the sinogram
-	CTScan filteredScan = applyFilter(sinogramID, Filter(FilterType::RamLak) );
+	CTScan filteredScan = applyFilter(sinogramID, Filter(filterType, cutOffFreq) );
 	filteredScan.display(sinogramID + " filtered");
-	backProject(filteredScan, numberOfRecPoints,resolution);
+	Eigen::MatrixXd backprojectedImage = backProject(filteredScan, numberOfRecPoints,resolution);
+
+	//Move the backprojected image to reconsts map
+	auto it = reconsts.find(imageID);
+	if(it != reconsts.end()){
+		std::cout << std::endl << "WARNING! A reconstructed image with label \"" << imageID << "\" already exists!!! Overwriting!!!";
+		reconsts.erase(it);
+	}
+	reconsts.emplace(imageID, Reconst(imageID, backprojectedImage, resolution));
+}
+
+void Gen1CT::displayReconstruction(const std::string& label){
+	if(reconsts.find(label) != reconsts.end()){
+			reconsts.at(label).display(label);    //TODO: Itt nem lehetne elkerulni a dupla label-t?
+			                                      //TODO: El kellene kerulni a .at()-et
+		}
+		else
+			std::cout << std::endl << "ERROR!! Label: \"" << label << "\" could not be found!! Skipping the display.";
+}
+
+void Gen1CT::compareRowPhantomAndReconst(int rowNum, const std::string& phantomID, const std::string& reconstID){
+	/*** Compare the same rows of the phantom and the reconstruction
+	 *
+	 */
+
+	Eigen::VectorXd BPSlice = reconsts.at(reconstID).getDataAsEigenMatrixRef().col(rowNum);
+	Eigen::VectorXd ObjSlice = phantoms.at(phantomID).getDataAsEigenMatrixRef().col(rowNum);
+	matplotlibcpp::figure(27);
+	matplotlibcpp::plot(std::vector<float> (&BPSlice[0], BPSlice.data()+BPSlice.cols()*BPSlice.rows()) );
+	matplotlibcpp::plot(std::vector<float> (&ObjSlice[0], ObjSlice.data()+ObjSlice.cols()*ObjSlice.rows()) );
+	matplotlibcpp::show();
 }
 
 

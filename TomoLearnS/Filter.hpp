@@ -16,9 +16,9 @@ private:
 	FilterType filterType;
 	double cutOff;
 
-	void RamLakFilter    (Eigen::MatrixXcd& fftOfSinogram);
-	//void SheppLoganFilter(Eigen::MatrixXcd& fftOfSinogram);
-	//void CosineFilter    (Eigen::MatrixXcd& fftOfSinogram);
-	//void HammingFilter   (Eigen::MatrixXcd& fftOfSinogram);
-	//void HanningFilter   (Eigen::MatrixXcd& fftOfSinogram);
+	void RamLakFilter    (Eigen::MatrixXcd& freqFilter);
+	void SheppLoganFilter(Eigen::MatrixXcd& freqFilter);
+	void CosineFilter    (Eigen::MatrixXcd& freqFilter);
+	void HammingFilter   (Eigen::MatrixXcd& freqFilter);
+	void HanningFilter   (Eigen::MatrixXcd& freqFilter);
 };

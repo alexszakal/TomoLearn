@@ -18,24 +18,22 @@ void testFBP();
 
 //TODO: Miutan atkerult a display az Object2D-be, ruleOf5 alkalmazasa
 //TODO: A display() fuggveny tegye fel a feliratot!
-//TODO: Legyen konfiguralhato a filterezes -> Kell egy filter osztaly
 //TODO: Valahogy a szurt szinogramokat is el kell menteni (lehetne egy map, ahol a key a filter osztaly?? )
-//TODO: A backproject mentse el a dolgokat egy FBPReconst osztalyba
 //TODO: Visszavetitest felgyorsitani
 //TODO: Gyorsabb elorevetites a cache jobb hasznalataval
-//TODO: Visszaallitott kep es a phantom osszehasonlitasa egy vonal menten (ugy mint a CImg demoban van)
-
+//TODO: A Gen1CTbol valahogy ki lehessen szedni az adatokat (kell egy interface ami const obj&-et ad vissza
+//TODO: reconsts es phantoms csak a .at() fuggvennyel kerdezheto le mert nincs default konstruktor
+//TODO: A szuresnel szorozzunk be az apodizalo fuggveny integraljaval hogy az intenzitas jo legyen
 
 // Next step:
-//TTOK: Legyen konfiguralhato a filterezes -> Kell ra egy osztaly!!!
-//      ---- Filter konstruktoraban a RamLak ellenorizze hogy a cutOff parameter jo-e
-//		---- RamLak filter implementalasa
+//TTOK:
+//      --- a tovabbi apodizalo fuggvenyek implemenetalasa: Cosine, Hamming, Hanning
 
 //Parallel geometry
 int main(){
 	//testRadonTransform();
 
-    testFBP();
+	testFBP();
 
 	std::cin.ignore();
 
@@ -49,8 +47,8 @@ void testFBP(){
 
 	std::cout << "Parallel beam FBP simulation" << std::endl;
 
-	int detWidthInMM{110};
-	int detPixNum{1024};
+	int detWidthInMM { 110 };
+	int detPixNum { 512 };
 	Gen1CT ct(detWidthInMM, detPixNum);
 
 	//Reading Shepp-Logan phantom
@@ -60,17 +58,23 @@ void testFBP(){
 	ct.addPhantom("SL_asym", "Phantoms/ModifiedSheppLogan_asymmetric.png"); //default pixSize: 0.1mm x 0.1mm
 	ct.addPhantom("SD", "Phantoms/SingleDot.png"); //Single dot Phantom
 
-	std::string activePhantom{"SL_asym"};
+	std::string activePhantom{"SL_symm"};
 
 	ct.displayPhantom(activePhantom);
 
 	const int numProjections{180};
-	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0, 180/180*M_PI);
+	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0,
+			179.0 / 180 * M_PI);
 
 	ct.measure(activePhantom, angles, "Sinogram");
 	ct.displayMeasurement("Sinogram");
 
-	ct.filteredBackProject("Sinogram", std::array<int,2>{1024, 1024}, std::array<double,2>{0.1, 0.1} );
+	ct.filteredBackProject("Sinogram", std::array<int, 2> { 1024, 1024 },
+			std::array<double, 2> { 0.1, 0.1 }, FilterType::SheppLogan, 0.3,
+			"RecImage");
+	ct.Gen1CT::displayReconstruction("RecImage");
+
+	ct.compareRowPhantomAndReconst(821, activePhantom, "RecImage");
 
 	int tmpi;
 	std::cin>>tmpi;

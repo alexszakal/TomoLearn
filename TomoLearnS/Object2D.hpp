@@ -21,6 +21,9 @@ public:
 	Object2D(const std::array<int, 2>& numberOfPixels, const std::array<double, 2>& objPixSizes);
 	//Constructor for initializing with Eigen::Matrix
 	Object2D(const Eigen::MatrixXd& inData, double detWidth, const Eigen::VectorXd& angles);
+	//Constructor for initialization with Eigen::Matrix
+	//TODO: A fenti konstruktort lecserélni arra ami ibjPixSizest ker be
+	Object2D(const Eigen::MatrixXd& inData, const std::array<double, 2>& objPixSizes={0.1, 0.1});
 
 	Object2D(Object2D&& objToMove) = default;
 	~Object2D();

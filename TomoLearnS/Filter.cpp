@@ -1,8 +1,12 @@
 #include <TomoLearnS/Filter.hpp>
 
+#define EIGEN_FFTW_DEFAULT
 #include <unsupported/Eigen/FFT>
 
+#include <matplotlibcpp/matplotlibcpp_old.h>
+
 #include <iostream>
+#include <cmath>
 
 Filter::Filter(FilterType filterType, double cutOffIn):filterType{filterType}{
 	if( cutOffIn>0.0 && cutOffIn<=1.0){
@@ -14,14 +18,30 @@ Filter::Filter(FilterType filterType, double cutOffIn):filterType{filterType}{
 	}
 }
 
+#define FILTERING_DEBUG
 void Filter::operator()(Eigen::MatrixXcd& fftOfSinogram){
+
+	int pixNumPadded = fftOfSinogram.rows();
+
+	//Construct the filter
+	Eigen::MatrixXcd freqFilter = Eigen::MatrixXcd::Zero(pixNumPadded,1);
+	Eigen::MatrixXd filter = Eigen::MatrixXd::Zero(pixNumPadded,1);
+
+	filter(0)=1.0/4;
+	for(int i=0; i<pixNumPadded/4; ++i){
+		int idx= i*2+1;
+		filter(idx) = -1.0/std::pow(idx*M_PI, 2);
+		filter(pixNumPadded-idx) = filter(idx);
+	}
+	Eigen::FFT<double> fft2;
+	freqFilter.col(0)=fft2.fwd(filter.col(0));
 
 	switch (filterType){
 		case FilterType::RamLak:
-			RamLakFilter(fftOfSinogram);
+			RamLakFilter(freqFilter);
 			break;
 		case FilterType::SheppLogan:
-			//SheppLoganFilter(fftOfSinogram);
+			SheppLoganFilter(freqFilter);
 			break;
 		case FilterType::Cosine:
 			//CosineFilter(fftOfSinogram);
@@ -33,30 +53,6 @@ void Filter::operator()(Eigen::MatrixXcd& fftOfSinogram){
 			//HanningFilter(fftOfSinogram);
 			break;
 	}
-}
-
-void Filter::RamLakFilter(Eigen::MatrixXcd& fftOfSinogram){
-	int pixNumPadded = fftOfSinogram.rows();
-
-	//Construct the filter
-	Eigen::MatrixXcd freqFilter = Eigen::MatrixXd::Zero(pixNumPadded,1);
-	Eigen::MatrixXd filter = Eigen::MatrixXd::Zero(pixNumPadded,1);
-
-	filter(0)=1/(4*0.107422*0.107422);
-	for(int i=0; i<pixNumPadded/4; ++i){
-		int idx= i*2+1;
-		filter(idx) = -1/std::pow(idx*M_PI*0.107422, 2);
-		filter(pixNumPadded-idx) = filter(idx);
-	}
-	Eigen::FFT<double> fft2;
-	freqFilter.col(0)=fft2.fwd(filter.col(0));
-
-	//Low-pass filter to suppress the noise
-	/*int maxFreq=1024;
-	for(int i=maxFreq+1; i<=pixNumPadded/2; ++i ){
-		freqFilter(i)=0;
-		freqFilter(pixNumPadded-i)=0;
-	}*/
 
 #ifdef FILTERING_DEBUG  //Show the filter
 	matplotlibcpp::figure(3);
@@ -73,8 +69,38 @@ void Filter::RamLakFilter(Eigen::MatrixXcd& fftOfSinogram){
 	}
 }
 
-void SheppLoganFilter(Eigen::MatrixXcd& fftOfSinogram){return;}
-void CosineFilter(Eigen::MatrixXcd& fftOfSinogram){return;}
-void HammingFilter(Eigen::MatrixXcd& fftOfSinogram){return;}
-void HanningFilter(Eigen::MatrixXcd& fftOfSinogram){return;}
+void Filter::RamLakFilter(Eigen::MatrixXcd& freqFilter){
+	int pixNumPadded=freqFilter.rows();
+
+	//Low-pass filter to suppress the noise
+	int maxFreq=pixNumPadded*cutOff/2;
+	for(int i=maxFreq+1; i<=pixNumPadded/2; ++i ){
+		freqFilter(i)=0;
+		freqFilter(pixNumPadded-i)=0;
+	}
+}
+
+void Filter::SheppLoganFilter(Eigen::MatrixXcd& freqFilter){
+	int pixNumPadded=freqFilter.rows();
+
+	int maxFreq=pixNumPadded*cutOff/2;
+	//freqFilter(0) *=1; //Shepp-Logan is 1 at x=0
+	for (int i=1; i<=pixNumPadded/2; ++i){
+		if(i>maxFreq){
+			freqFilter(i)=0;
+			freqFilter(pixNumPadded-i)=0;
+		}
+		else{
+			double x = M_PI *i / (2 * maxFreq) ;
+			freqFilter(i) *= 0.5 * sin( x ) / x;   //ITT SINC() KELL MAJD!!!
+			freqFilter(pixNumPadded-i)=freqFilter(i);
+		}
+	}
+
+}
+
+
+void Filter::CosineFilter(Eigen::MatrixXcd& fftOfSinogram){return;}
+void Filter::HammingFilter(Eigen::MatrixXcd& fftOfSinogram){return;}
+void Filter::HanningFilter(Eigen::MatrixXcd& fftOfSinogram){return;}
 

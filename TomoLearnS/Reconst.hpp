@@ -4,9 +4,13 @@
 
 class Reconst : public Object2D{
 public:
-	Reconst(std::string scanID, Eigen::MatrixXd recImage,
-			const std::array<int, 2>& numberOfPixels, const std::array<double, 2>& objPixSizes);
-	void display();
+	Reconst(std::string scanID,
+			Eigen::MatrixXd recImage,
+			const std::array<double, 2>& objPixSizes): Object2D(recImage,
+																objPixSizes),
+													   scanID(scanID)
+    {
+    }
 private:
 	std::string scanID;
 };

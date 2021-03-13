@@ -92,7 +92,24 @@ Object2D::Object2D(const Eigen::MatrixXd& inData,
 	for(int i=0; i<numberOfPixels[1]; i++){
 			yPixCentreCoords[i]=-1*objWidthHeightInMM[1]/2+(i+0.5)*objPixSizes[1];
 	}
+}
 
+Object2D::Object2D(const Eigen::MatrixXd& inData, const std::array<double, 2>& objPixSizes):objData{inData},
+		                                                                                    objPixSizes{objPixSizes}{
+	numberOfPixels[0]=inData.rows();
+	numberOfPixels[1]=inData.cols();
+
+	objWidthHeightInMM[0]=objPixSizes[0]*numberOfPixels[0];
+	objWidthHeightInMM[1]=objPixSizes[1]*numberOfPixels[1];
+
+	xPixCentreCoords.reserve(numberOfPixels[0]);
+	for(int i=0; i<numberOfPixels[0]; i++){
+		xPixCentreCoords[i]=-1*objWidthHeightInMM[0]/2+(i+0.5)*objPixSizes[0];
+	}
+	yPixCentreCoords.reserve(numberOfPixels[1]);
+	for(int i=0; i<numberOfPixels[1]; i++){
+		yPixCentreCoords[i]=-1*objWidthHeightInMM[1]/2+(i+0.5)*objPixSizes[1];
+	}
 }
 
 Object2D::~Object2D(){
