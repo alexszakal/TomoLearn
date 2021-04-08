@@ -1,5 +1,7 @@
 add_library(TomoLearnS STATIC CTScan.cpp Filter.cpp Gen1CT.cpp Object2D.cpp Phantom.cpp)
 
+target_compile_features(TomoLearnS PRIVATE cxx_std_17)
+
 target_include_directories(TomoLearnS PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_include_directories(TomoLearnS PUBLIC /usr/include/eigen3)
 target_include_directories(TomoLearnS PUBLIC /usr/include/python2.7)
