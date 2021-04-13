@@ -17,6 +17,7 @@ void testRadonTransform();
 void testFBP();
 
 //TODO: Miutan atkerult a display az Object2D-be, ruleOf5 alkalmazasa
+//DEBUG: A szurt szinogram eltunik amikor a visszaallitas megjelenik
 //TODO: A display() fuggveny tegye fel a feliratot!
 //TODO: Valahogy a szurt szinogramokat is el kell menteni (lehetne egy map, ahol a key a filter osztaly?? )
 //TODO: Visszavetitest felgyorsitani
@@ -70,7 +71,7 @@ void testFBP(){
 	ct.displayMeasurement("Sinogram");
 
 	ct.filteredBackProject("Sinogram", std::array<int, 2> { 1024, 1024 },
-			std::array<double, 2> { 0.1, 0.1 }, FilterType::SheppLogan, 0.3,
+			std::array<double, 2> { 0.1, 0.1 }, FilterType::Hann, 0.5,
 			"RecImage");
 	ct.Gen1CT::displayReconstruction("RecImage");
 

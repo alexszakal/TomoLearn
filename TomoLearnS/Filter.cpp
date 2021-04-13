@@ -44,13 +44,13 @@ void Filter::operator()(Eigen::MatrixXcd& fftOfSinogram){
 			SheppLoganFilter(freqFilter);
 			break;
 		case FilterType::Cosine:
-			//CosineFilter(fftOfSinogram);
+			CosineFilter(freqFilter);
+			break;
+		case FilterType::Hann:
+			HannFilter(freqFilter);
 			break;
 		case FilterType::Hamming:
-			//HammingFilter(fftOfSinogram);
-			break;
-		case FilterType::Hanning:
-			//HanningFilter(fftOfSinogram);
+			HammingFilter(freqFilter);
 			break;
 	}
 
@@ -92,7 +92,7 @@ void Filter::SheppLoganFilter(Eigen::MatrixXcd& freqFilter){
 		}
 		else{
 			double x = M_PI *i / (2 * maxFreq) ;
-			freqFilter(i) *= 0.5 * sin( x ) / x;   //ITT SINC() KELL MAJD!!!
+			freqFilter(i) *= sin( x ) / x;
 			freqFilter(pixNumPadded-i)=freqFilter(i);
 		}
 	}
@@ -100,7 +100,62 @@ void Filter::SheppLoganFilter(Eigen::MatrixXcd& freqFilter){
 }
 
 
-void Filter::CosineFilter(Eigen::MatrixXcd& fftOfSinogram){return;}
-void Filter::HammingFilter(Eigen::MatrixXcd& fftOfSinogram){return;}
-void Filter::HanningFilter(Eigen::MatrixXcd& fftOfSinogram){return;}
+void Filter::CosineFilter(Eigen::MatrixXcd& freqFilter){
+	int pixNumPadded=freqFilter.rows();
+
+	int maxFreq=pixNumPadded*cutOff/2;
+	//freqFilter(0) *=1; //Cosine is 1 at x=0
+	for (int i=1; i<=pixNumPadded/2; ++i){
+		if(i>maxFreq){
+			freqFilter(i)=0;
+			freqFilter(pixNumPadded-i)=0;
+		}
+		else{
+			double x = M_PI *i / (2 * maxFreq) ;
+			freqFilter(i) *= cos( x );
+			freqFilter(pixNumPadded-i)=freqFilter(i);
+		}
+	}
+	return;
+}
+
+
+void Filter::HannFilter(Eigen::MatrixXcd& freqFilter){
+	int pixNumPadded=freqFilter.rows();
+
+	int maxFreq=pixNumPadded*cutOff/2;
+	//freqFilter(0) *=1; //Hann is 1 at x=0
+	for (int i=1; i<=pixNumPadded/2; ++i){
+		if(i>maxFreq){
+			freqFilter(i)=0;
+			freqFilter(pixNumPadded-i)=0;
+		}
+		else{
+			double x = M_PI *i / ( maxFreq) ;
+			freqFilter(i) *= (1+cos( x ))*0.5;
+			freqFilter(pixNumPadded-i)=freqFilter(i);
+		}
+	}
+	return;
+}
+
+void Filter::HammingFilter(Eigen::MatrixXcd& freqFilter){
+	int pixNumPadded=freqFilter.rows();
+	double alpha = 25.0/46;
+
+	int maxFreq=pixNumPadded*cutOff/2;
+	//freqFilter(0) *=1; //HAmming is 1 at x=0
+	for (int i=1; i<=pixNumPadded/2; ++i){
+		if(i>maxFreq){
+			freqFilter(i)=0;
+			freqFilter(pixNumPadded-i)=0;
+		}
+		else{
+			double x = M_PI *i / (1 * maxFreq) ;
+			freqFilter(i) *= alpha+(1-alpha)*cos( x );
+			freqFilter(pixNumPadded-i)=freqFilter(i);
+		}
+	}
+	return;
+}
 

@@ -4,8 +4,8 @@
 enum class FilterType{RamLak,
                       SheppLogan,
                       Cosine,
-                      Hamming,
-                      Hanning};
+                      Hann,
+                      Hamming};
 
 class Filter{
 public:
@@ -19,6 +19,6 @@ private:
 	void RamLakFilter    (Eigen::MatrixXcd& freqFilter);
 	void SheppLoganFilter(Eigen::MatrixXcd& freqFilter);
 	void CosineFilter    (Eigen::MatrixXcd& freqFilter);
+	void HannFilter   (Eigen::MatrixXcd& freqFilter);
 	void HammingFilter   (Eigen::MatrixXcd& freqFilter);
-	void HanningFilter   (Eigen::MatrixXcd& freqFilter);
 };
