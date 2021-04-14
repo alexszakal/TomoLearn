@@ -8,7 +8,7 @@
   #undef Success
 #endif
 
-#include <TomoLearnS/Object2D.hpp>
+#include <TomoLearnS/Object2D.hpp>+500 to +1900
 #include <TomoLearnS/Gen1CT.hpp>
 
 #include <matplotlibcpp/matplotlibcpp_old.h>
@@ -24,11 +24,11 @@ void testFBP();
 //TODO: Gyorsabb elorevetites a cache jobb hasznalataval
 //TODO: A Gen1CTbol valahogy ki lehessen szedni az adatokat (kell egy interface ami const obj&-et ad vissza
 //TODO: reconsts es phantoms csak a .at() fuggvennyel kerdezheto le mert nincs default konstruktor
-//TODO: A szuresnel szorozzunk be az apodizalo fuggveny integraljaval hogy az intenzitas jo legyen
+//TODO: Ellenorizni az Object2D->display-ben a normalizaciot, castolast (beutesek nem fernek bele a 16bitbe!!!)
 
 // Next step:
 //TTOK:
-//      --- a tovabbi apodizalo fuggvenyek implemenetalasa: Cosine, Hamming, Hanning
+//      ---
 
 //Parallel geometry
 int main(){
@@ -53,7 +53,7 @@ void testFBP(){
 	Gen1CT ct(detWidthInMM, detPixNum);
 
 	//Reading Shepp-Logan phantom
-	//ct.addPhantom("SL", "Phantoms/SheppLogan.png");
+	ct.addPhantom("SL", "Phantoms/SheppLogan.png");
 	//ct.addPhantom("SL", "Phantoms/SheppLogan_asymmetric.png");
 	ct.addPhantom("SL_symm", "Phantoms/ModifiedSheppLogan.png");
 	ct.addPhantom("SL_asym", "Phantoms/ModifiedSheppLogan_asymmetric.png"); //default pixSize: 0.1mm x 0.1mm

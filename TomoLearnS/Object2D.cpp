@@ -45,11 +45,11 @@ Object2D::Object2D(const std::string& imageFilePath,
 		yPixCentreCoords[i]=   objWidthHeightInMM[1]/2 - i*objPixSizes[1] - objPixSizes[1]/2;
 	}
 
-	/*//DEBUG show values along lower ellipses
-	Eigen::VectorXd slice = image.row(821);
-	matplotlibcpp::plot(std::vector<float> (&slice[0], slice.data()+slice.cols()*slice.rows()) );
-	matplotlibcpp::show(False);
-*/
+	//DEBUG show values along lower ellipses
+	//Eigen::VectorXd slice = objData.row(821);
+	//matplotlibcpp::plot(std::vector<float> (&slice[0], slice.data()+slice.cols()*slice.rows()) );
+	//matplotlibcpp::show(False);
+
 }
 
 /* Initialize an Object2D with zeros*/
@@ -148,6 +148,8 @@ void Object2D::display(const std::string& label){
 	double maxInt = objData.maxCoeff();
 	double minInt = objData.minCoeff();
 	double normFactor = 65530/(maxInt-minInt);
+//TMP disable normalize
+	normFactor=1.0;
 	for(int i=0; i<numberOfPixels[0]; ++i){
 		for(int j=0; j<numberOfPixels[1]; ++j){
 			cimg_image(i,j) = static_cast<uint16_t>((objData(i,j)-minInt)*normFactor);
