@@ -67,6 +67,7 @@ void testFBP(){
 	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0,
 			179.0 / 180 * M_PI);
 
+	ct.setI0(1e8);
 	ct.measure(activePhantom, angles, "Sinogram");
 	ct.displayMeasurement("Sinogram");
 

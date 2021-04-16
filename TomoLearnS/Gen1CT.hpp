@@ -22,6 +22,8 @@ public:
 	void displayPhantom(const std::string& label,
 			            const std::string& title = "emptyTitle");
 
+    void setI0(double newI0);
+
 	void measure(const std::string& label, const Eigen::VectorXd& angles, const std::string& scanLabel);
 	void displayMeasurement(const std::string& label);
 
@@ -42,6 +44,8 @@ private:
 	const double detWidth;
 	const int pixNum;
 	std::vector<double> pixPositions;
+
+	double I0 = -1;   //I0 is negative by default -> Poisson sampling turned off
 
 	std::map<std::string, Phantom> phantoms;
 	std::map<std::string, CTScan> scans;

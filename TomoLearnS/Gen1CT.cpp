@@ -53,6 +53,10 @@ void Gen1CT::displayPhantom(const std::string& label, const std::string& title){
 		std::cout << std::endl << "ERROR!! Label: \"" << label << "\" could not be found!! Skipping the display.";
 }
 
+void Gen1CT::setI0(double newI0){
+	I0=newI0;
+}
+
 void Gen1CT::measure(const std::string& phantomLabel,
 		             const Eigen::VectorXd& angles,
 		             const std::string& scanLabel){
@@ -126,14 +130,7 @@ void Gen1CT::measure(const std::string& phantomLabel,
 	}
 	scans.emplace(scanLabel, CTScan(scanLabel,sinogram, detWidth, angles));
 
-	std::string filname{"sinogramNew.dat"};
-		std::ofstream fil(filname.c_str() );
-		if(fil){
-			fil << sinogram;
-			fil.close();
-			std::cout<<"\n  File written \n";
-		} else
-			std::cout << "\n File not opened!\n";
+
 }
 
 void Gen1CT::displayMeasurement(const std::string& label){

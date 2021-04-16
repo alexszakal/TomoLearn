@@ -96,9 +96,7 @@ void Filter::SheppLoganFilter(Eigen::MatrixXcd& freqFilter){
 			freqFilter(pixNumPadded-i)=freqFilter(i);
 		}
 	}
-
 }
-
 
 void Filter::CosineFilter(Eigen::MatrixXcd& freqFilter){
 	int pixNumPadded=freqFilter.rows();
