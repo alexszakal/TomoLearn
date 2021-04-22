@@ -77,6 +77,9 @@ void Gen1CT::measure(const std::string& phantomLabel,
 	auto pixSizes = phantoms.at(phantomLabel).getPixSizes();
 	auto numberOfPixels = phantoms.at(phantomLabel).getNumberOfPixels();
 
+	//Convert Hounsfield to linear attenuation (LA) units
+	Phantom actualPhantomLA = actualPhantom * (muWater/1000) + muWater;
+
 	double t;
 	const double piPer4 = M_PI/4;
 

@@ -8,7 +8,7 @@
   #undef Success
 #endif
 
-#include <TomoLearnS/Object2D.hpp>+500 to +1900
+#include <TomoLearnS/Object2D.hpp>
 #include <TomoLearnS/Gen1CT.hpp>
 
 #include <matplotlibcpp/matplotlibcpp_old.h>
@@ -28,7 +28,8 @@ void testFBP();
 
 // Next step:
 //TTOK:
-//      ---
+//      ---Object2D-ben a ruleOf5 rendben van igy?
+//      ---A measure fuggveny a "mu"-bol szamoljon, ne a HU egysegekbol
 
 //Parallel geometry
 int main(){

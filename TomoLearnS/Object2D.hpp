@@ -25,8 +25,13 @@ public:
 	//TODO: A fenti konstruktort lecserélni arra ami ibjPixSizest ker be
 	Object2D(const Eigen::MatrixXd& inData, const std::array<double, 2>& objPixSizes={0.1, 0.1});
 
-	Object2D(Object2D&& objToMove) = default;
 	~Object2D();
+	//Rule of 5 because custom destructor defined.
+	Object2D(const Object2D& objToCopy); //Copy constructor
+	Object2D& operator=(const Object2D& objToCopy);		//Copy assignment
+	Object2D(Object2D&& objToMove) = default; //Move constructor
+	Object2D& operator=(Object2D&& objToMove) = default;	//Move assignment
+
 
 	std::array<double, 2> getPixSizes() const;
 	std::array<int, 2> getNumberOfPixels() const;

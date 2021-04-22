@@ -13,6 +13,21 @@ Phantom::Phantom(const std::string& label,
 
 }
 
+Phantom::Phantom(const std::string& label,
+		         const Eigen::MatrixXd inData,
+				 const std::array<double, 2> objPixSizes):
+						                                  Object2D{inData, objPixSizes},
+														  label{label}{
+}
+
+Phantom Phantom::operator*(double coeff){
+	return Phantom{label, this->getDataAsEigenMatrixRef()*coeff, this->getPixSizes()};
+}
+
+Phantom Phantom::operator+(double addVal){
+	return Phantom{label, this->getDataAsEigenMatrixRef().array()+addVal, this->getPixSizes()};
+}
+
 
 
 

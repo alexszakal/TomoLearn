@@ -47,6 +47,8 @@ private:
 
 	double I0 = -1;   //I0 is negative by default -> Poisson sampling turned off
 
+	double muWater = 0.1; //Linear attenuation coeff. of water [1/mm]!!!!
+
 	std::map<std::string, Phantom> phantoms;
 	std::map<std::string, CTScan> scans;
 	std::map<std::string, Reconst> reconsts;

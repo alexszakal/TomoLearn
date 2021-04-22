@@ -121,6 +121,30 @@ Object2D::~Object2D(){
 		displayThread.join();
 }
 
+Object2D::Object2D(const Object2D& objToCopy){
+	//Copy constructor copies everything except the display which is bound to the original
+	objData = objToCopy.objData;
+	numberOfPixels = objToCopy.numberOfPixels;
+	objPixSizes = objToCopy.objPixSizes;   //Size of a single pixel
+	objWidthHeightInMM = objToCopy.objWidthHeightInMM;
+
+	xPixCentreCoords = objToCopy.xPixCentreCoords;
+	yPixCentreCoords = objToCopy.yPixCentreCoords;
+}
+
+Object2D& Object2D::operator=(const Object2D& objToCopy){
+	//Copy assignment copies everything except the display which is bound to the original
+	objData = objToCopy.objData;
+	numberOfPixels = objToCopy.numberOfPixels;
+	objPixSizes = objToCopy.objPixSizes;   //Size of a single pixel
+	objWidthHeightInMM = objToCopy.objWidthHeightInMM;
+
+	xPixCentreCoords = objToCopy.xPixCentreCoords;
+	yPixCentreCoords = objToCopy.yPixCentreCoords;
+
+	return *this;
+}
+
 void Object2D::display(const std::string& label){
 	if(!(cimg_window.is_closed())){
 		return;

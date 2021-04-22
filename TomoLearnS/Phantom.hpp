@@ -18,6 +18,11 @@ class Phantom : public Object2D{
 public:
 	Phantom(const std::string& label, const std::string& imageFilePath,
 			const std::array<double, 2>& objPixSizes);
+	Phantom(const std::string& label, const Eigen::MatrixXd inData,
+			const std::array<double, 2> objPixSizes = {0.1, 0.1});
+
+	Phantom operator*(double coeff);
+	Phantom operator+(double addVal);
 
 private:
 	std::string label;
