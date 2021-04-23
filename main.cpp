@@ -28,8 +28,9 @@ void testFBP();
 
 // Next step:
 //TTOK:
-//      ---Object2D-ben a ruleOf5 rendben van igy?
+//      ---Object2D-ben megirni a move konstruktort es a move assignment operatorokat (Mukodjenek a "+" es "*" operatorok a LA unitra atteresnel
 //      ---A measure fuggveny a "mu"-bol szamoljon, ne a HU egysegekbol
+//      ---A Phantom operator+(double) mukodjon
 
 //Parallel geometry
 int main(){

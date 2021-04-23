@@ -123,6 +123,7 @@ Object2D::~Object2D(){
 
 Object2D::Object2D(const Object2D& objToCopy){
 	//Copy constructor copies everything except the display which is bound to the original
+	std::cout << "\n Copy constructor called \n";
 	objData = objToCopy.objData;
 	numberOfPixels = objToCopy.numberOfPixels;
 	objPixSizes = objToCopy.objPixSizes;   //Size of a single pixel
@@ -134,6 +135,7 @@ Object2D::Object2D(const Object2D& objToCopy){
 
 Object2D& Object2D::operator=(const Object2D& objToCopy){
 	//Copy assignment copies everything except the display which is bound to the original
+	std::cout << "\n Copy assignment called \n";
 	objData = objToCopy.objData;
 	numberOfPixels = objToCopy.numberOfPixels;
 	objPixSizes = objToCopy.objPixSizes;   //Size of a single pixel
@@ -144,6 +146,20 @@ Object2D& Object2D::operator=(const Object2D& objToCopy){
 
 	return *this;
 }
+
+/*
+Object2D::Object2D(Object2D&& objToMove){
+	//Move constructor
+	std::cout << "\n Move constructor called \n ";
+
+}
+*/
+
+/*Object2D& Object2D::operator=(Object2D&& objToMove){
+	//Move assignment
+	std::cout << " Move assignment called \n ";
+	return *this;
+}*/
 
 void Object2D::display(const std::string& label){
 	if(!(cimg_window.is_closed())){
@@ -172,11 +188,11 @@ void Object2D::display(const std::string& label){
 	double maxInt = objData.maxCoeff();
 	double minInt = objData.minCoeff();
 	double normFactor = 65530/(maxInt-minInt);
-//TMP disable normalize
-	normFactor=1.0;
 	for(int i=0; i<numberOfPixels[0]; ++i){
 		for(int j=0; j<numberOfPixels[1]; ++j){
-			cimg_image(i,j) = static_cast<uint16_t>((objData(i,j)-minInt)*normFactor);
+			//cimg_image(i,j) = static_cast<double>((objData(i,j)-minInt)*normFactor);
+			//Without normalization
+			cimg_image(i,j) = static_cast<double>(objData(i,j));
 		}
 	}
 

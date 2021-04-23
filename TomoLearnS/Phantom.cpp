@@ -10,7 +10,6 @@ Phantom::Phantom(const std::string& label,
 				 const std::array<double, 2>& objPixSizes):
 				                                          Object2D{imageFilePath, objPixSizes},
 														  label{label}{
-
 }
 
 Phantom::Phantom(const std::string& label,
@@ -20,12 +19,12 @@ Phantom::Phantom(const std::string& label,
 														  label{label}{
 }
 
-Phantom Phantom::operator*(double coeff){
+Phantom Phantom::operator*(double coeff) const {
 	return Phantom{label, this->getDataAsEigenMatrixRef()*coeff, this->getPixSizes()};
 }
 
-Phantom Phantom::operator+(double addVal){
-	return Phantom{label, this->getDataAsEigenMatrixRef().array()+addVal, this->getPixSizes()};
+Phantom Phantom::operator+(double addVal) const {
+	return Phantom{label, this->getDataAsEigenMatrixRef().array() + addVal, this->getPixSizes()};
 }
 
 

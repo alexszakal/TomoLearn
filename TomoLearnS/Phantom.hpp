@@ -21,8 +21,8 @@ public:
 	Phantom(const std::string& label, const Eigen::MatrixXd inData,
 			const std::array<double, 2> objPixSizes = {0.1, 0.1});
 
-	Phantom operator*(double coeff);
-	Phantom operator+(double addVal);
+	Phantom operator*(double coeff) const;
+	Phantom operator+(double addVal) const;
 
 private:
 	std::string label;

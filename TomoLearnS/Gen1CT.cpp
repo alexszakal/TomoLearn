@@ -78,7 +78,13 @@ void Gen1CT::measure(const std::string& phantomLabel,
 	auto numberOfPixels = phantoms.at(phantomLabel).getNumberOfPixels();
 
 	//Convert Hounsfield to linear attenuation (LA) units
-	Phantom actualPhantomLA = actualPhantom * (muWater/1000) + muWater;
+	//Phantom actualPhantomLA = (actualPhantom) * (muWater/1000) + muWater;
+	Phantom actualPhantomLA = actualPhantom;
+	actualPhantomLA = actualPhantomLA * (muWater/1000);
+	//Phantom actualPhantomLA = actualPhantom;
+
+	//DEBUG
+	actualPhantomLA.display("vmi");
 
 	double t;
 	const double piPer4 = M_PI/4;
@@ -109,13 +115,13 @@ void Gen1CT::measure(const std::string& phantomLabel,
 
 			if( interpIsInY[angI] ){
 				for(int objectXIndex=0; objectXIndex < numberOfPixels[0]; ++objectXIndex){
-					double objectYinMM = t*sinThetaVector[angI]+ (t*cosThetaVector[angI] - actualPhantom.getXValueAtPix(objectXIndex))*cotThetaVector[angI];
-					sinogram(pixI, angI) += actualPhantom.linear_atY(objectXIndex, objectYinMM) * absSinThetaInvVector[angI]*pixSizes[0];
+					double objectYinMM = t*sinThetaVector[angI]+ (t*cosThetaVector[angI] - actualPhantomLA.getXValueAtPix(objectXIndex))*cotThetaVector[angI];
+					sinogram(pixI, angI) += actualPhantomLA.linear_atY(objectXIndex, objectYinMM) * absSinThetaInvVector[angI]*pixSizes[0];
 				}
 			} else{
 				for(int objectYIndex=0; objectYIndex < numberOfPixels[1]; ++objectYIndex){
-					double objectXinMM = t*cosThetaVector[angI] - (actualPhantom.getYValueAtPix(objectYIndex)-t*sinThetaVector[angI])*tanThetaVector[angI];
-					sinogram(pixI, angI) += actualPhantom.linear_atX(objectYIndex, objectXinMM) * absCosThetaInvVector[angI]*pixSizes[1];
+					double objectXinMM = t*cosThetaVector[angI] - (actualPhantomLA.getYValueAtPix(objectYIndex)-t*sinThetaVector[angI])*tanThetaVector[angI];
+					sinogram(pixI, angI) += actualPhantomLA.linear_atX(objectYIndex, objectXinMM) * absCosThetaInvVector[angI]*pixSizes[1];
 				}
 			}
 		}

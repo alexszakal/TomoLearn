@@ -2,8 +2,8 @@ clear all;
 
 [P,E]=phantom('Modified Shepp-Logan', 1024);
 E(:,1)=[2., -0.98, -0.02, -0.02, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01];
-maxInHU=2000; %Attenuation of bone in HU
-P=uint16(phantom(E, 1024)*maxInHU/2);
+maxInHU=1000; %Attenuation of bone in HU
+P=uint16(phantom(E, 1024)*maxInHU/2*2);
 imshow(P);
 caxis([0 maxInHU])
 title('Shepp-Logan.png')
@@ -18,7 +18,7 @@ P(:,1:130)=[];
 imwrite(P, 'SheppLogan_asymmetric.png', 'BitDepth', 16); %16 bit
 
 
-P2=uint16(phantom('Modified Shepp-Logan', 1024)*maxInHU);
+P2=uint16(phantom('Modified Shepp-Logan', 1024)*maxInHU*2);
 figure(3);
 imshow(P2);
 ax=gca;

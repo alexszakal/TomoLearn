@@ -29,8 +29,8 @@ public:
 	//Rule of 5 because custom destructor defined.
 	Object2D(const Object2D& objToCopy); //Copy constructor
 	Object2D& operator=(const Object2D& objToCopy);		//Copy assignment
-	Object2D(Object2D&& objToMove) = default; //Move constructor
-	Object2D& operator=(Object2D&& objToMove) = default;	//Move assignment
+	Object2D(Object2D&& objToMove) = delete; //Move constructor
+	Object2D& operator=(Object2D&& objToMove) = delete;	//Move assignment
 
 
 	std::array<double, 2> getPixSizes() const;
@@ -61,7 +61,7 @@ private:
 	std::vector<double> yPixCentreCoords;
 
 	//Display
-	cimg_library::CImg<uint16_t> cimg_image;
+	cimg_library::CImg<double> cimg_image;
 	cimg_library::CImgDisplay cimg_window;
 	std::thread displayThread;
 
