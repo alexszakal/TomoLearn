@@ -12,3 +12,7 @@ target_link_libraries(TomoLearnS PUBLIC fftw3)
 target_link_libraries(TomoLearnS PUBLIC m)
 target_link_libraries(TomoLearnS PUBLIC X11)
 
+target_link_libraries(TomoLearnS PUBLIC project_options)
+
+
+
