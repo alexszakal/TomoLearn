@@ -72,15 +72,16 @@ void Gen1CT::measure(const std::string& phantomLabel,
 		std::cout << std::endl << "ERROR!! phantomLabel: \"" << phantomLabel << "\" could not be found!! Abort mission";
 		return;
 	}
+
 	Phantom& actualPhantom = phantoms.at(phantomLabel);
 
-	auto pixSizes = phantoms.at(phantomLabel).getPixSizes();
-	auto numberOfPixels = phantoms.at(phantomLabel).getNumberOfPixels();
+	auto pixSizes = actualPhantom.getPixSizes();
+    auto numberOfPixels = actualPhantom.getNumberOfPixels();
 
 	//Convert Hounsfield to linear attenuation (LA) units
 	//Phantom actualPhantomLA = (actualPhantom) * (muWater/1000) + muWater;
 	Phantom actualPhantomLA = actualPhantom;
-	actualPhantomLA = actualPhantomLA * (muWater/1000);
+	actualPhantomLA = actualPhantomLA + 10.0;
 	//Phantom actualPhantomLA = actualPhantom;
 
 	//DEBUG

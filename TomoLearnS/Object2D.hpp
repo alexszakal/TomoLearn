@@ -29,8 +29,8 @@ public:
 	//Rule of 5 because custom destructor defined.
 	Object2D(const Object2D& objToCopy); //Copy constructor
 	Object2D& operator=(const Object2D& objToCopy);		//Copy assignment
-	Object2D(Object2D&& objToMove) = delete; //Move constructor
-	Object2D& operator=(Object2D&& objToMove) = delete;	//Move assignment
+	Object2D(Object2D&& objToMove); //Move constructor
+	Object2D& operator=(Object2D&& objToMove) noexcept;	//Move assignment
 
 
 	std::array<double, 2> getPixSizes() const;

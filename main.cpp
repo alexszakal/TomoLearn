@@ -32,6 +32,11 @@ void testFBP();
 //      ---A measure fuggveny a "mu"-bol szamoljon, ne a HU egysegekbol
 //      ---A Phantom operator+(double) mukodjon
 
+//TTOK sanitizers:
+//-Dokumentacioba Properties -> C/C++Build -> CMake4eclipse -> Cmake cache entries -> ENABLE_SANITIZER_ADDRESS:BOOL:ON
+//- Az address sanitizer is kell ahhoz hogy kodsorokat irjon ki: LAunch config. -> Environmentbe: -> ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer
+
+
 //Parallel geometry
 int main(){
 	//testRadonTransform();
@@ -68,6 +73,9 @@ void testFBP(){
 	const int numProjections{180};
 	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0,
 			179.0 / 180 * M_PI);
+	//const int numProjections{2};
+	//Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 44.0/180 * M_PI,
+	//			46.0 / 180 * M_PI);
 
 	ct.setI0(1e8);
 	ct.measure(activePhantom, angles, "Sinogram");
@@ -78,7 +86,7 @@ void testFBP(){
 			"RecImage");
 	ct.Gen1CT::displayReconstruction("RecImage");
 
-	ct.compareRowPhantomAndReconst(821, activePhantom, "RecImage");
+	//ct.compareRowPhantomAndReconst(821, activePhantom, "RecImage");
 
 	int tmpi;
 	std::cin>>tmpi;

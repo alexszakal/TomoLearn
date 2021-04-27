@@ -84,11 +84,11 @@ Object2D::Object2D(const Eigen::MatrixXd& inData,
 	objWidthHeightInMM[1]=numberOfPixels[1]*(angles[1]-angles[0]);
 	objPixSizes[1]=angles[1]-angles[0];         //Suppose that angles are distributed uniformly
 
-	xPixCentreCoords.reserve(numberOfPixels[0]);
+	xPixCentreCoords.resize(numberOfPixels[0]);
 	for(int i=0; i<numberOfPixels[0]; i++){
 		xPixCentreCoords[i]=-1*objWidthHeightInMM[0]/2+(i+0.5)*objPixSizes[0];
 	}
-	yPixCentreCoords.reserve(numberOfPixels[1]);
+	yPixCentreCoords.resize(numberOfPixels[1]);
 	for(int i=0; i<numberOfPixels[1]; i++){
 			yPixCentreCoords[i]=-1*objWidthHeightInMM[1]/2+(i+0.5)*objPixSizes[1];
 	}
@@ -102,11 +102,11 @@ Object2D::Object2D(const Eigen::MatrixXd& inData, const std::array<double, 2>& o
 	objWidthHeightInMM[0]=objPixSizes[0]*numberOfPixels[0];
 	objWidthHeightInMM[1]=objPixSizes[1]*numberOfPixels[1];
 
-	xPixCentreCoords.reserve(numberOfPixels[0]);
+	xPixCentreCoords.resize(numberOfPixels[0]);
 	for(int i=0; i<numberOfPixels[0]; i++){
 		xPixCentreCoords[i]=-1*objWidthHeightInMM[0]/2+(i+0.5)*objPixSizes[0];
 	}
-	yPixCentreCoords.reserve(numberOfPixels[1]);
+	yPixCentreCoords.resize(numberOfPixels[1]);
 	for(int i=0; i<numberOfPixels[1]; i++){
 		yPixCentreCoords[i]=-1*objWidthHeightInMM[1]/2+(i+0.5)*objPixSizes[1];
 	}
@@ -147,19 +147,29 @@ Object2D& Object2D::operator=(const Object2D& objToCopy){
 	return *this;
 }
 
-/*
-Object2D::Object2D(Object2D&& objToMove){
+Object2D::Object2D(Object2D&& objToMove):objData{std::move(objToMove.objData)},
+                                         numberOfPixels{std::move(objToMove.numberOfPixels)},
+										 objPixSizes{std::move(objToMove.objPixSizes)},
+										 objWidthHeightInMM{std::move(objToMove.objWidthHeightInMM)},
+										 xPixCentreCoords{std::move(objToMove.xPixCentreCoords)},
+										 yPixCentreCoords{std::move(objToMove.yPixCentreCoords)}{
 	//Move constructor
-	std::cout << "\n Move constructor called \n ";
-
+	std::cout << "Move constructor called \n ";
 }
-*/
 
-/*Object2D& Object2D::operator=(Object2D&& objToMove){
+Object2D& Object2D::operator=(Object2D&& objToMove) noexcept{
 	//Move assignment
-	std::cout << " Move assignment called \n ";
+	std::cout << "Move assignment called \n";
+
+	objData = std::move(objToMove.objData);
+	numberOfPixels = std::move(objToMove.numberOfPixels);
+	objPixSizes = std::move(objToMove.objPixSizes);
+	objWidthHeightInMM = std::move(objToMove.objWidthHeightInMM);
+	xPixCentreCoords =std::move(objToMove.xPixCentreCoords);
+	yPixCentreCoords = std::move(objToMove.yPixCentreCoords);
+
 	return *this;
-}*/
+}
 
 void Object2D::display(const std::string& label){
 	if(!(cimg_window.is_closed())){

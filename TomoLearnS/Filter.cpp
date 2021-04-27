@@ -18,7 +18,7 @@ Filter::Filter(FilterType filterType, double cutOffIn):filterType{filterType}{
 	}
 }
 
-#define FILTERING_DEBUG
+//#define FILTERING_DEBUG
 void Filter::operator()(Eigen::MatrixXcd& fftOfSinogram){
 
 	int pixNumPadded = fftOfSinogram.rows();
