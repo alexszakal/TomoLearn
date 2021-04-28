@@ -79,10 +79,9 @@ void Gen1CT::measure(const std::string& phantomLabel,
     auto numberOfPixels = actualPhantom.getNumberOfPixels();
 
 	//Convert Hounsfield to linear attenuation (LA) units
-	//Phantom actualPhantomLA = (actualPhantom) * (muWater/1000) + muWater;
-	Phantom actualPhantomLA = actualPhantom;
-	actualPhantomLA = actualPhantomLA + 10.0;
-	//Phantom actualPhantomLA = actualPhantom;
+    Phantom actualPhantomLA = actualPhantom;
+    //actualPhantomLA = (actualPhantom) * (muWater/1000) + muWater;
+    actualPhantomLA = (actualPhantom-1000.0) * (muWater/1000) + muWater;
 
 	//DEBUG
 	actualPhantomLA.display("vmi");

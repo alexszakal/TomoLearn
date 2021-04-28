@@ -171,6 +171,24 @@ Object2D& Object2D::operator=(Object2D&& objToMove) noexcept{
 	return *this;
 }
 
+Object2D Object2D::operator+(double addVal) const{
+	Object2D result = *this;
+	result.objData.array() += addVal;
+	return result;
+}
+
+Object2D Object2D::operator-(double subVal) const{
+	//Object2D result = *this;
+	//result.objData.array() -= addVal;
+	return *this+(-1.0*subVal);
+}
+
+Object2D Object2D::operator*(double coeff) const{
+	Object2D result = *this;
+	result.objData = result.objData * coeff;
+	return result;
+}
+
 void Object2D::display(const std::string& label){
 	if(!(cimg_window.is_closed())){
 		return;

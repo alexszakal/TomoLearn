@@ -22,7 +22,6 @@ public:
 	//Constructor for initializing with Eigen::Matrix
 	Object2D(const Eigen::MatrixXd& inData, double detWidth, const Eigen::VectorXd& angles);
 	//Constructor for initialization with Eigen::Matrix
-	//TODO: A fenti konstruktort lecserélni arra ami ibjPixSizest ker be
 	Object2D(const Eigen::MatrixXd& inData, const std::array<double, 2>& objPixSizes={0.1, 0.1});
 
 	~Object2D();
@@ -31,6 +30,11 @@ public:
 	Object2D& operator=(const Object2D& objToCopy);		//Copy assignment
 	Object2D(Object2D&& objToMove); //Move constructor
 	Object2D& operator=(Object2D&& objToMove) noexcept;	//Move assignment
+
+	//Arithmetic operators
+	Object2D operator+(double addVal) const;
+	Object2D operator*(double coeff) const;
+	Object2D operator-(double subVal) const;
 
 
 	std::array<double, 2> getPixSizes() const;

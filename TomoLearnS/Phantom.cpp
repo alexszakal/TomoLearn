@@ -19,13 +19,23 @@ Phantom::Phantom(const std::string& label,
 														  label{label}{
 }
 
+Phantom::Phantom( std::string label, const Object2D& dataPar):Object2D{dataPar},
+		                                                     label{label}{
+}
+
 Phantom Phantom::operator*(double coeff) const {
-	return Phantom{label, this->getDataAsEigenMatrixRef()*coeff, this->getPixSizes()};
+	return Phantom{label, static_cast<Object2D>(*this) * coeff};
 }
 
 Phantom Phantom::operator+(double addVal) const {
-	return Phantom{label, this->getDataAsEigenMatrixRef().array() + addVal, this->getPixSizes()};
+	return Phantom{label, static_cast<Object2D>(*this) + addVal};
 }
+
+Phantom Phantom::operator-(double subVal) const {
+	return *this + (-1.0*subVal);
+}
+
+
 
 
 

@@ -33,8 +33,9 @@ void testFBP();
 //      ---A Phantom operator+(double) mukodjon
 
 //TTOK sanitizers:
-//-Dokumentacioba Properties -> C/C++Build -> CMake4eclipse -> Cmake cache entries -> ENABLE_SANITIZER_ADDRESS:BOOL:ON
-//- Az address sanitizer is kell ahhoz hogy kodsorokat irjon ki: LAunch config. -> Environmentbe: -> ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer
+//-Dokumentacioba Properties -> C/C++Build -> CMake4eclipse -> Symbols -> Cmake cache entries -> ENABLE_SANITIZER_ADDRESS:BOOL:ON
+//- Az address sanitizer is kell ahhoz hogy kodsorokat irjon ki: LAunch config. -> Environmentbe:
+                                                           // -> ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer
 
 
 //Parallel geometry
@@ -62,11 +63,11 @@ void testFBP(){
 	//Reading Shepp-Logan phantom
 	ct.addPhantom("SL", "Phantoms/SheppLogan.png");
 	//ct.addPhantom("SL", "Phantoms/SheppLogan_asymmetric.png");
-	ct.addPhantom("SL_symm", "Phantoms/ModifiedSheppLogan.png");
-	ct.addPhantom("SL_asym", "Phantoms/ModifiedSheppLogan_asymmetric.png"); //default pixSize: 0.1mm x 0.1mm
+	ct.addPhantom("modSL_symm", "Phantoms/ModifiedSheppLogan.png");
+	ct.addPhantom("modSL_asym", "Phantoms/ModifiedSheppLogan_asymmetric.png"); //default pixSize: 0.1mm x 0.1mm
 	ct.addPhantom("SD", "Phantoms/SingleDot.png"); //Single dot Phantom
 
-	std::string activePhantom{"SL_symm"};
+	std::string activePhantom{"SL"};
 
 	ct.displayPhantom(activePhantom);
 

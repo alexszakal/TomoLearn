@@ -20,9 +20,11 @@ public:
 			const std::array<double, 2>& objPixSizes);
 	Phantom(const std::string& label, const Eigen::MatrixXd inData,
 			const std::array<double, 2> objPixSizes = {0.1, 0.1});
+	Phantom(std::string label, const Object2D& dataPar);
 
 	Phantom operator*(double coeff) const;
 	Phantom operator+(double addVal) const;
+	Phantom operator-(double subVal) const;
 
 private:
 	std::string label;
