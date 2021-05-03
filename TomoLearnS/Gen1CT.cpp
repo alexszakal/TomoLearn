@@ -3,7 +3,6 @@
 #include <unsupported/Eigen/FFT>
 
 #include <TomoLearnS/Gen1CT.hpp>
-//#include <TomoLearnS/Object2D.hpp>
 #include <TomoLearnS/Phantom.hpp>
 #include <TomoLearnS/Reconst.hpp>
 #include <TomoLearnS/CTScan.hpp>
@@ -131,13 +130,23 @@ void Gen1CT::measure(const std::string& phantomLabel,
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds >(stop - start);
 	std::cout << "Radon took " << duration.count() << " milliseconds" << std::endl;
 
+	//Simulate the counts with Poison statistics
+	//Calculate the expected value
+	Eigen::MatrixXd Isinogram = Eigen::exp( sinogram.array()* (-1.0) ) * I0 ;
+
+	//Randomize the matrix
+	for(double& eValue : Isinogram.reshaped() ){
+		eValue +=100;
+	}
+
+
 	//Move the sinogram to CTScans map
 	auto it = scans.find(scanLabel);
 	if(it != scans.end()){
 		std::cout << std::endl << "WARNING! A scan with label \"" << phantomLabel << "\" already exists!!! Overwriting!!!";
 		scans.erase(it);
 	}
-	scans.emplace(scanLabel, CTScan(scanLabel,sinogram, detWidth, angles));
+	scans.emplace(scanLabel, CTScan(scanLabel,Isinogram, detWidth, angles));
 
 
 }

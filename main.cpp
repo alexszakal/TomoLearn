@@ -62,12 +62,13 @@ void testFBP(){
 
 	//Reading Shepp-Logan phantom
 	ct.addPhantom("SL", "Phantoms/SheppLogan.png");
-	//ct.addPhantom("SL", "Phantoms/SheppLogan_asymmetric.png");
+	ct.addPhantom("SL_asym", "Phantoms/SheppLogan_asymmetric.png");
 	ct.addPhantom("modSL_symm", "Phantoms/ModifiedSheppLogan.png");
 	ct.addPhantom("modSL_asym", "Phantoms/ModifiedSheppLogan_asymmetric.png"); //default pixSize: 0.1mm x 0.1mm
 	ct.addPhantom("SD", "Phantoms/SingleDot.png"); //Single dot Phantom
+	ct.addPhantom("rectangle", "Phantoms/rectangle.png"); //Single rectangle in  the center with 400HU CT number
 
-	std::string activePhantom{"SL"};
+	std::string activePhantom{"rectangle"};
 
 	ct.displayPhantom(activePhantom);
 
@@ -78,7 +79,7 @@ void testFBP(){
 	//Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 44.0/180 * M_PI,
 	//			46.0 / 180 * M_PI);
 
-	ct.setI0(1e8);
+	ct.setI0(1.0);
 	ct.measure(activePhantom, angles, "Sinogram");
 	ct.displayMeasurement("Sinogram");
 

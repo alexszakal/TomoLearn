@@ -45,7 +45,7 @@ private:
 	const int pixNum;
 	std::vector<double> pixPositions;
 
-	double I0 = -1;   //I0 is negative by default -> Poisson sampling turned off
+	double I0 = 3.0;   //Intensity of the tube
 
 	double muWater = 0.02; //Linear attenuation coeff. of water [1/mm]!!!!
 
