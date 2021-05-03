@@ -17,6 +17,7 @@
 #include <chrono>
 #include <array>
 #include <vector>
+#include <random>
 
     //REGI  pixPositionst le kell gyartani!!
 Gen1CT::Gen1CT():detWidth{100},pixNum{100}{
@@ -135,9 +136,16 @@ void Gen1CT::measure(const std::string& phantomLabel,
 	Eigen::MatrixXd Isinogram = Eigen::exp( sinogram.array()* (-1.0) ) * I0 ;
 
 	//Randomize the matrix
-	for(double& eValue : Isinogram.reshaped() ){
-		eValue +=100;
+	   //Seed the generator
+	unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
+	std::mt19937_64 generator(seed1);
+	for(int i=0; i<Isinogram.rows(); i++){
+		for(int j=0; j<Isinogram.cols(); j++){
+			std::poisson_distribution<int> poissonDist( Isinogram(i,j) );
+			Isinogram(i,j) = (-1)* std::log( poissonDist(generator) / I0 );
+		}
 	}
+
 
 
 	//Move the sinogram to CTScans map
