@@ -7,7 +7,7 @@
   #undef Success
 #endif
 
-#include <matplotlibcpp/matplotlibcpp_old.h>
+#include <matplotlibcpp_old.h>
 
 
 #include <iostream>

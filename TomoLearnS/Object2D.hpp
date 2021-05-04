@@ -14,7 +14,7 @@
 class Object2D{
 public:
 	//Default constructor, initialize an empty image
-	Object2D():objPixSizes{1,1},objWidthHeightInMM{0,0},numberOfPixels{0,0}{}
+	Object2D():numberOfPixels{0,0},objPixSizes{1,1},objWidthHeightInMM{0,0}{}
 	//Constructor for init with data from file
 	Object2D(const std::string& imageFilePath, const std::array<double, 2>& objPixSizes={0.1, 0.1});
 	//Constructor of a zero-initialized Object2D
@@ -45,8 +45,8 @@ public:
 	//Functions for measurement
 	double linear_atY(int xPixelValue, double yCoordinateInMM) const;
 	double linear_atX(int yPixelValue, double xCoordinateInMM) const;
-	double getXValueAtPix(int pixValue) const ;
-	double getYValueAtPix(int pixValue) const;
+	double getXValueAtPix(unsigned int pixValue) const ;
+	double getYValueAtPix(unsigned int pixValue) const;
 
 	void display(const std::string& label);
 
@@ -111,14 +111,14 @@ inline double Object2D::linear_atX(int yPixelValue, double xCoordinateInMM) cons
 	}
 }
 
-inline double Object2D::getXValueAtPix(int pixIndex) const{
+inline double Object2D::getXValueAtPix(unsigned int pixIndex) const{
 	/** Get the X value at the index pixIndex
 	 *
 	 */
 	return xPixCentreCoords[pixIndex];
 }
 
-inline double Object2D::getYValueAtPix(int pixIndex) const{
+inline double Object2D::getYValueAtPix(unsigned int pixIndex) const{
 	/** Get the Y value at the index pixIndex
 	 *
 	 */

@@ -9,7 +9,8 @@
 #include <TomoLearnS/Filter.hpp>
 
 
-#include <matplotlibcpp/matplotlibcpp_old.h>
+#include <matplotlibcpp_old.h>
+
 #include <iostream>
 #include <fstream>
 #include <cassert>

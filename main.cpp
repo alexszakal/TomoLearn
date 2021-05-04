@@ -11,7 +11,7 @@
 #include <TomoLearnS/Object2D.hpp>
 #include <TomoLearnS/Gen1CT.hpp>
 
-#include <matplotlibcpp/matplotlibcpp_old.h>
+#include <matplotlibcpp_old.h>
 
 void testRadonTransform();
 void testFBP();

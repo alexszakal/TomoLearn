@@ -3,7 +3,7 @@
 #define EIGEN_FFTW_DEFAULT
 #include <unsupported/Eigen/FFT>
 
-#include <matplotlibcpp/matplotlibcpp_old.h>
+#include <matplotlibcpp_old.h>
 
 #include <iostream>
 #include <cmath>
@@ -21,7 +21,7 @@ Filter::Filter(FilterType filterType, double cutOffIn):filterType{filterType}{
 //#define FILTERING_DEBUG
 void Filter::operator()(Eigen::MatrixXcd& fftOfSinogram){
 
-	int pixNumPadded = fftOfSinogram.rows();
+	long int pixNumPadded = fftOfSinogram.rows();
 
 	//Construct the filter
 	Eigen::MatrixXcd freqFilter = Eigen::MatrixXcd::Zero(pixNumPadded,1);
@@ -70,20 +70,20 @@ void Filter::operator()(Eigen::MatrixXcd& fftOfSinogram){
 }
 
 void Filter::RamLakFilter(Eigen::MatrixXcd& freqFilter){
-	int pixNumPadded=freqFilter.rows();
+	long int pixNumPadded=freqFilter.rows();
 
 	//Low-pass filter to suppress the noise
-	int maxFreq=pixNumPadded*cutOff/2;
-	for(int i=maxFreq+1; i<=pixNumPadded/2; ++i ){
+	auto maxFreq = std::lround(pixNumPadded*cutOff/2);
+	for(auto i=maxFreq+1; i<=pixNumPadded/2; ++i ){
 		freqFilter(i)=0;
 		freqFilter(pixNumPadded-i)=0;
 	}
 }
 
 void Filter::SheppLoganFilter(Eigen::MatrixXcd& freqFilter){
-	int pixNumPadded=freqFilter.rows();
+	int pixNumPadded= static_cast<int>(freqFilter.rows());
 
-	int maxFreq=pixNumPadded*cutOff/2;
+	int maxFreq=static_cast<int>(std::lround(pixNumPadded*cutOff/2));
 	//freqFilter(0) *=1; //Shepp-Logan is 1 at x=0
 	for (int i=1; i<=pixNumPadded/2; ++i){
 		if(i>maxFreq){
