@@ -35,7 +35,7 @@ void testFBP();
 
 //TTOK sanitizers:
 //-Dokumentacioba Properties -> C/C++Build -> CMake4eclipse -> Symbols -> Cmake cache entries -> ENABLE_SANITIZER_ADDRESS:BOOL:ON
-//- Az address sanitizer is kell ahhoz hogy kodsorokat irjon ki: LAunch config. -> Environmentbe:
+//- Az address symbolizer is kell ahhoz hogy kodsorokat irjon ki: LAunch config. -> Environmentbe:
                                                            // -> ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer
 
 

@@ -29,7 +29,7 @@ function(enable_sanitizers project_name)
   endif()
 
   if(LIST_OF_SANITIZERS)
-    message(WARNING "Sanitizers are set!")
+    message(STATUS "Sanitizers are set!")
     if(NOT
        "${LIST_OF_SANITIZERS}"
        STREQUAL
