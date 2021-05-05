@@ -15,3 +15,7 @@ A simple C++ library to experiment with the Radon transformation and Filtered Ba
 1. Install the cmake4eclipse plugin
 2. Follow the instructions in Help -> Help Contents -> CMake4eclipse user guide
 3. Set the compiler to clang by setting CC=clang and CXX=clang++ environment variables in Project Preferences -> C/C++ Build -> Environment
+
+## Select CUDA language settings provider
+1. In Preferences -> C/C++ general -> Preprocessor Includes -> Providers -> select "Nvcc Builtins Provider"
+2. At the same tab, select "Use global provider shared between projects"
