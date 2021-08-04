@@ -1,6 +1,13 @@
 # TomoLearn
 A simple C++ library to experiment with the Radon transformation and Filtered Backprojection in parallel beam geometry.
 
+# Dependencies
+TomoLearn depends on the following Ubuntu packages:
+- CImg
+- fftw3
+- python2.7, python-numpy, python-matplotlib  (for 1D plotting)
+- compiler: clang++ 
+
 ## Building and running: 
 0. Go to the root directory of the project 
 1. `mkdir build`
