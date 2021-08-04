@@ -25,6 +25,11 @@ public:
     void setI0(double newI0);
 
 	void measure(const std::string& label, const Eigen::VectorXd& angles, const std::string& scanLabel);
+
+	void measure_coalesced(const std::string& label, const Eigen::VectorXd& angles, const std::string& scanLabel);
+
+	void measure_Siddon(const std::string& label, const Eigen::VectorXd& angles, const std::string& scanLabel);
+
 	void displayMeasurement(const std::string& label);
 
 	void filteredBackProject(std::string sinogramID,

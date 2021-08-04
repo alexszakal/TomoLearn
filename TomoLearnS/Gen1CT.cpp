@@ -26,10 +26,10 @@ Gen1CT::Gen1CT():detWidth{100},pixNum{100}{
 
 
 Gen1CT::Gen1CT(double detWidth, int pixNum):detWidth{detWidth},pixNum{pixNum}{
-	pixPositions.resize(pixNum);
+	pixPositions.resize( static_cast<size_t>(pixNum) );
 	double pixelDistance{detWidth/pixNum};
 	for (int i=0; i<pixNum; i++){
-		pixPositions[i]=-1*detWidth/2+(i+0.5)*pixelDistance;
+		pixPositions[ static_cast<size_t>(i) ]=-1*detWidth/2+(i+0.5)*pixelDistance;
 	}
 };
 
@@ -82,10 +82,7 @@ void Gen1CT::measure(const std::string& phantomLabel,
 	//Convert Hounsfield to linear attenuation (LA) units
     Phantom actualPhantomLA = actualPhantom;
     //actualPhantomLA = (actualPhantom) * (muWater/1000) + muWater;
-    actualPhantomLA = (actualPhantom-1000.0) * (muWater/1000) + muWater;
-
-	//DEBUG
-	actualPhantomLA.display("vmi");
+    actualPhantomLA = (actualPhantom-1000.0) * (muWater/1000) + muWater;   //Ez a JO TRANSZFORMACIO
 
 	double t;
 	const double piPer4 = M_PI/4;
@@ -147,8 +144,6 @@ void Gen1CT::measure(const std::string& phantomLabel,
 		}
 	}
 
-
-
 	//Move the sinogram to CTScans map
 	auto it = scans.find(scanLabel);
 	if(it != scans.end()){
@@ -156,8 +151,384 @@ void Gen1CT::measure(const std::string& phantomLabel,
 		scans.erase(it);
 	}
 	scans.emplace(scanLabel, CTScan(scanLabel,Isinogram, detWidth, angles));
+}
 
+void Gen1CT::measure_coalesced(const std::string& phantomLabel,
+		             const Eigen::VectorXd& angles,
+		             const std::string& scanLabel){
 
+	std::cout << std::endl << "Radon transformation with coalesced memory access started" << std::endl;
+	auto start = std::chrono::high_resolution_clock::now();
+
+	int numAngles = angles.size();
+
+	Eigen::MatrixXd sinogram = Eigen::MatrixXd::Zero(pixNum, numAngles);
+
+	if(phantoms.find(phantomLabel) == phantoms.end()){
+		std::cout << std::endl << "ERROR!! phantomLabel: \"" << phantomLabel << "\" could not be found!! Abort mission";
+		return;
+	}
+
+	Phantom& actualPhantom = phantoms.at(phantomLabel);
+
+	auto pixSizes = actualPhantom.getPixSizes();
+    auto numberOfPixels = actualPhantom.getNumberOfPixels();
+
+	//Convert Hounsfield to linear attenuation (LA) units
+    Phantom actualPhantomLA = actualPhantom;
+    //actualPhantomLA = (actualPhantom) * (muWater/1000) + muWater;
+    //actualPhantomLA = (actualPhantom-1000.0) * (muWater/1000) + muWater;   //Ez a JO TRANSZFORMACIO!!!
+
+	double t;
+	const double piPer4 = M_PI/4;
+
+	std::vector<double>	thetaVector,
+	                    sinThetaVector, cosThetaVector,
+	                    tanThetaVector, cotThetaVector,
+	                    absSinThetaInvVector, absCosThetaInvVector;
+	std::vector<bool> interpIsInY;
+
+	for(int i=0; i<numAngles; i++){
+		thetaVector.push_back( std::fmod(angles[i], 2*M_PI) );
+		sinThetaVector.push_back( sin(thetaVector[i]) );
+		cosThetaVector.push_back( cos(thetaVector[i]) );
+		tanThetaVector.push_back( tan(thetaVector[i]) );
+		cotThetaVector.push_back( 1/tanThetaVector[i] );
+		absSinThetaInvVector.push_back( 1/std::abs(sinThetaVector[i]) );
+		absCosThetaInvVector.push_back( 1/std::abs(cosThetaVector[i]) );
+
+		interpIsInY.push_back( ( (thetaVector[i] > piPer4 ) && (thetaVector[i] < 3*piPer4) ) ||
+				                 ( (thetaVector[i] > 5*piPer4 ) && (thetaVector[i] < 7*piPer4) ) );
+	}
+
+	const double* dataPtr=actualPhantomLA.getDataAsEigenMatrixRef().data();
+	double detPixSize= detWidth/pixNum;
+
+	for (int angI=0; angI<numAngles; ++angI){
+		double ds;
+		if(interpIsInY[angI]){
+			ds=pixSizes[0]*absSinThetaInvVector[angI];
+		} else{
+			ds=pixSizes[1]*absCosThetaInvVector[angI];
+		}
+
+		for(int yIndex=0; yIndex< numberOfPixels[1]; ++yIndex){
+			for(int xIndex=0; xIndex < numberOfPixels[0]; ++xIndex){
+				double t = actualPhantom.getXValueAtPix(xIndex)*cosThetaVector[angI] + actualPhantom.getYValueAtPix(yIndex)*sinThetaVector[angI];
+				double tIndexDouble =  (t + detWidth/2)/detPixSize ;
+				if( (tIndexDouble > 0.5) && (tIndexDouble < pixNum-0.5 ) ){
+					//It is possible to interpolate
+					int tIndexPrev = static_cast<int>(tIndexDouble-0.5);
+					if(tIndexPrev < 0) std::cout<< "\nSHOUT!";
+					//sinogram(tIndexPrev, angI)   += dataPtr[yIndex*numberOfPixels[1]+xIndex] * ( tIndexDouble - tIndexPrev - 0.5) * ds;
+					sinogram(tIndexPrev, angI)   +=  ( tIndexDouble - tIndexPrev - 0.5) * ds;
+//					if ( !sinogram.allFinite() ){
+//						std::cout << "vmi";
+//					}
+
+					//sinogram(tIndexPrev+1, angI) += dataPtr[yIndex*numberOfPixels[1]+xIndex] * (tIndexPrev+1.5-tIndexDouble) *ds ;
+					sinogram(tIndexPrev+1, angI) +=  (tIndexPrev+1.5-tIndexDouble) *ds ;
+//					if(dataPtr[yIndex*numberOfPixels[1]+xIndex] *( (tIndexDouble+0.5)-(tIndexPrev+1) ) > 10){
+//						std::cout<< "Baj2";
+//					}
+				}
+			}
+		}
+	}
+
+	/*for(int pixI=0; pixI<pixNum; ++pixI){
+
+		t=pixPositions[pixI];
+		for(int angI=0; angI<numAngles; ++angI){
+
+			if( interpIsInY[angI] ){
+				for(int objectXIndex=0; objectXIndex < numberOfPixels[0]; ++objectXIndex){
+					double objectYinMM = t*sinThetaVector[angI]+ (t*cosThetaVector[angI] - actualPhantomLA.getXValueAtPix(objectXIndex))*cotThetaVector[angI];
+					sinogram(pixI, angI) += actualPhantomLA.linear_atY(objectXIndex, objectYinMM) * absSinThetaInvVector[angI]*pixSizes[0];
+				}
+			} else{
+				for(int objectYIndex=0; objectYIndex < numberOfPixels[1]; ++objectYIndex){
+					double objectXinMM = t*cosThetaVector[angI] - (actualPhantomLA.getYValueAtPix(objectYIndex)-t*sinThetaVector[angI])*tanThetaVector[angI];
+					sinogram(pixI, angI) += actualPhantomLA.linear_atX(objectYIndex, objectXinMM) * absCosThetaInvVector[angI]*pixSizes[1];
+				}
+			}
+		}
+	}*/
+
+	auto stop = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds >(stop - start);
+	std::cout << "Radon with coalesced memory access took " << duration.count() << " milliseconds" << std::endl;
+
+	//Simulate the counts with Poison statistics
+	//Calculate the expected value
+	Eigen::MatrixXd Isinogram = Eigen::exp( sinogram.array()* (-1.0) ) * I0 ;
+
+	//Randomize the matrix
+	   //Seed the generator
+	unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
+	std::mt19937_64 generator(seed1);
+	for(int i=0; i<Isinogram.rows(); i++){
+		for(int j=0; j<Isinogram.cols(); j++){
+			std::poisson_distribution<int> poissonDist( Isinogram(i,j) );
+			Isinogram(i,j) = (-1)* std::log( poissonDist(generator) / I0 );
+		}
+	}
+
+	//Move the sinogram to CTScans map
+	auto it = scans.find(scanLabel);
+	if(it != scans.end()){
+		std::cout << std::endl << "WARNING! A scan with label \"" << phantomLabel << "\" already exists!!! Overwriting!!!";
+		scans.erase(it);
+	}
+	scans.emplace(scanLabel, CTScan(scanLabel,sinogram, detWidth, angles));
+}
+
+void Gen1CT::measure_Siddon(const std::string& phantomLabel,
+		             const Eigen::VectorXd& angles,
+		             const std::string& scanLabel){
+
+	std::cout << std::endl << "Radon transformation with improved Siddon's algo started" << std::endl;
+	auto start = std::chrono::high_resolution_clock::now();
+
+    int numAngles = angles.size();
+
+	Eigen::MatrixXd sinogram = Eigen::MatrixXd::Zero(pixNum, numAngles);
+
+	if(phantoms.find(phantomLabel) == phantoms.end()){
+		std::cout << std::endl << "ERROR!! phantomLabel: \"" << phantomLabel << "\" could not be found!! Abort mission";
+		return;
+	}
+
+	Phantom& actualPhantom = phantoms.at(phantomLabel);
+
+	auto pixSizes = actualPhantom.getPixSizes();
+    auto numberOfPixels = actualPhantom.getNumberOfPixels();
+
+	//Convert Hounsfield to linear attenuation (LA) units
+    Phantom actualPhantomLA = actualPhantom;
+    //actualPhantomLA = (actualPhantom) * (muWater/1000) + muWater;
+    //actualPhantomLA = (actualPhantom-1000.0) * (muWater/1000) + muWater;   //Ez a JO TRANSZFORMACIO!!!
+
+	std::vector<double>	thetaVector,
+	                    sinThetaVector, cosThetaVector;
+
+	for(int i=0; i<numAngles; i++){
+		thetaVector.push_back( std::fmod(angles[i], 2*M_PI) );
+		sinThetaVector.push_back( sin(thetaVector[i]) );
+		cosThetaVector.push_back( cos(thetaVector[i]) );
+	}
+
+	const double* dataPtr=actualPhantomLA.getDataAsEigenMatrixRef().data();
+
+	double detDist = 1.1 * sqrt(pow(pixSizes[0]*numberOfPixels[0], 2) + pow(pixSizes[1]*numberOfPixels[1], 2) ); //Distance between the detector plane and centre of rotation
+
+	double dX =actualPhantomLA.getPixSizes()[0];
+	double dY =-1*actualPhantomLA.getPixSizes()[1];
+
+	double bX = actualPhantomLA.getXValueAtPix(0) - dX/2;
+	double bY = actualPhantomLA.getYValueAtPix(0) - dY/2;
+
+	int Nx = actualPhantomLA.getNumberOfPixels()[0]+1;
+	int Ny = actualPhantomLA.getNumberOfPixels()[1]+1;
+
+	int iMin, iMax, jMin, jMax;
+
+	//Improved Siddon's Algo:
+	for(size_t angI=0; angI<numAngles; ++angI){
+		for(size_t pixI=0; pixI<pixNum; ++pixI){
+			double t=pixPositions[pixI];
+			std::array<double,2> p1{ detDist * sinThetaVector[angI] + t * cosThetaVector[angI],
+				                     -1*detDist * cosThetaVector[angI] + t * sinThetaVector[angI]};
+			std::array<double,2> p2{ -1 * detDist * sinThetaVector[angI] + t * cosThetaVector[angI],
+                                     detDist * cosThetaVector[angI] + t * sinThetaVector[angI]};
+
+			double xDiff = p2[0] - p1[0];
+			double yDiff = p2[1] - p1[1];
+
+			double d_conv = sqrt(xDiff*xDiff + yDiff*yDiff);
+
+			double d12 = 0; //Accumulator for the raySum
+
+			if((angles[angI] == 0) || angles[angI] == M_PI){ //Edge case when ray is vertical
+				int colIndex=std::floor( (p1[0]-bX)/dX );
+				if (colIndex >=0 && colIndex < Nx-1){
+					//Sum the matrix in vertical direction
+					for(int rowIndex=0; rowIndex < Ny-1; ++rowIndex){
+						d12 += dataPtr[ rowIndex*(Nx-1)+ colIndex];
+					}
+				}
+				d12 *= -1*dY;
+			}
+			else if ((angles[angI] == M_PI/2) || angles[angI] == 3*M_PI/2){ //Edge case when ray is horizontal
+				int rowIndex=std::floor( (p1[1]-bY)/dY );
+				if (rowIndex >=0 && rowIndex < Ny-1){
+					//Sum the matrix in vertical direction
+					for(int colIndex=0; colIndex < Nx-1; ++colIndex){
+						d12 += dataPtr[ rowIndex*(Nx-1)+ colIndex];
+					}
+				}
+				d12 *= dX;
+			}
+			else{  //General case
+
+				double alp_xu = dX / std::abs(p2[0] - p1[0]); //Update of alpha when step in X
+				double alp_yu = std::abs(dY) / std::abs(p2[1] - p1[1]); //Update of alpha when step in Y
+
+				double i_u = (p1[0]<p2[0]) ? 1 : -1;  // Update of index i when stepping in X
+				double j_u = (p1[1]<p2[1]) ? -1 : 1;  // Update of index j when stepping in Y
+
+				double alp_min; //Entry point
+				double alp_max; //Exit point
+
+				double alp_xmin, alp_xmax;
+				double alp_ymin, alp_ymax;
+
+				double alp_xBegin, alp_xEnd; //Refers to alpha_x(0) and alpha_x(N_x-1) in the article
+				double alp_yBegin, alp_yEnd; //Refers to alpha_y(0) and alpha_y(N_x-1) in the article
+
+				alp_xBegin = (bX-p1[0])/xDiff;  // \alpha when entering 0th index of pixel space in X direction
+				alp_yBegin = (bY-p1[1])/yDiff;  // \alpha when entering 0thindex of pixel space in Y direction
+
+				alp_xEnd = (bX+(Nx-1)*dX-p1[0])/xDiff;  // \alpha when entering last index of pixel space in X direction
+				alp_yEnd = (bY+(Ny-1)*dY-p1[1])/yDiff;  // \alpha when entering last index of pixel space in Y direction
+
+				alp_xmin = std::min(alp_xBegin, alp_xEnd);
+				alp_xmax = std::max(alp_xBegin, alp_xEnd);
+				alp_ymin = std::min(alp_yBegin, alp_yEnd);
+				alp_ymax = std::max(alp_yBegin, alp_yEnd);
+
+				alp_min = std::max(alp_xmin, alp_ymin); // \alpha when entering pixel space
+				alp_max = std::min(alp_xmax, alp_ymax); // \alpha when entering pixel space
+
+				if (alp_min > alp_max){   //The ray does not intersect the pixel space
+					continue;
+				}
+
+				if(p1[0] <p2[0]){
+					//going from left to right
+					if( alp_min == alp_xmin){  // Entering pixel space through the left side
+						iMin = 1;
+					} else{
+						iMin = std::ceil( (p1[0]+alp_min*(p2[0]-p1[0]) - bX) / dX );  //Entering in a general position
+					}
+					if( alp_max == alp_xmax){ // Leaving pixel space on the right side
+						iMax = Nx-1;
+					} else {
+						iMax = std::floor( (p1[0]+alp_max*(p2[0]-p1[0]) - bX) / dX ); //Leaving in a general position
+					}
+				}
+				else{
+					//going from right to left
+					if( alp_min == alp_xmin){
+						iMax = Nx-2;   // Entering pixel space through the right side
+					} else{
+						iMax = std::floor( (p1[0]+alp_min*(p2[0]-p1[0]) - bX) / dX ); //Entering in a general position
+					}
+					if( alp_max == alp_xmax){ // Leaving pixel space on the left side
+						iMin = 0;
+					} else {                  //Leaving in a general position
+						iMin = std::ceil ( (p1[0]+alp_max*(p2[0]-p1[0]) - bX) / dX );
+					}
+				}
+
+				if(p1[1] < p2[1]){
+					//going from bottom to top
+					if( alp_min == alp_ymin){  // Entering pixel space through the bottom side
+						jMax = Ny - 2;
+					} else{
+						jMax = std::floor( (p1[1]+alp_min*(p2[1]-p1[1]) - bY) / dY );  //Entering in a general position
+					}
+					if( alp_max == alp_ymax){ // Leaving pixel space through the top
+						jMin = 0;
+					} else {
+						jMin = std::ceil( (p1[1]+alp_max*(p2[1]-p1[1]) - bY) / dY );  //Leaving in a general position
+					}
+				}
+				else{
+					//going from top to bottom
+					if( alp_min == alp_ymin){ // Entering pixel space through the top side
+						jMin = 1;
+					} else{
+						jMin = std::ceil( (p1[1]+alp_min*(p2[1]-p1[1]) - bY) / dY ); //Entering in a general position
+					}
+					if( alp_max == alp_ymax){ // Leaving pixel space through the bottom
+						jMax = Ny-1;
+					} else {
+						jMax = std::floor( (p1[1]+alp_max*(p2[1]-p1[1]) - bY) / dY );//Leaving in a general position
+					}
+				}
+
+				double alpX;
+				if (p1[0] < p2[0]) //We are going from left to right
+					alpX = ( bX + iMin*dX - p1[0]) / xDiff;
+				else               //We are going from right to left
+					alpX = ( bX + iMax*dX - p1[0]) / xDiff;
+
+				double alpY;
+				if (p1[1] < p2[1]) //We are going from bottom to top
+					alpY = ( bY + jMax*dY - p1[1]) / yDiff;
+				else               //We are going from top to bottom
+					alpY = ( bY + jMin*dY - p1[1]) / yDiff;
+
+				int Np = (iMax-iMin+1) + (jMax-jMin+1);
+
+				double argument = (std::min(alpX, alpY) + alp_min)/2;
+				int i = std::floor( (p1[0] + argument*(p2[0]-p1[0]) - bX) / dX );  //Index of the first intersected pixel
+				int j = std::floor( (p1[1] + argument*(p2[1]-p1[1]) - bY) / dY );  //Index of the first intersected pixel
+
+	            double alp_c= alp_min;
+
+	            for(int counter =0; counter<Np; counter++){
+	            	if(alpX < alpY){
+	            		//double l_ij=(alpX-alp_c)*d_conv;
+	            		//d12 += (alpX-alp_c) * dataPtr[ i + j*(Ny-1)];  Regi
+	            		d12 += (alpX-alp_c) * dataPtr[ j*(Nx-1) + i];
+	            		i += i_u;
+	            		alp_c=alpX;
+	            		alpX += alp_xu;
+	            	} else{
+	            		//double l_ij=(alpY-alp_c)*d_conv;
+	            		//d12 += (alpY-alp_c) * dataPtr[ i + j*(Ny-1)];  Regi
+	            		d12 += (alpY-alp_c) * dataPtr[ j*(Nx-1) + i];
+	            		j += j_u;
+	            		alp_c=alpY;
+	            		alpY += alp_yu;
+	            	}
+	            }
+	            d12 *= d_conv;
+			}
+
+            //Update the sinogram
+            sinogram(pixI, angI) += d12;
+		}
+	}
+
+	auto stop = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds >(stop - start);
+	std::cout << "\n\nRadon with Siddon's algorithm took " << duration.count() << " milliseconds" << std::endl;
+
+	//Simulate the counts with Poison statistics
+	//Calculate the expected value
+	Eigen::MatrixXd Isinogram = Eigen::exp( sinogram.array()* (-1.0) ) * I0 ;
+
+	//Randomize the matrix
+	   //Seed the generator
+	unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
+	std::mt19937_64 generator(seed1);
+	for(int i=0; i<Isinogram.rows(); i++){
+		for(int j=0; j<Isinogram.cols(); j++){
+			std::poisson_distribution<int> poissonDist( Isinogram(i,j) );
+			Isinogram(i,j) = (-1)* std::log( poissonDist(generator) / I0 );
+		}
+	}
+
+	//Move the sinogram to CTScans map
+	auto it = scans.find(scanLabel);
+	if(it != scans.end()){
+		std::cout << std::endl << "WARNING! A scan with label \"" << phantomLabel << "\" already exists!!! Overwriting!!!";
+		scans.erase(it);
+	}
+	scans.emplace(scanLabel, CTScan(scanLabel,sinogram, detWidth, angles));
 }
 
 void Gen1CT::displayMeasurement(const std::string& label){

@@ -6,6 +6,9 @@ project(TomoLearn CXX)
 add_library(project_options INTERFACE)
 target_compile_features(project_options INTERFACE cxx_std_17)
 
+#Set the available SSE/AVX flags
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+
 # standard compiler warnings
 add_library(project_warnings INTERFACE)
 include(cmake/CompilerWarnings.cmake)

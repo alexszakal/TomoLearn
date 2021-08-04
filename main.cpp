@@ -38,6 +38,10 @@ void testFBP();
 //- Az address symbolizer is kell ahhoz hogy kodsorokat irjon ki: LAunch config. -> Environmentbe:
                                                            // -> ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer
 
+// TTOK: -A Poisson statisztikat vissza kell tenni a measure es measure_Si-ba. Ha I0=0 akkor ne foglalkozzon vele!
+//       -Ki kell gyilkolni a copy construktor hivasokat a measure fuggvenybol.
+//       -Visszatenni a TestRadonTransform fuggvenyt
+
 
 //Parallel geometry
 int main(){
@@ -67,20 +71,23 @@ void testFBP(){
 	ct.addPhantom("modSL_symm", "Phantoms/ModifiedSheppLogan.png");
 	ct.addPhantom("modSL_asym", "Phantoms/ModifiedSheppLogan_asymmetric.png"); //default pixSize: 0.1mm x 0.1mm
 	ct.addPhantom("SD", "Phantoms/SingleDot.png"); //Single dot Phantom
-	ct.addPhantom("rectangle", "Phantoms/rectangle.png"); //Single rectangle with 400HU CT number in  the center
+	ct.addPhantom("rectangle", "Phantoms/rectangle.png", {0.025,0.025}); //Single rectangle with 400HU CT number in  the center
 
 	std::string activePhantom{"modSL_symm"};
+//	std::string activePhantom{"rectangle"};
 
 	ct.displayPhantom(activePhantom);
 
 	const int numProjections{180};
-	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0,
+	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0.0/180.0 * M_PI,
 			179.0 / 180 * M_PI);
-	//const int numProjections{2};
-	//Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 44.0/180 * M_PI,
-	//			46.0 / 180 * M_PI);
 
 	ct.setI0(1e4);
+
+//	ct.measure_Siddon(activePhantom, angles, "Sinogram");
+//	ct.displayMeasurement("Sinogram");
+
+	//ct.measure_coalesced(activePhantom, angles, "Sinogram_coalesced");
 	ct.measure(activePhantom, angles, "Sinogram");
 	ct.displayMeasurement("Sinogram");
 
