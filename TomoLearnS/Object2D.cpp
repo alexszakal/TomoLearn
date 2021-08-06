@@ -66,7 +66,7 @@ Object2D::Object2D(const std::array<int, 2>& numberOfPixels,
     	xPixCentreCoords.push_back(-1*objWidthHeightInMM[0]/2 + i*objPixSizes[0] + objPixSizes[0]/2);
     }
     for(int i=0; i<numberOfPixels[1]; ++i){
-    	yPixCentreCoords.push_back(objWidthHeightInMM[0]/2 - i*objPixSizes[1] - objPixSizes[1]/2);
+    	yPixCentreCoords.push_back(objWidthHeightInMM[1]/2 - i*objPixSizes[1] - objPixSizes[1]/2);
     }
 }
 
@@ -90,7 +90,8 @@ Object2D::Object2D(const Eigen::MatrixXd& inData,
 	}
 	yPixCentreCoords.resize(numberOfPixels[1]);
 	for(int i=0; i<numberOfPixels[1]; i++){
-			yPixCentreCoords[i]=-1*objWidthHeightInMM[1]/2+(i+0.5)*objPixSizes[1];
+//		yPixCentreCoords[i]=-1*objWidthHeightInMM[1]/2+(i+0.5)*objPixSizes[1];   //Regi vszinu hibas
+		yPixCentreCoords[i]= angles[i];
 	}
 }
 
@@ -187,6 +188,10 @@ Object2D Object2D::operator*(double coeff) const{
 	Object2D result = *this;
 	result.objData = result.objData * coeff;
 	return result;
+}
+
+void Object2D::setData(int i, int j, double setValue){
+	objData(i,j)=setValue;
 }
 
 void Object2D::display(const std::string& label){

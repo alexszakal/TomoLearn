@@ -19,18 +19,21 @@ public:
 	void addPhantom(const std::string& label,
 			        const std::string& phantomImageSource,
 					std::array<double, 2> pixSizes={0.1, 0.1});
+
+	void addPhantom(const Phantom& newPhantom);
+
 	void displayPhantom(const std::string& label,
 			            const std::string& title = "emptyTitle");
 
     void setI0(double newI0);
 
-	void measure(const std::string& label, const Eigen::VectorXd& angles, const std::string& scanLabel);
-
-	void measure_coalesced(const std::string& label, const Eigen::VectorXd& angles, const std::string& scanLabel);
+	void measure_withInterpolation(const std::string& label, const Eigen::VectorXd& angles, const std::string& scanLabel);
 
 	void measure_Siddon(const std::string& label, const Eigen::VectorXd& angles, const std::string& scanLabel);
 
 	void displayMeasurement(const std::string& label);
+
+	CTScan getMeasurement(const std::string& label);
 
 	void filteredBackProject(std::string sinogramID,
 			                 const std::array<int,2>& numberOfRecPoints,

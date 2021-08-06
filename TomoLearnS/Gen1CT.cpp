@@ -34,8 +34,8 @@ Gen1CT::Gen1CT(double detWidth, int pixNum):detWidth{detWidth},pixNum{pixNum}{
 };
 
 void Gen1CT::addPhantom(const std::string& label, const std::string& phantomImageSource, std::array<double, 2> pixSizes){
-	/** Add a phantom to the Phantom Library
-	 *
+	/**
+	 *   Add a phantom to the Phantom Library
 	 */
 	auto it = phantoms.find(label);
 	if(it != phantoms.end()){
@@ -43,6 +43,19 @@ void Gen1CT::addPhantom(const std::string& label, const std::string& phantomImag
 		phantoms.erase(it);
 	}
 	phantoms.emplace(label, Phantom(label,phantomImageSource,pixSizes));
+}
+
+void Gen1CT::addPhantom(const Phantom& newPhantom){
+	/**
+	 *   Add an existing Phantom to the class
+	 */
+	std::string phantomLabel = newPhantom.getLabel();
+	auto it = phantoms.find(phantomLabel);
+		if(it != phantoms.end()){
+			std::cout << std::endl << "WARNING! A phantom with label \"" << phantomLabel << "\"is already loaded!!! Overwriting!!!";
+			phantoms.erase(it);
+		}
+	phantoms.emplace(phantomLabel, Phantom(newPhantom));
 }
 
 
@@ -58,7 +71,7 @@ void Gen1CT::setI0(double newI0){
 	I0=newI0;
 }
 
-void Gen1CT::measure(const std::string& phantomLabel,
+void Gen1CT::measure_withInterpolation(const std::string& phantomLabel,
 		             const Eigen::VectorXd& angles,
 		             const std::string& scanLabel){
 
@@ -81,8 +94,9 @@ void Gen1CT::measure(const std::string& phantomLabel,
 
 	//Convert Hounsfield to linear attenuation (LA) units
     Phantom actualPhantomLA = actualPhantom;
-    //actualPhantomLA = (actualPhantom) * (muWater/1000) + muWater;
-    actualPhantomLA = (actualPhantom-1000.0) * (muWater/1000) + muWater;   //Ez a JO TRANSZFORMACIO
+    if( I0 != 0.0){
+    	actualPhantomLA = (actualPhantom-1000.0) * (muWater/1000) + muWater;   // HU -> LA transform
+    }
 
 	double t;
 	const double piPer4 = M_PI/4;
@@ -129,19 +143,24 @@ void Gen1CT::measure(const std::string& phantomLabel,
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds >(stop - start);
 	std::cout << "Radon took " << duration.count() << " milliseconds" << std::endl;
 
+	Eigen::MatrixXd Isinogram;
 	//Simulate the counts with Poison statistics
-	//Calculate the expected value
-	Eigen::MatrixXd Isinogram = Eigen::exp( sinogram.array()* (-1.0) ) * I0 ;
+	if(I0 != 0.0){
+		//Calculate the expected value
+		Isinogram = Eigen::exp( sinogram.array()* (-1.0) ) * I0 ;
 
-	//Randomize the matrix
-	   //Seed the generator
-	unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
-	std::mt19937_64 generator(seed1);
-	for(int i=0; i<Isinogram.rows(); i++){
-		for(int j=0; j<Isinogram.cols(); j++){
-			std::poisson_distribution<int> poissonDist( Isinogram(i,j) );
-			Isinogram(i,j) = (-1)* std::log( poissonDist(generator) / I0 );
+		//Randomize the matrix
+		unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
+		std::mt19937_64 generator(seed1);    //Seed the generator
+		for(int i=0; i<Isinogram.rows(); i++){
+			for(int j=0; j<Isinogram.cols(); j++){
+				std::poisson_distribution<int> poissonDist( Isinogram(i,j) );
+				Isinogram(i,j) = (-1)* std::log( poissonDist(generator) / I0 );
+			}
 		}
+	}
+	else{
+		Isinogram = sinogram;
 	}
 
 	//Move the sinogram to CTScans map
@@ -151,136 +170,6 @@ void Gen1CT::measure(const std::string& phantomLabel,
 		scans.erase(it);
 	}
 	scans.emplace(scanLabel, CTScan(scanLabel,Isinogram, detWidth, angles));
-}
-
-void Gen1CT::measure_coalesced(const std::string& phantomLabel,
-		             const Eigen::VectorXd& angles,
-		             const std::string& scanLabel){
-
-	std::cout << std::endl << "Radon transformation with coalesced memory access started" << std::endl;
-	auto start = std::chrono::high_resolution_clock::now();
-
-	int numAngles = angles.size();
-
-	Eigen::MatrixXd sinogram = Eigen::MatrixXd::Zero(pixNum, numAngles);
-
-	if(phantoms.find(phantomLabel) == phantoms.end()){
-		std::cout << std::endl << "ERROR!! phantomLabel: \"" << phantomLabel << "\" could not be found!! Abort mission";
-		return;
-	}
-
-	Phantom& actualPhantom = phantoms.at(phantomLabel);
-
-	auto pixSizes = actualPhantom.getPixSizes();
-    auto numberOfPixels = actualPhantom.getNumberOfPixels();
-
-	//Convert Hounsfield to linear attenuation (LA) units
-    Phantom actualPhantomLA = actualPhantom;
-    //actualPhantomLA = (actualPhantom) * (muWater/1000) + muWater;
-    //actualPhantomLA = (actualPhantom-1000.0) * (muWater/1000) + muWater;   //Ez a JO TRANSZFORMACIO!!!
-
-	double t;
-	const double piPer4 = M_PI/4;
-
-	std::vector<double>	thetaVector,
-	                    sinThetaVector, cosThetaVector,
-	                    tanThetaVector, cotThetaVector,
-	                    absSinThetaInvVector, absCosThetaInvVector;
-	std::vector<bool> interpIsInY;
-
-	for(int i=0; i<numAngles; i++){
-		thetaVector.push_back( std::fmod(angles[i], 2*M_PI) );
-		sinThetaVector.push_back( sin(thetaVector[i]) );
-		cosThetaVector.push_back( cos(thetaVector[i]) );
-		tanThetaVector.push_back( tan(thetaVector[i]) );
-		cotThetaVector.push_back( 1/tanThetaVector[i] );
-		absSinThetaInvVector.push_back( 1/std::abs(sinThetaVector[i]) );
-		absCosThetaInvVector.push_back( 1/std::abs(cosThetaVector[i]) );
-
-		interpIsInY.push_back( ( (thetaVector[i] > piPer4 ) && (thetaVector[i] < 3*piPer4) ) ||
-				                 ( (thetaVector[i] > 5*piPer4 ) && (thetaVector[i] < 7*piPer4) ) );
-	}
-
-	const double* dataPtr=actualPhantomLA.getDataAsEigenMatrixRef().data();
-	double detPixSize= detWidth/pixNum;
-
-	for (int angI=0; angI<numAngles; ++angI){
-		double ds;
-		if(interpIsInY[angI]){
-			ds=pixSizes[0]*absSinThetaInvVector[angI];
-		} else{
-			ds=pixSizes[1]*absCosThetaInvVector[angI];
-		}
-
-		for(int yIndex=0; yIndex< numberOfPixels[1]; ++yIndex){
-			for(int xIndex=0; xIndex < numberOfPixels[0]; ++xIndex){
-				double t = actualPhantom.getXValueAtPix(xIndex)*cosThetaVector[angI] + actualPhantom.getYValueAtPix(yIndex)*sinThetaVector[angI];
-				double tIndexDouble =  (t + detWidth/2)/detPixSize ;
-				if( (tIndexDouble > 0.5) && (tIndexDouble < pixNum-0.5 ) ){
-					//It is possible to interpolate
-					int tIndexPrev = static_cast<int>(tIndexDouble-0.5);
-					if(tIndexPrev < 0) std::cout<< "\nSHOUT!";
-					//sinogram(tIndexPrev, angI)   += dataPtr[yIndex*numberOfPixels[1]+xIndex] * ( tIndexDouble - tIndexPrev - 0.5) * ds;
-					sinogram(tIndexPrev, angI)   +=  ( tIndexDouble - tIndexPrev - 0.5) * ds;
-//					if ( !sinogram.allFinite() ){
-//						std::cout << "vmi";
-//					}
-
-					//sinogram(tIndexPrev+1, angI) += dataPtr[yIndex*numberOfPixels[1]+xIndex] * (tIndexPrev+1.5-tIndexDouble) *ds ;
-					sinogram(tIndexPrev+1, angI) +=  (tIndexPrev+1.5-tIndexDouble) *ds ;
-//					if(dataPtr[yIndex*numberOfPixels[1]+xIndex] *( (tIndexDouble+0.5)-(tIndexPrev+1) ) > 10){
-//						std::cout<< "Baj2";
-//					}
-				}
-			}
-		}
-	}
-
-	/*for(int pixI=0; pixI<pixNum; ++pixI){
-
-		t=pixPositions[pixI];
-		for(int angI=0; angI<numAngles; ++angI){
-
-			if( interpIsInY[angI] ){
-				for(int objectXIndex=0; objectXIndex < numberOfPixels[0]; ++objectXIndex){
-					double objectYinMM = t*sinThetaVector[angI]+ (t*cosThetaVector[angI] - actualPhantomLA.getXValueAtPix(objectXIndex))*cotThetaVector[angI];
-					sinogram(pixI, angI) += actualPhantomLA.linear_atY(objectXIndex, objectYinMM) * absSinThetaInvVector[angI]*pixSizes[0];
-				}
-			} else{
-				for(int objectYIndex=0; objectYIndex < numberOfPixels[1]; ++objectYIndex){
-					double objectXinMM = t*cosThetaVector[angI] - (actualPhantomLA.getYValueAtPix(objectYIndex)-t*sinThetaVector[angI])*tanThetaVector[angI];
-					sinogram(pixI, angI) += actualPhantomLA.linear_atX(objectYIndex, objectXinMM) * absCosThetaInvVector[angI]*pixSizes[1];
-				}
-			}
-		}
-	}*/
-
-	auto stop = std::chrono::high_resolution_clock::now();
-	auto duration = std::chrono::duration_cast<std::chrono::milliseconds >(stop - start);
-	std::cout << "Radon with coalesced memory access took " << duration.count() << " milliseconds" << std::endl;
-
-	//Simulate the counts with Poison statistics
-	//Calculate the expected value
-	Eigen::MatrixXd Isinogram = Eigen::exp( sinogram.array()* (-1.0) ) * I0 ;
-
-	//Randomize the matrix
-	   //Seed the generator
-	unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
-	std::mt19937_64 generator(seed1);
-	for(int i=0; i<Isinogram.rows(); i++){
-		for(int j=0; j<Isinogram.cols(); j++){
-			std::poisson_distribution<int> poissonDist( Isinogram(i,j) );
-			Isinogram(i,j) = (-1)* std::log( poissonDist(generator) / I0 );
-		}
-	}
-
-	//Move the sinogram to CTScans map
-	auto it = scans.find(scanLabel);
-	if(it != scans.end()){
-		std::cout << std::endl << "WARNING! A scan with label \"" << phantomLabel << "\" already exists!!! Overwriting!!!";
-		scans.erase(it);
-	}
-	scans.emplace(scanLabel, CTScan(scanLabel,sinogram, detWidth, angles));
 }
 
 void Gen1CT::measure_Siddon(const std::string& phantomLabel,
@@ -306,8 +195,9 @@ void Gen1CT::measure_Siddon(const std::string& phantomLabel,
 
 	//Convert Hounsfield to linear attenuation (LA) units
     Phantom actualPhantomLA = actualPhantom;
-    //actualPhantomLA = (actualPhantom) * (muWater/1000) + muWater;
-    //actualPhantomLA = (actualPhantom-1000.0) * (muWater/1000) + muWater;   //Ez a JO TRANSZFORMACIO!!!
+    if( I0 != 0.0){
+    	actualPhantomLA = (actualPhantom-1000.0) * (muWater/1000) + muWater;   // HU -> LA transform
+    }
 
 	std::vector<double>	thetaVector,
 	                    sinThetaVector, cosThetaVector;
@@ -507,19 +397,25 @@ void Gen1CT::measure_Siddon(const std::string& phantomLabel,
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds >(stop - start);
 	std::cout << "\n\nRadon with Siddon's algorithm took " << duration.count() << " milliseconds" << std::endl;
 
-	//Simulate the counts with Poison statistics
-	//Calculate the expected value
-	Eigen::MatrixXd Isinogram = Eigen::exp( sinogram.array()* (-1.0) ) * I0 ;
 
-	//Randomize the matrix
-	   //Seed the generator
-	unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
-	std::mt19937_64 generator(seed1);
-	for(int i=0; i<Isinogram.rows(); i++){
-		for(int j=0; j<Isinogram.cols(); j++){
-			std::poisson_distribution<int> poissonDist( Isinogram(i,j) );
-			Isinogram(i,j) = (-1)* std::log( poissonDist(generator) / I0 );
+	Eigen::MatrixXd Isinogram;
+	//Simulate the counts with Poison statistics
+	if(I0 != 0.0){
+		//Calculate the expected value
+		Isinogram = Eigen::exp( sinogram.array()* (-1.0) ) * I0 ;
+
+		//Randomize the matrix
+		unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
+		std::mt19937_64 generator(seed1);    //Seed the generator
+		for(int i=0; i<Isinogram.rows(); i++){
+			for(int j=0; j<Isinogram.cols(); j++){
+				std::poisson_distribution<int> poissonDist( Isinogram(i,j) );
+				Isinogram(i,j) = (-1)* std::log( poissonDist(generator) / I0 );
+			}
 		}
+	}
+	else{
+		Isinogram = sinogram;
 	}
 
 	//Move the sinogram to CTScans map
@@ -528,7 +424,17 @@ void Gen1CT::measure_Siddon(const std::string& phantomLabel,
 		std::cout << std::endl << "WARNING! A scan with label \"" << phantomLabel << "\" already exists!!! Overwriting!!!";
 		scans.erase(it);
 	}
-	scans.emplace(scanLabel, CTScan(scanLabel,sinogram, detWidth, angles));
+	scans.emplace(scanLabel, CTScan(scanLabel,Isinogram, detWidth, angles));
+}
+
+CTScan Gen1CT::getMeasurement(const std::string& label){
+	if(scans.find(label) != scans.end()){
+			return scans.at(label);
+	}
+	else{
+		std::cout << std::endl << "ERROR!! Label: \"" << label << "\" could not be found!! returning an empty CTScan!!";
+		return CTScan("EMPTY_SCAN", Eigen::MatrixXd::Zero(pixNum, 1), detWidth, Eigen::VectorXd{0});
+	}
 }
 
 void Gen1CT::displayMeasurement(const std::string& label){

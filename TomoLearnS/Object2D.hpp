@@ -19,9 +19,9 @@ public:
 	Object2D(const std::string& imageFilePath, const std::array<double, 2>& objPixSizes={0.1, 0.1});
 	//Constructor of a zero-initialized Object2D
 	Object2D(const std::array<int, 2>& numberOfPixels, const std::array<double, 2>& objPixSizes);
-	//Constructor for initializing with Eigen::Matrix
+	//Constructor for initializing with Eigen::Matrix for Sinogram
 	Object2D(const Eigen::MatrixXd& inData, double detWidth, const Eigen::VectorXd& angles);
-	//Constructor for initialization with Eigen::Matrix
+	//Constructor for initialization with Eigen::Matrix for Phantom
 	Object2D(const Eigen::MatrixXd& inData, const std::array<double, 2>& objPixSizes={0.1, 0.1});
 
 	~Object2D();
@@ -36,6 +36,9 @@ public:
 	Object2D operator*(double coeff) const;
 	Object2D operator-(double subVal) const;
 
+	//Set data
+	void setData(int i, int j, double setValue);
+
 
 	std::array<double, 2> getPixSizes() const;
 	std::array<int, 2> getNumberOfPixels() const;
@@ -45,10 +48,10 @@ public:
 	//Functions for measurement
 	double linear_atY(int xPixelValue, double yCoordinateInMM) const;
 	double linear_atX(int yPixelValue, double xCoordinateInMM) const;
-	double getXValueAtPix(unsigned int pixValue) const ;
-	double getYValueAtPix(unsigned int pixValue) const;
+	double getXValueAtPix(int pixValue) const ;
+	double getYValueAtPix(int pixValue) const;
 
-	void display(const std::string& label);
+	void display(const std::string& label="");
 
 private:
 	//Raw Data
@@ -111,14 +114,14 @@ inline double Object2D::linear_atX(int yPixelValue, double xCoordinateInMM) cons
 	}
 }
 
-inline double Object2D::getXValueAtPix(unsigned int pixIndex) const{
+inline double Object2D::getXValueAtPix(int pixIndex) const{
 	/** Get the X value at the index pixIndex
 	 *
 	 */
 	return xPixCentreCoords[pixIndex];
 }
 
-inline double Object2D::getYValueAtPix(unsigned int pixIndex) const{
+inline double Object2D::getYValueAtPix(int pixIndex) const{
 	/** Get the Y value at the index pixIndex
 	 *
 	 */
