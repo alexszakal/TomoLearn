@@ -17,12 +17,12 @@ title('Shepp-Logan.png')
 figure(2);
 plot(int32(P(822,:))-1000);
 title('Shepp-Logan.png')
-imwrite(P, 'SheppLogan.png', 'BitDepth', 16); % 16 bit
+imwrite(P, 'SheppLogan_HU.png', 'BitDepth', 16); % 16 bit
 
 P(1000:1024,:)=[];
 P(1:24,:)=[];
 P(:,1:130)=[];
-imwrite(P, 'SheppLogan_asymmetric.png', 'BitDepth', 16); %16 bit
+imwrite(P, 'SheppLogan_asymmetric_HU.png', 'BitDepth', 16); %16 bit
 
 
 P2=uint16(1000*(phantom('Modified Shepp-Logan', 1024)/2.5-mu_water)/mu_water + 1000);
@@ -34,11 +34,11 @@ title('ModifiedSheppLogan.png')
 figure(4);
 plot(int32(P2(822,:))-1000);
 title('ModifiedSheppLogan.png')
-imwrite(P2, 'ModifiedSheppLogan.png', 'BitDepth', 16);  %16/15 bit
+imwrite(P2, 'ModifiedSheppLogan_HU.png', 'BitDepth', 16);  %16/15 bit
 
 P2(1000:1024,:)=[];
 P2(1:24,:)=[];
 P2(:,1:130)=[];
 %figure(5);
 %imshow(P2);
-imwrite(P2, 'ModifiedSheppLogan_asymmetric.png', 'BitDepth', 16); % 16/15 bit
+imwrite(P2, 'ModifiedSheppLogan_asymmetric_HU.png', 'BitDepth', 16); % 16/15 bit
