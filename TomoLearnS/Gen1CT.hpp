@@ -22,8 +22,7 @@ public:
 
 	void addPhantom(const Phantom& newPhantom);
 
-	void displayPhantom(const std::string& label,
-			            const std::string& title = "emptyTitle");
+	void displayPhantom(const std::string& label);
 
     void setI0(double newI0);
 

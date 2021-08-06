@@ -8,7 +8,6 @@
 #include <TomoLearnS/CTScan.hpp>
 #include <TomoLearnS/Filter.hpp>
 
-
 #include <matplotlibcpp_old.h>
 
 #include <iostream>
@@ -59,9 +58,9 @@ void Gen1CT::addPhantom(const Phantom& newPhantom){
 }
 
 
-void Gen1CT::displayPhantom(const std::string& label, const std::string& title){
+void Gen1CT::displayPhantom(const std::string& label){
 	if(phantoms.find(label) != phantoms.end()){
-		phantoms.at(label).display(label);
+		phantoms[label].display(label);
 	}
 	else
 		std::cout << std::endl << "ERROR!! Label: \"" << label << "\" could not be found!! Skipping the display.";
@@ -87,7 +86,7 @@ void Gen1CT::measure_withInterpolation(const std::string& phantomLabel,
 		return;
 	}
 
-	Phantom& actualPhantom = phantoms.at(phantomLabel);
+	Phantom& actualPhantom = phantoms[phantomLabel];
 
 	auto pixSizes = actualPhantom.getPixSizes();
     auto numberOfPixels = actualPhantom.getNumberOfPixels();
@@ -109,31 +108,31 @@ void Gen1CT::measure_withInterpolation(const std::string& phantomLabel,
 
 	for(int i=0; i<numAngles; i++){
 		thetaVector.push_back( std::fmod(angles[i], 2*M_PI) );
-		sinThetaVector.push_back( sin(thetaVector[i]) );
-		cosThetaVector.push_back( cos(thetaVector[i]) );
-		tanThetaVector.push_back( tan(thetaVector[i]) );
-		cotThetaVector.push_back( 1/tanThetaVector[i] );
-		absSinThetaInvVector.push_back( 1/std::abs(sinThetaVector[i]) );
-		absCosThetaInvVector.push_back( 1/std::abs(cosThetaVector[i]) );
+		sinThetaVector.push_back( sin(thetaVector[static_cast<size_t>(i)]) );
+		cosThetaVector.push_back( cos(thetaVector[static_cast<size_t>(i)]) );
+		tanThetaVector.push_back( tan(thetaVector[static_cast<size_t>(i)]) );
+		cotThetaVector.push_back( 1/tanThetaVector[static_cast<size_t>(i)] );
+		absSinThetaInvVector.push_back( 1/std::abs(sinThetaVector[static_cast<size_t>(i)]) );
+		absCosThetaInvVector.push_back( 1/std::abs(cosThetaVector[static_cast<size_t>(i)]) );
 
-		interpIsInY.push_back( ( (thetaVector[i] > piPer4 ) && (thetaVector[i] < 3*piPer4) ) ||
-				                 ( (thetaVector[i] > 5*piPer4 ) && (thetaVector[i] < 7*piPer4) ) );
+		interpIsInY.push_back( ( (thetaVector[static_cast<size_t>(i)] > piPer4 ) && (thetaVector[static_cast<size_t>(i)] < 3*piPer4) ) ||
+				                 ( (thetaVector[static_cast<size_t>(i)] > 5*piPer4 ) && (thetaVector[static_cast<size_t>(i)] < 7*piPer4) ) );
 	}
 
-	for(int pixI=0; pixI<pixNum; ++pixI){
+	for(size_t pixI=0; pixI<static_cast<size_t>(pixNum); ++pixI){
 
 		t=pixPositions[pixI];
-		for(int angI=0; angI<numAngles; ++angI){
+		for(size_t angI=0; angI < static_cast<size_t>(numAngles); ++angI){
 
 			if( interpIsInY[angI] ){
 				for(int objectXIndex=0; objectXIndex < numberOfPixels[0]; ++objectXIndex){
 					double objectYinMM = t*sinThetaVector[angI]+ (t*cosThetaVector[angI] - actualPhantomLA.getXValueAtPix(objectXIndex))*cotThetaVector[angI];
-					sinogram(pixI, angI) += actualPhantomLA.linear_atY(objectXIndex, objectYinMM) * absSinThetaInvVector[angI]*pixSizes[0];
+					sinogram(static_cast<long>(pixI), static_cast<long>(angI) ) += actualPhantomLA.linear_atY(objectXIndex, objectYinMM) * absSinThetaInvVector[angI]*pixSizes[0];
 				}
 			} else{
 				for(int objectYIndex=0; objectYIndex < numberOfPixels[1]; ++objectYIndex){
 					double objectXinMM = t*cosThetaVector[angI] - (actualPhantomLA.getYValueAtPix(objectYIndex)-t*sinThetaVector[angI])*tanThetaVector[angI];
-					sinogram(pixI, angI) += actualPhantomLA.linear_atX(objectYIndex, objectXinMM) * absCosThetaInvVector[angI]*pixSizes[1];
+					sinogram(static_cast<long>(pixI), static_cast<long>(angI) ) += actualPhantomLA.linear_atX(objectYIndex, objectXinMM) * absCosThetaInvVector[angI]*pixSizes[1];
 				}
 			}
 		}
@@ -188,7 +187,7 @@ void Gen1CT::measure_Siddon(const std::string& phantomLabel,
 		return;
 	}
 
-	Phantom& actualPhantom = phantoms.at(phantomLabel);
+	Phantom& actualPhantom = phantoms[phantomLabel];
 
 	auto pixSizes = actualPhantom.getPixSizes();
     auto numberOfPixels = actualPhantom.getNumberOfPixels();
@@ -204,8 +203,8 @@ void Gen1CT::measure_Siddon(const std::string& phantomLabel,
 
 	for(int i=0; i<numAngles; i++){
 		thetaVector.push_back( std::fmod(angles[i], 2*M_PI) );
-		sinThetaVector.push_back( sin(thetaVector[i]) );
-		cosThetaVector.push_back( cos(thetaVector[i]) );
+		sinThetaVector.push_back( sin(thetaVector[static_cast<size_t>(i)]) );
+		cosThetaVector.push_back( cos(thetaVector[static_cast<size_t>(i)]) );
 	}
 
 	const double* dataPtr=actualPhantomLA.getDataAsEigenMatrixRef().data();
@@ -504,14 +503,6 @@ Eigen::MatrixXd Gen1CT::backProject(const CTScan& sinogram,
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 	std::cout << "Reconstruction took " << duration.count() << " milliseconds" << std::endl;
 
-	//DEBUG
-	//for( int i=0; i<numberOfRecPoints[1]; ++i){
-	//		std::cout << std::endl << "Index: "<< i << "  Image: " << object->getDataAsEigenMatrixRef().row(821)(i)   << "  Reconst: " << backprojection(i,821);
-	//}
-
-	//TODO mukodjon a kovetkezo sor
-	//std::cout << std::endl << "Ratio of reconstructed and real (768. pixel): " << backprojection(768,821) / object->getDataAsEigenMatrixRef().row(821)(768);
-
 	/* Regi kijelzes
 	cimg_library::CImg<uint16_t> BPImage (numberOfRecPoints[0], numberOfRecPoints[1], 1, 1);
 	double maxInt = backprojection.maxCoeff();
@@ -527,8 +518,6 @@ Eigen::MatrixXd Gen1CT::backProject(const CTScan& sinogram,
 	return backprojection;
 }
 
-
-//#define FILTERING_DEBUG
 CTScan Gen1CT::applyFilter(const std::string& sinogramID, Filter filter){
 	/**
 	 * Filtering using Ram-Lak filter
@@ -554,19 +543,6 @@ CTScan Gen1CT::applyFilter(const std::string& sinogramID, Filter filter){
 	int startIndex=floor((pixNumPadded-pixNum)/2);
 	paddedSinogram.block(startIndex, 0, pixNum, numAngles) = sinogram.getDataAsEigenMatrixRef();
 
-#ifdef FILTERING_DEBUG
-	cimg_library::CImg<uint16_t> paddedImage = cimg_library::CImg<uint16_t>(pixNumPadded, numAngles, 1, 1);
-	double maxInt = paddedSinogram.maxCoeff();
-	double minInt = paddedSinogram.minCoeff();
-	for(int i=0; i<pixNumPadded; ++i){
-		for(int j=0; j<numAngles; ++j){
-			paddedImage(i,j) = static_cast<uint16_t>((paddedSinogram(i,j)-minInt)/(maxInt-minInt)*65530);
-		}
-	}
-	cimg_library::CImgDisplay paddedImageDisplay = cimg_library::CImgDisplay(paddedImage, "PaddedImage");
-	paddedImageDisplay.wait();
-#endif
-
 	//Fourier transform of the padded Sinogram:
 	Eigen::FFT<double> fft;
 	Eigen::MatrixXcd fftOfSinogram = Eigen::MatrixXcd::Zero(pixNumPadded, numAngles);
@@ -574,29 +550,13 @@ CTScan Gen1CT::applyFilter(const std::string& sinogramID, Filter filter){
 		fftOfSinogram.col(i) = fft.fwd(paddedSinogram.col(i));
 	}
 
-////ITT KELL FILTEREZNI!!!!!
 	filter(fftOfSinogram);
 
 	//IFFT of filtered sinogram
 	double tau=detWidth/pixNum;
-	std::cout << "\nTau: "<<tau<<'\n';
 	for(int i=0; i<fftOfSinogram.cols(); i++){
 		paddedSinogram.col(i) = 1/tau * fft.inv(fftOfSinogram.col(i)).real();
 	}
-
-
-	//sinogram=paddedSinogram.block(startIndex,0, pixNum, numAngles);
-
-	//DEBUG write out the filtered sinogram
-	std::string filname{"filteredNew.dat"};
-	std::ofstream fil(filname.c_str() );
-	if(fil){
-		fil << paddedSinogram.block(startIndex,0, pixNum, numAngles);
-		fil.close();
-		std::cout<<"\n  File written \n";
-	} else
-		std::cout << "\n File not opened!\n";
-///////////////////////////////////////////////////6
 
 	auto stop = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
@@ -612,6 +572,12 @@ void Gen1CT::filteredBackProject(std::string sinogramID,
 								FilterType filterType,
 								double cutOffFreq,
 								const std::string& imageID){
+
+	if(scans.find(sinogramID) == scans.end()){
+			std::cout << std::endl << "ERROR!! sinogramID: \"" << sinogramID << "\" could not be found!! Abort mission";
+			return;
+	}
+
 	//Apply filter on the sinogram
 	CTScan filteredScan = applyFilter(sinogramID, Filter(filterType, cutOffFreq) );
 	filteredScan.display(sinogramID + " filtered");
@@ -628,11 +594,9 @@ void Gen1CT::filteredBackProject(std::string sinogramID,
 
 void Gen1CT::displayReconstruction(const std::string& label){
 	if(reconsts.find(label) != reconsts.end()){
-			reconsts.at(label).display(label);    //TODO: Itt nem lehetne elkerulni a dupla label-t?
-			                                      //TODO: El kellene kerulni a .at()-et
-		}
-		else
-			std::cout << std::endl << "ERROR!! Label: \"" << label << "\" could not be found!! Skipping the display.";
+		reconsts[label].display(label);
+	}else
+		std::cout << std::endl << "ERROR!! Label: \"" << label << "\" could not be found!! Skipping the display.";
 }
 
 void Gen1CT::compareRowPhantomAndReconst(int rowNum, const std::string& phantomID, const std::string& reconstID){
@@ -640,8 +604,8 @@ void Gen1CT::compareRowPhantomAndReconst(int rowNum, const std::string& phantomI
 	 *
 	 */
 
-	Eigen::VectorXd BPSlice = reconsts.at(reconstID).getDataAsEigenMatrixRef().col(rowNum);
-	Eigen::VectorXd ObjSlice = phantoms.at(phantomID).getDataAsEigenMatrixRef().col(rowNum);
+	Eigen::VectorXd BPSlice = reconsts[reconstID].getDataAsEigenMatrixRef().col(rowNum);
+	Eigen::VectorXd ObjSlice = phantoms[phantomID].getDataAsEigenMatrixRef().col(rowNum);
 	matplotlibcpp::figure(27);
 	matplotlibcpp::plot(std::vector<float> (&BPSlice[0], BPSlice.data()+BPSlice.cols()*BPSlice.rows()) );
 	matplotlibcpp::plot(std::vector<float> (&ObjSlice[0], ObjSlice.data()+ObjSlice.cols()*ObjSlice.rows()) );

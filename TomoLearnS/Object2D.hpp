@@ -1,6 +1,7 @@
 #pragma once
 
 #include <CImg.h>
+
 #ifdef Success       //Because otherwise Eigen not compile
   #undef Success
 #endif

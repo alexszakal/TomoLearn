@@ -6,6 +6,9 @@
 //
 //}
 
+Phantom::Phantom():Object2D(),label("Empty"){
+}
+
 Phantom::Phantom(const std::string& label,
 		         const std::string& imageFilePath,
 				 const std::array<double, 2>& objPixSizes):

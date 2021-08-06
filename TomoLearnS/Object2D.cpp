@@ -2,14 +2,13 @@
 
 #include <cstdint>
 
-#include <CImg.h>
 #ifdef Success       //Because otherwise Eigen not compile
   #undef Success
 #endif
 
 #include <matplotlibcpp_old.h>
 
-
+#include <iomanip>
 #include <iostream>
 #include <vector>
 #include <array>
@@ -17,7 +16,7 @@
 
 Object2D::Object2D(const std::string& imageFilePath,
 				   const std::array<double, 2>& objPixSizes):
-															objPixSizes{objPixSizes}
+															objPixSizes{objPixSizes} // @suppress("Symbol is not resolved")
 				   {
 	//Read the image file
     cimg_library::CImg<uint16_t> imageLoader(imageFilePath.c_str());
@@ -44,12 +43,6 @@ Object2D::Object2D(const std::string& imageFilePath,
 	for(unsigned int i=0; i<imageLoader._height; ++i){
 		yPixCentreCoords[i]=   objWidthHeightInMM[1]/2 - i*objPixSizes[1] - objPixSizes[1]/2;
 	}
-
-	//DEBUG show values along lower ellipses
-	//Eigen::VectorXd slice = objData.row(821);
-	//matplotlibcpp::plot(std::vector<float> (&slice[0], slice.data()+slice.cols()*slice.rows()) );
-	//matplotlibcpp::show(False);
-
 }
 
 /* Initialize an Object2D with zeros*/
@@ -90,13 +83,12 @@ Object2D::Object2D(const Eigen::MatrixXd& inData,
 	}
 	yPixCentreCoords.resize(numberOfPixels[1]);
 	for(int i=0; i<numberOfPixels[1]; i++){
-//		yPixCentreCoords[i]=-1*objWidthHeightInMM[1]/2+(i+0.5)*objPixSizes[1];   //Regi vszinu hibas
 		yPixCentreCoords[i]= angles[i];
 	}
 }
 
 Object2D::Object2D(const Eigen::MatrixXd& inData, const std::array<double, 2>& objPixSizes):objData{inData},
-		                                                                                    objPixSizes{objPixSizes}{
+		                                                                                    objPixSizes{objPixSizes}{ // @suppress("Symbol is not resolved")
 	numberOfPixels[0]=inData.rows();
 	numberOfPixels[1]=inData.cols();
 
@@ -114,6 +106,7 @@ Object2D::Object2D(const Eigen::MatrixXd& inData, const std::array<double, 2>& o
 }
 
 Object2D::~Object2D(){
+	//destructor
 	if(!cimg_window.is_closed()){
 	    cimg_window.close();
 	    cimg_window.flush();
@@ -124,7 +117,6 @@ Object2D::~Object2D(){
 
 Object2D::Object2D(const Object2D& objToCopy){
 	//Copy constructor copies everything except the display which is bound to the original
-	std::cout << "\n Copy constructor called \n";
 	objData = objToCopy.objData;
 	numberOfPixels = objToCopy.numberOfPixels;
 	objPixSizes = objToCopy.objPixSizes;   //Size of a single pixel
@@ -136,7 +128,6 @@ Object2D::Object2D(const Object2D& objToCopy){
 
 Object2D& Object2D::operator=(const Object2D& objToCopy){
 	//Copy assignment copies everything except the display which is bound to the original
-	std::cout << "\n Copy assignment called \n";
 	objData = objToCopy.objData;
 	numberOfPixels = objToCopy.numberOfPixels;
 	objPixSizes = objToCopy.objPixSizes;   //Size of a single pixel
@@ -149,19 +140,16 @@ Object2D& Object2D::operator=(const Object2D& objToCopy){
 }
 
 Object2D::Object2D(Object2D&& objToMove):objData{std::move(objToMove.objData)},
-                                         numberOfPixels{std::move(objToMove.numberOfPixels)},
-										 objPixSizes{std::move(objToMove.objPixSizes)},
-										 objWidthHeightInMM{std::move(objToMove.objWidthHeightInMM)},
-										 xPixCentreCoords{std::move(objToMove.xPixCentreCoords)},
-										 yPixCentreCoords{std::move(objToMove.yPixCentreCoords)}{
+                                         numberOfPixels{std::move(objToMove.numberOfPixels)}, // @suppress("Symbol is not resolved")
+										 objPixSizes{std::move(objToMove.objPixSizes)}, // @suppress("Symbol is not resolved")
+										 objWidthHeightInMM{std::move(objToMove.objWidthHeightInMM)}, // @suppress("Symbol is not resolved")
+										 xPixCentreCoords{std::move(objToMove.xPixCentreCoords)}, // @suppress("Symbol is not resolved")
+										 yPixCentreCoords{std::move(objToMove.yPixCentreCoords)}{ // @suppress("Symbol is not resolved")
 	//Move constructor
-	std::cout << "Move constructor called \n ";
 }
 
 Object2D& Object2D::operator=(Object2D&& objToMove) noexcept{
 	//Move assignment
-	std::cout << "Move assignment called \n";
-
 	objData = std::move(objToMove.objData);
 	numberOfPixels = std::move(objToMove.numberOfPixels);
 	objPixSizes = std::move(objToMove.objPixSizes);
@@ -179,8 +167,6 @@ Object2D Object2D::operator+(double addVal) const{
 }
 
 Object2D Object2D::operator-(double subVal) const{
-	//Object2D result = *this;
-	//result.objData.array() -= addVal;
 	return *this+(-1.0*subVal);
 }
 
@@ -202,39 +188,32 @@ void Object2D::display(const std::string& label){
 		displayThread.join();
 	}
 
-	std::array<int, 2> numberOfPixels = getNumberOfPixels();
-	std::array<double, 2> objPixSizes = getPixSizes();
-
-	std::string title{"TEST"};
-
 	std::stringstream ss;
-	ss << title << " Label: " << label << " " << numberOfPixels[0] << " x " << numberOfPixels[1] << " points; "
-			                                     << objPixSizes[0] << " x " << objPixSizes[1] << " pixSize"
-									             << numberOfPixels[0]*objPixSizes[0] << " x "
-												 << numberOfPixels[1]*objPixSizes[1] << " w x h";
+	ss << " Label: " << label << " " << numberOfPixels[0] << " x " << numberOfPixels[1] << " points; "
+			                         << std::fixed << std::setprecision(2)
+		                             << objPixSizes[0] << " x " << objPixSizes[1] << " pixSize;"
+						             << numberOfPixels[0]*objPixSizes[0] << " x "
+									 << numberOfPixels[1]*objPixSizes[1] << " w x h;";
 	std::string longTitle = ss.str();
 
-	cimg_image.assign(numberOfPixels[0], numberOfPixels[1], 1, 1);
+	cimg_image.assign(static_cast<unsigned int>(numberOfPixels[0]), static_cast<unsigned int>(numberOfPixels[1]), 1, 1);
 
-	const Eigen::MatrixXd& objData = getDataAsEigenMatrixRef();
-
-	double maxInt = objData.maxCoeff();
-	double minInt = objData.minCoeff();
-	double normFactor = 65530/(maxInt-minInt);
-	for(int i=0; i<numberOfPixels[0]; ++i){
-		for(int j=0; j<numberOfPixels[1]; ++j){
-			//cimg_image(i,j) = static_cast<double>((objData(i,j)-minInt)*normFactor);
+	for(unsigned int i=0; i<static_cast<unsigned int>(numberOfPixels[0]); ++i){
+		for(unsigned int j=0; j<static_cast<unsigned int>(numberOfPixels[1]); ++j){
 			//Without normalization
-			cimg_image(i,j) = static_cast<double>(objData(i,j));
+			cimg_image(i,j) = objData(i,j);
 		}
 	}
 
-	//cimg_image.display(cimg_window, true,0, true);
-	displayThread = std::thread([this](){cimg_image.display(cimg_window, true,0, true);});
-	while( cimg_window.is_closed() ){
-		cimg_window.wait(10); //Wait 10 milliseconds
+	char windowTitle[1024];
+	if(longTitle.length() <=1024)
+		strcpy(windowTitle, longTitle.c_str());
+	else{
+		longTitle.resize(1024);
+		strcpy(windowTitle, longTitle.c_str());
 	}
-	cimg_window.set_title("%s", longTitle.c_str());
+
+	displayThread = std::thread([this, windowTitle](){cimg_image._display(cimg_window,windowTitle,false,0,false,false); });
 }
 
 std::array<double,2> Object2D::getPixSizes() const{

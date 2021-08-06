@@ -4,6 +4,7 @@
 #include <algorithm>
 
 #include <CImg.h>
+
 #ifdef Success       //Because otherwise Eigen not compile (EIgen <-> CImg interference)
   #undef Success
 #endif
@@ -16,36 +17,24 @@
 void testRadonTransform(const std::string& phantomName, const std::string& algoName);
 void testFBP(const std::string& phantomName, const std::string& algoName);
 
-//TODO: Miutan atkerult a display az Object2D-be, ruleOf5 alkalmazasa
+//TODO: A ct.compareRowPhantomAndReconst() Mukodjon. HA fajlbol olvasunk, akkor 1000-et ki kell vonni, mert akkor kapjuk meg HU unitban!
+
 //DEBUG: A szurt szinogram eltunik amikor a visszaallitas megjelenik
-//TODO: A display() fuggveny tegye fel a feliratot!
 //TODO: Valahogy a szurt szinogramokat is el kell menteni (lehetne egy map, ahol a key a filter osztaly?? )
+
 //TODO: Visszavetitest felgyorsitani
 //TODO: Gyorsabb elorevetites a cache jobb hasznalataval
-//TODO: A Gen1CTbol valahogy ki lehessen szedni az adatokat (kell egy interface ami const obj&-et ad vissza
-//TODO: reconsts es phantoms csak a .at() fuggvennyel kerdezheto le mert nincs default konstruktor
-//TODO: Ellenorizni az Object2D->display-ben a normalizaciot, castolast (beutesek nem fernek bele a 16bitbe!!!)
-//TODO: Ha az activePhantom valtozo nem valid erteket tartalmaz -> runtime error
-
-// Next step:
-//TTOK:
-//      ---Object2D-ben megirni a move konstruktort es a move assignment operatorokat (Mukodjenek a "+" es "*" operatorok a LA unitra atteresnel
-//      ---A measure fuggveny a "mu"-bol szamoljon, ne a HU egysegekbol
-//      ---A Phantom operator+(double) mukodjon
 
 //TTOK sanitizers:
 //-Dokumentacioba Properties -> C/C++Build -> CMake4eclipse -> Symbols -> Cmake cache entries -> ENABLE_SANITIZER_ADDRESS:BOOL:ON
 //- Az address symbolizer is kell ahhoz hogy kodsorokat irjon ki: LAunch config. -> Environmentbe:
                                                            // -> ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer
 
-// TTOK: -Ki kell gyilkolni a copy construktor hivasokat a measure fuggvenybol.
-
-
 //Parallel geometry
 int main(){
-	testRadonTransform("SL", "swithInterpolation");
+//	testRadonTransform("SL", "swithInterpolation");
 
-//	testFBP("modSL_symm", "Siddon");
+	testFBP("modSL_symm", "Siddon");
 
 	std::cin.ignore();
 
@@ -71,16 +60,13 @@ void testFBP(const std::string& phantomName, const std::string& algoName){
 	ct.addPhantom("SD", "Phantoms/SingleDot.png"); //Single dot Phantom
 	ct.addPhantom("rectangle", "Phantoms/rectangle.png", {0.025,0.025}); //Single rectangle with 400HU CT number in  the center
 
-	std::string activePhantom{"SL"};
-//	std::string activePhantom{"rectangle"};
-
-	ct.displayPhantom(activePhantom);
+	ct.displayPhantom(phantomName);
 
 	const int numProjections{180};
 	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0.0/180.0 * M_PI,
 			179.0 / 180 * M_PI);
 
-	ct.setI0(1e4);
+	ct.setI0(8e4);
 
 	if(algoName == "Siddon"){
 		ct.measure_Siddon(phantomName, angles, "Sinogram");
@@ -99,7 +85,7 @@ void testFBP(const std::string& phantomName, const std::string& algoName){
 			"RecImage");
 	ct.Gen1CT::displayReconstruction("RecImage");
 
-	//ct.compareRowPhantomAndReconst(821, activePhantom, "RecImage");
+	//ct.compareRowPhantomAndReconst(821, phantomName, "RecImage");
 
 	int tmpi;
 	std::cin>>tmpi;
