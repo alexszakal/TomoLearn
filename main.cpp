@@ -4,6 +4,7 @@
 #include <algorithm>
 
 #include <CImg.h>
+
 #ifdef Success       //Because otherwise Eigen not compile (EIgen <-> CImg interference)
   #undef Success
 #endif
@@ -11,119 +12,216 @@
 #include <TomoLearnS/Object2D.hpp>
 #include <TomoLearnS/Gen1CT.hpp>
 
-#include <matplotlibcpp/matplotlibcpp_old.h>
+#include <matplotlibcpp_old.h>
 
-void testRadonTransform();
-void testFBP();
+void testRadonTransform(const std::string& phantomName, const std::string& algoName);
+void testFBP(const std::string& phantomName, const std::string& algoName);
+
+//TODO: A ct.compareRowPhantomAndReconst() Mukodjon. HA fajlbol olvasunk, akkor 1000-et ki kell vonni, mert akkor kapjuk meg HU unitban!
+
+//DEBUG: A szurt szinogram eltunik amikor a visszaallitas megjelenik
+//TODO: Valahogy a szurt szinogramokat is el kell menteni (lehetne egy map, ahol a key a filter osztaly?? )
+
+//TODO: Visszavetitest felgyorsitani
+//TODO: Gyorsabb elorevetites a cache jobb hasznalataval
+
+//TTOK sanitizers:
+//-Dokumentacioba Properties -> C/C++Build -> CMake4eclipse -> Symbols -> Cmake cache entries -> ENABLE_SANITIZER_ADDRESS:BOOL:ON
+//- Az address symbolizer is kell ahhoz hogy kodsorokat irjon ki: LAunch config. -> Environmentbe:
+                                                           // -> ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer
 
 //Parallel geometry
 int main(){
-	//testRadonTransform();
+//	testRadonTransform("SL", "swithInterpolation");
 
-	testFBP();
+	testFBP("modSL_symm", "Siddon");
+
+	std::cin.ignore();
 
 	return 0;
 }
 
-void testFBP(){
+void testFBP(const std::string& phantomName, const std::string& algoName){
 	/**
 	 * Test the Filtered Backprojection algorithm with a Shepp-Logan phantom
 	 */
 
 	std::cout << "Parallel beam FBP simulation" << std::endl;
-	//Reading Shepp-Logan phantom
-	//Object2D phantom(std::string("Phantoms/ModifiedSheppLogan_asymmetric.png") );
-	//phantom.display("Modified Shepp-Logan phantom");
 
-	Gen1CT ct(110, 1024);  //width[mm], pixNum
-	ct.addPhantom("SL", "Phantoms/ModifiedSheppLogan_asymmetric.png");
-	ct.addPhantom("SL", "Phantoms/SheppLogan.png");
-	ct.displayPhantom("SL");
+	int detWidthInMM { 110 };
+	int detPixNum { 512 };
+	Gen1CT ct(detWidthInMM, detPixNum);
+
+	//Reading Shepp-Logan phantom
+	ct.addPhantom("SL", "Phantoms/SheppLogan_HU.png");
+	ct.addPhantom("SL_asym", "Phantoms/SheppLogan_asymmetric_HU.png");
+	ct.addPhantom("modSL_symm", "Phantoms/ModifiedSheppLogan_HU.png");
+	ct.addPhantom("modSL_asym", "Phantoms/ModifiedSheppLogan_asymmetric_HU.png"); //default pixSize: 0.1mm x 0.1mm
+	ct.addPhantom("SD", "Phantoms/SingleDot.png"); //Single dot Phantom
+	ct.addPhantom("rectangle", "Phantoms/rectangle.png", {0.025,0.025}); //Single rectangle with 400HU CT number in  the center
+
+	ct.displayPhantom(phantomName);
 
 	const int numProjections{180};
-	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0, 180/180*M_PI);
+	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0.0/180.0 * M_PI,
+			179.0 / 180 * M_PI);
 
-//	ct.measure(angles);
-/*	ct.displayMeasurement();
+	ct.setI0(8e4);
 
-	ct.FBP(std::vector<int>{1024,1024}, std::vector<double>{0.1, 0.1});
-	//ct.displayMeasurement();
+	if(algoName == "Siddon"){
+		ct.measure_Siddon(phantomName, angles, "Sinogram");
+	} else if(algoName == "withInterpolation"){
+		ct.measure_withInterpolation(phantomName, angles, "Sinogram");
+	} else{
+		std::cout << "\nalgoName parameter not recognized. Possible values: \"Siddon\" or \"withInterpolation\" ";
+		std::cout << "\nAborting testRadonTransform function";
+		return;
+	}
 
-	ct.backProject(std::vector<int>{1024,1024}, std::vector<double>{0.1, 0.1});
-*/
+	ct.displayMeasurement("Sinogram");
+
+	ct.filteredBackProject("Sinogram", std::array<int, 2> { 1024, 1024 },
+			std::array<double, 2> { 0.1, 0.1 }, FilterType::Hann, 0.5,
+			"RecImage");
+	ct.Gen1CT::displayReconstruction("RecImage");
+
+	//ct.compareRowPhantomAndReconst(821, phantomName, "RecImage");
+
 	int tmpi;
 	std::cin>>tmpi;
-
 }
 
-void testRadonTransform(){
+void testRadonTransform(const std::string& phantomName, const std::string& algoName){
 	/**
 	 * Compare the numerical and analytic Radon transform of an ellipse
 	 */
-/*
+
 	std::cout << "Parallel beam projection simulation" << std::endl;
-	//Reading single ellipse phantom
-	Object2D phantom(std::string("Phantoms/singleEllipse.png") );
-	phantom.display("Single Ellipse phantom");
 
-	//generate RadonTransform
-	Gen1CT ct(95, 128);  //width[mm], pixNum
-	ct.addPhantom(&phantom);
+	double PhantomWidthInMM = 102.4;
+
+	std::vector<double> rhos;
+	std::vector<double> alphas;
+	std::vector<std::array<double,2>> centers;
+    std::vector<std::array<double,2>> axes;
+
+	//Parameters of the Shepp-Logan phantom
+    if(phantomName == "SL"){
+    	rhos = { 1.0, -0.98,
+		        -0.02, -0.02,
+		         0.01, 0.01,
+				 0.01, 0.01,
+				 0.01, 0.01 };
+
+    	alphas = { 0.0/180.0*M_PI, 0.0/180.0*M_PI,
+	              -18.0/180.0*M_PI, 18.0/180.0*M_PI,
+				   0.0/180.0*M_PI, 0.0/180.0*M_PI,
+				   0.0/180.0*M_PI, 0.0/180.0*M_PI,
+				   0.0/180.0*M_PI, 0.0/180.0*M_PI };
+
+    	centers = { {0.0*PhantomWidthInMM/2, 0.0*PhantomWidthInMM/2}, {0.0*PhantomWidthInMM/2, -0.0184*PhantomWidthInMM/2},
+	                {0.22*PhantomWidthInMM/2, 0.0*PhantomWidthInMM/2}, {-0.22*PhantomWidthInMM/2, 0.0*PhantomWidthInMM/2},
+	                {0.0*PhantomWidthInMM/2, 0.35*PhantomWidthInMM/2}, {0.0*PhantomWidthInMM/2, 0.1*PhantomWidthInMM/2},
+					{0.0*PhantomWidthInMM/2, -0.1*PhantomWidthInMM/2}, {-0.08*PhantomWidthInMM/2, -0.605*PhantomWidthInMM/2},
+					{0*PhantomWidthInMM/2, -0.606*PhantomWidthInMM/2}, {0.06*PhantomWidthInMM/2, -0.605*PhantomWidthInMM/2} };
+    	axes = { {0.69*PhantomWidthInMM/2, 0.92*PhantomWidthInMM/2}, {0.6624*PhantomWidthInMM/2, 0.874*PhantomWidthInMM/2},
+			     {0.11*PhantomWidthInMM/2, 0.31*PhantomWidthInMM/2}, {0.16*PhantomWidthInMM/2, 0.41*PhantomWidthInMM/2},
+				 {0.21*PhantomWidthInMM/2, 0.25*PhantomWidthInMM/2}, {0.046*PhantomWidthInMM/2, 0.046*PhantomWidthInMM/2},
+				 {0.046*PhantomWidthInMM/2, 0.046*PhantomWidthInMM/2}, {0.046*PhantomWidthInMM/2, 0.023*PhantomWidthInMM/2},
+				 {0.023*PhantomWidthInMM/2, 0.023*PhantomWidthInMM/2}, {0.023*PhantomWidthInMM/2, 0.046*PhantomWidthInMM/2} };
+    } else if(phantomName=="modSL"){
+    	rhos = { 2.0, -0.8,
+    		    -0.2, -0.2,
+    		     0.1, 0.1,
+    			 0.1, 0.1,
+    			 0.1, 0.1 };
+
+        alphas = { 0.0/180.0*M_PI, 0.0/180.0*M_PI,
+    	         -18.0/180.0*M_PI, 18.0/180.0*M_PI,
+    	     	   0.0/180.0*M_PI, 0.0/180.0*M_PI,
+    			   0.0/180.0*M_PI, 0.0/180.0*M_PI,
+    			   0.0/180.0*M_PI, 0.0/180.0*M_PI };
+
+        centers = { {0.0*PhantomWidthInMM/2, 0.0*PhantomWidthInMM/2}, {0.0*PhantomWidthInMM/2, -0.0184*PhantomWidthInMM/2},
+    	            {0.22*PhantomWidthInMM/2, 0.0*PhantomWidthInMM/2}, {-0.22*PhantomWidthInMM/2, 0.0*PhantomWidthInMM/2},
+    	            {0.0*PhantomWidthInMM/2, 0.35*PhantomWidthInMM/2}, {0.0*PhantomWidthInMM/2, 0.1*PhantomWidthInMM/2},
+    	         	{0.0*PhantomWidthInMM/2, -0.1*PhantomWidthInMM/2}, {-0.08*PhantomWidthInMM/2, -0.605*PhantomWidthInMM/2},
+    				{0*PhantomWidthInMM/2, -0.606*PhantomWidthInMM/2}, {0.06*PhantomWidthInMM/2, -0.605*PhantomWidthInMM/2} };
+        axes = { {0.69*PhantomWidthInMM/2, 0.92*PhantomWidthInMM/2}, {0.6624*PhantomWidthInMM/2, 0.874*PhantomWidthInMM/2},
+    			 {0.11*PhantomWidthInMM/2, 0.31*PhantomWidthInMM/2}, {0.16*PhantomWidthInMM/2, 0.41*PhantomWidthInMM/2},
+    			 {0.21*PhantomWidthInMM/2, 0.25*PhantomWidthInMM/2}, {0.046*PhantomWidthInMM/2, 0.046*PhantomWidthInMM/2},
+    			 {0.046*PhantomWidthInMM/2, 0.046*PhantomWidthInMM/2}, {0.046*PhantomWidthInMM/2, 0.023*PhantomWidthInMM/2},
+    			 {0.023*PhantomWidthInMM/2, 0.023*PhantomWidthInMM/2}, {0.023*PhantomWidthInMM/2, 0.046*PhantomWidthInMM/2} };
+    }
+    else{
+    	std::cout << "\nphantomName parameter not recognized. Possible values: \"SL\" or \"modSL\" ";
+    	std::cout << "\nAborting testRadonTransform function";
+    	return;
+    }
+
+    //Generate phantom
+	Phantom ellipsePhantom("ellipsePhantom",
+			               {1024, 1024},
+						   {0.1, 0.1},
+						   rhos, //rhos
+						   alphas, //alphas
+						   centers,  //centers
+						   axes //axes
+                           );
+	ellipsePhantom.display();
+
+
+	//generate Radon Transform Numerically
+	int detWidthInMM { 110 };
+	int detPixNum { 512 };
+	Gen1CT ct(detWidthInMM, detPixNum);
+	ct.setI0(0.0);
+
 	const int numProjections{180};
-	std::vector<double> angles(numProjections);
-	for(int i=0; i<numProjections; i++){angles[i]=i/static_cast<double>(numProjections)*M_PI;}
-	ct.measure(angles);
-	ct.displayMeasurement();
+	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0.0/180.0 * M_PI,
+			179.0 / 180 * M_PI);
 
-	//Calculate the Radon analytically
-	//std::array<int,2> numberOfPixels = phantom.getNumberOfPixels();
-	auto numberOfPixels = phantom.getNumberOfPixels();
-	auto pixSizes = phantom.getPixSizes();
-	double x0=0.2;  // 1.0 = edge of image (MATLAB phantom convention)
-	double y0=0.3;  //    --||--
-	double a=0.3;	//relative to the full image size (MATLAB phantom convention)
-	double b=0.45;	//     --||--
-	double A=255.0;
-	double phi=30.0 /180*M_PI;
-	double theta=5.0 /180*M_PI;
+	ct.addPhantom(ellipsePhantom);
 
-	//Search the index of the closest measured angle to theta
-	int angleIndex = std::distance(angles.begin(), std::min_element(angles.begin(), angles.end(), [theta](double a, double b){return std::abs(a-theta) < std::abs(b-theta); } ) );
-	std::cout << std::endl << "AngleIndex: " << angleIndex << " angle=" << angles[angleIndex];
-
-	Eigen::VectorXd projection = ct.getSinogram().col(angleIndex);
-	Eigen::VectorXd aProjection = projection*0; //analytical projection
-	std::vector<double> pixPositions = ct.getPixPositions();
-
-	double aParam = std::sqrt(  std::pow((a/2*numberOfPixels[0]*pixSizes[0]) * std::cos(theta-phi),2) + std::pow( (b/2*numberOfPixels[1]*pixSizes[1]) * std::sin(theta-phi),2) );
-	double s = std::sqrt( std::pow(x0/2*numberOfPixels[0]*pixSizes[0], 2) + std::pow(y0/2*numberOfPixels[1]*pixSizes[1], 2) );
-
-	double gamma{0.0};
-	if( (x0 != 0.0) || (y0 != 0.0) )
-		gamma = std::atan2(y0, x0);
-
-	std::cout << std::endl << "a=" << a*numberOfPixels[0]*pixSizes[0]/2;
-	std::cout << std::endl << "b=" << b*numberOfPixels[1]*pixSizes[1]/2;
-
-	for(int i=0; i<projection.rows(); ++i){
-		if (std::fabs( pixPositions[i] - s*cos(gamma-theta) ) < aParam){
-			aProjection(i)=2*A*(a*numberOfPixels[0]*pixSizes[0]/2) * (b*numberOfPixels[1]*pixSizes[1]/2) / std::pow(aParam,2) *std::sqrt(std::pow(aParam,2) - std::pow(pixPositions[i] - s* std::cos(gamma-theta),2 ));
-		}
-		std::cout << std::endl << "numeric: " << projection(i) << "  analytic: " << aProjection(i);
+	if(algoName == "Siddon"){
+		ct.measure_Siddon("ellipsePhantom", angles, "Sinogram");
+	} else if( algoName == "withInterpolation") {
+		ct.measure_withInterpolation("ellipsePhantom", angles, "Sinogram");
+	} else{
+		std::cout << "\nalgoName parameter not recognized. Possible values: \"Siddon\" or \"withInterpolation\" ";
+		std::cout << "\nAborting testRadonTransform function";
+		return;
 	}
 
-	double coeff =static_cast<double>(projection.maxCoeff())/aProjection.maxCoeff();
-	std::cout << std::endl << "Coefficient max(numerical)/max(analytical): " << coeff;
+	ct.displayMeasurement("Sinogram");
 
-	matplotlibcpp::figure(1);
-	matplotlibcpp::plot(std::vector<float> (&projection[0],  projection.data()+  projection.cols()*projection.rows()) );
-	matplotlibcpp::plot(std::vector<float> (&aProjection[0], aProjection.data()+aProjection.cols()*aProjection.rows()) );
-	matplotlibcpp::show(False);
+	CTScan numericalSinogram = ct.getMeasurement("Sinogram");
+
+	CTScan analyticSinogram("analyticSinogram",
+							detWidthInMM,
+							detPixNum,
+							angles,
+							rhos, //rhos
+							alphas, //alphas
+							centers,  //centers
+							axes //axes
+            );
+	analyticSinogram.display("AnalyticResult");
+
+	const Eigen::MatrixXd& numRes = numericalSinogram.getDataAsEigenMatrixRef();
+	const Eigen::MatrixXd& anRes = analyticSinogram.getDataAsEigenMatrixRef();
+
+	const Eigen::MatrixXd relativeError((numRes.array()-anRes.array())/((numRes.array() + anRes.array()+0.000001) * 0.5)*100); // @suppress("Invalid arguments")
+
+	CTScan metric("metric", relativeError.cwiseAbs(), detWidthInMM, angles);
+	metric.display();
+
+	std::cout << "\nDifference was normalized with the average of the corresponding pixel values.";
+	std::cout << "\nMaximal relative error: " << relativeError.cwiseAbs().maxCoeff() << "%";
+	std::cout << "\nAverage error: " << relativeError.cwiseAbs().mean() << "%";
 
 	int tmpi;
 	std::cin>>tmpi;
-
-*/
 }
 
 
