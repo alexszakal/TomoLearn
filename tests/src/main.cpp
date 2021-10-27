@@ -9,10 +9,12 @@
   #undef Success
 #endif
 
-#include <TomoLearnS/Object2D.hpp>
-#include <TomoLearnS/Gen1CT.hpp>
+#include <Object2D.hpp>
+#include <Gen1CT.hpp>
 
 #include <matplotlibcpp_old.h>
+
+#include <config.h>
 
 void testRadonTransform(const std::string& phantomName, const std::string& algoName);
 void testFBP(const std::string& phantomName, const std::string& algoName);
@@ -34,7 +36,13 @@ void testFBP(const std::string& phantomName, const std::string& algoName);
 int main(){
 //	testRadonTransform("SL", "swithInterpolation");
 
-	testFBP("modSL_symm", "Siddon");
+#if ENABLE_CUDA
+	std::cout << "\n \n CUDA enabled!!!!" ;
+#else
+	std::cout << "\n \n CUDA disabled!!!" ;
+#endif
+
+//	testFBP("modSL_symm", "Siddon");
 
 	std::cin.ignore();
 

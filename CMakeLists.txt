@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(TomoLearn CXX)
+project(TomoLearnLibrary CXX)
 
 # Link this 'library' to set the c++ standard / compile-time options requested
 add_library(project_options INTERFACE)
@@ -18,7 +18,8 @@ set_project_warnings(project_warnings)
 include(cmake/Sanitizers.cmake)
 enable_sanitizers(project_options)
 
-add_subdirectory(TomoLearnS)
+add_subdirectory(tomoLearnLib)
+add_subdirectory(tests)
 
-add_executable(tomoLearn "main.cpp")
-target_link_libraries(tomoLearn PUBLIC TomoLearnS project_options)
+#add_executable(tomoLearn "main.cpp")
+#target_link_libraries(tomoLearn PUBLIC TomoLearnS project_options)

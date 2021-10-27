@@ -2,11 +2,11 @@
 #define EIGEN_FFTW_DEFAULT
 #include <unsupported/Eigen/FFT>
 
-#include <TomoLearnS/Gen1CT.hpp>
-#include <TomoLearnS/Phantom.hpp>
-#include <TomoLearnS/Reconst.hpp>
-#include <TomoLearnS/CTScan.hpp>
-#include <TomoLearnS/Filter.hpp>
+#include <Gen1CT.hpp>
+#include <Phantom.hpp>
+#include <Reconst.hpp>
+#include <CTScan.hpp>
+#include <Filter.hpp>
 
 #include <matplotlibcpp_old.h>
 

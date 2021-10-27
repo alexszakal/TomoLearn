@@ -1,10 +1,10 @@
 #pragma once
 
 //#include <TomoLearnS/Object2D.hpp>
-#include <TomoLearnS/CTScan.hpp>
-#include <TomoLearnS/Phantom.hpp>
-#include <TomoLearnS/Reconst.hpp>
-#include <TomoLearnS/Filter.hpp>
+#include <CTScan.hpp>
+#include <Phantom.hpp>
+#include <Reconst.hpp>
+#include <Filter.hpp>
 
 #include <vector>
 #include <string>

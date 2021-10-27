@@ -1,4 +1,4 @@
-#include <TomoLearnS/Filter.hpp>
+#include <Filter.hpp>
 
 #define EIGEN_FFTW_DEFAULT
 #include <unsupported/Eigen/FFT>

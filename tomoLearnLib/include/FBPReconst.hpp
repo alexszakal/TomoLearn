@@ -8,7 +8,7 @@
 #ifndef FBPRECONST_HPP_
 #define FBPRECONST_HPP_
 
-#include <TomoLearnS/Reconst.hpp>
+#include <Reconst.hpp>
 
 class FBPReconst : Reconst {
 
