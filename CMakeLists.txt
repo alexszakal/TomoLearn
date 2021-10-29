@@ -18,8 +18,7 @@ set_project_warnings(project_warnings)
 include(cmake/Sanitizers.cmake)
 enable_sanitizers(project_options)
 
+add_subdirectory(external) #This contains the nontrivial external dependencies
 add_subdirectory(tomoLearnLib)
 add_subdirectory(tests)
 
-#add_executable(tomoLearn "main.cpp")
-#target_link_libraries(tomoLearn PUBLIC TomoLearnS project_options)

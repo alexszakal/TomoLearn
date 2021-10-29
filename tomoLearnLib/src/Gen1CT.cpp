@@ -8,7 +8,7 @@
 #include <CTScan.hpp>
 #include <Filter.hpp>
 
-#include <matplotlibcpp_old.h>
+#include <matplotlibcpp.h>
 
 #include <iostream>
 #include <fstream>

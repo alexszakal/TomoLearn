@@ -6,7 +6,7 @@
   #undef Success
 #endif
 
-#include <matplotlibcpp_old.h>
+#include <matplotlibcpp.h>
 
 #include <iomanip>
 #include <iostream>
