@@ -2,13 +2,13 @@
 #define EIGEN_FFTW_DEFAULT
 #include <unsupported/Eigen/FFT>
 
-#include <TomoLearnS/Gen1CT.hpp>
-#include <TomoLearnS/Phantom.hpp>
-#include <TomoLearnS/Reconst.hpp>
-#include <TomoLearnS/CTScan.hpp>
-#include <TomoLearnS/Filter.hpp>
+#include <Gen1CT.hpp>
+#include <Phantom.hpp>
+#include <Reconst.hpp>
+#include <CTScan.hpp>
+#include <Filter.hpp>
 
-#include <matplotlibcpp_old.h>
+#include <matplotlibcpp.h>
 
 #include <iostream>
 #include <fstream>
@@ -18,6 +18,9 @@
 #include <array>
 #include <vector>
 #include <random>
+
+#include <config.h>
+
 
     //REGI  pixPositionst le kell gyartani!!
 Gen1CT::Gen1CT():detWidth{100},pixNum{100}{
@@ -611,7 +614,6 @@ void Gen1CT::compareRowPhantomAndReconst(int rowNum, const std::string& phantomI
 	matplotlibcpp::plot(std::vector<float> (&ObjSlice[0], ObjSlice.data()+ObjSlice.cols()*ObjSlice.rows()) );
 	matplotlibcpp::show();
 }
-
 
 
 

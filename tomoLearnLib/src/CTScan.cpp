@@ -1,5 +1,5 @@
-#include <TomoLearnS/CTScan.hpp>
-#include  <TomoLearnS/Object2D.hpp>
+#include <CTScan.hpp>
+#include <Object2D.hpp>
 
 #include <iostream>
 

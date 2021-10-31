@@ -10,7 +10,7 @@
 
 #include <CImg.h>
 
-#include <TomoLearnS/Object2D.hpp>
+#include <Object2D.hpp>
 #include <string>
 #include <thread>
 

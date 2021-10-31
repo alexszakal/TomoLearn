@@ -1,4 +1,4 @@
-#include <TomoLearnS/Phantom.hpp>
+#include <Phantom.hpp>
 #include <iostream>
 #include <cmath>
 

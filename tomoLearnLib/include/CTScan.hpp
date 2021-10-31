@@ -1,5 +1,5 @@
 #pragma once
-#include <TomoLearnS/Object2D.hpp>
+#include <Object2D.hpp>
 #include <string>
 #include <thread>
 #include <Eigen/Dense>

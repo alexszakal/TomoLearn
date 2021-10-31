@@ -1,15 +1,17 @@
 #pragma once
 
 //#include <TomoLearnS/Object2D.hpp>
-#include <TomoLearnS/CTScan.hpp>
-#include <TomoLearnS/Phantom.hpp>
-#include <TomoLearnS/Reconst.hpp>
-#include <TomoLearnS/Filter.hpp>
+#include <CTScan.hpp>
+#include <Phantom.hpp>
+#include <Reconst.hpp>
+#include <Filter.hpp>
 
 #include <vector>
 #include <string>
 #include <map>
 #include <Eigen/Dense>
+
+#include <config.h>
 
 class Gen1CT{
 public:
@@ -47,6 +49,11 @@ public:
 	void displayReconstruction(const std::string& label);
 
 	void compareRowPhantomAndReconst(int rowNum, const std::string& phantomID, const std::string& reconstID);
+
+#if ENABLE_CUDA
+	void printGpuParameters();
+#endif
+
 private:
 	const double detWidth;
 	const int pixNum;
