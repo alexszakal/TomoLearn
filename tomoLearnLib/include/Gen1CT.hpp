@@ -11,6 +11,8 @@
 #include <map>
 #include <Eigen/Dense>
 
+#include <config.h>
+
 class Gen1CT{
 public:
 	Gen1CT();      //REGI
@@ -47,6 +49,11 @@ public:
 	void displayReconstruction(const std::string& label);
 
 	void compareRowPhantomAndReconst(int rowNum, const std::string& phantomID, const std::string& reconstID);
+
+#if ENABLE_CUDA
+	void printGpuParameters();
+#endif
+
 private:
 	const double detWidth;
 	const int pixNum;

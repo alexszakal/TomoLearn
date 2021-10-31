@@ -19,6 +19,9 @@
 #include <vector>
 #include <random>
 
+#include <config.h>
+
+
     //REGI  pixPositionst le kell gyartani!!
 Gen1CT::Gen1CT():detWidth{100},pixNum{100}{
 	};
@@ -611,7 +614,6 @@ void Gen1CT::compareRowPhantomAndReconst(int rowNum, const std::string& phantomI
 	matplotlibcpp::plot(std::vector<float> (&ObjSlice[0], ObjSlice.data()+ObjSlice.cols()*ObjSlice.rows()) );
 	matplotlibcpp::show();
 }
-
 
 
 
