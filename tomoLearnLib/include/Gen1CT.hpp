@@ -16,7 +16,7 @@
 class Gen1CT{
 public:
 	Gen1CT();      //REGI
-	Gen1CT(double detWidth, int pixNum);
+	Gen1CT(double detWidth, size_t pixNum);
 
 	void addPhantom(const std::string& label,
 			        const std::string& phantomImageSource,
@@ -31,6 +31,8 @@ public:
 	void measure_withInterpolation(const std::string& label, const Eigen::VectorXd& angles, const std::string& scanLabel);
 
 	void measure_Siddon(const std::string& label, const Eigen::VectorXd& angles, const std::string& scanLabel);
+
+	void measure_HaoGao(const std::string& phantomLabel, const Eigen::VectorXd& angles, const std::string& scanLabel);
 
 	void displayMeasurement(const std::string& label);
 
@@ -56,7 +58,7 @@ public:
 
 private:
 	const double detWidth;
-	const int pixNum;
+	const size_t pixNum;
 	std::vector<double> pixPositions;
 
 	double I0 = 3.0;   //Intensity of the tube

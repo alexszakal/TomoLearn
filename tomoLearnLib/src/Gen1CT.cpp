@@ -27,7 +27,7 @@ Gen1CT::Gen1CT():detWidth{100},pixNum{100}{
 	};
 
 
-Gen1CT::Gen1CT(double detWidth, int pixNum):detWidth{detWidth},pixNum{pixNum}{
+Gen1CT::Gen1CT(double detWidth, size_t pixNum):detWidth{detWidth},pixNum{pixNum}{
 	pixPositions.resize( static_cast<size_t>(pixNum) );
 	double pixelDistance{detWidth/pixNum};
 	for (int i=0; i<pixNum; i++){
@@ -72,6 +72,194 @@ void Gen1CT::displayPhantom(const std::string& label){
 void Gen1CT::setI0(double newI0){
 	I0=newI0;
 }
+
+void Gen1CT::measure_HaoGao(const std::string& phantomLabel,
+		                    const Eigen::VectorXd& angles,
+							const std::string& scanLabel){
+	std::cout << std::endl << "Projection with HaoGao's method started" << std::endl;
+	auto start = std::chrono::high_resolution_clock::now();
+
+	int numAngles = angles.size();
+
+	Eigen::MatrixXd sinogram = Eigen::MatrixXd::Zero(pixNum, numAngles);
+
+	if(phantoms.find(phantomLabel) == phantoms.end()){
+			std::cout << std::endl << "ERROR!! phantomLabel: \"" << phantomLabel << "\" could not be found!! Abort mission";
+			return;
+	}
+
+	Phantom& actualPhantom = phantoms[phantomLabel];
+
+	auto pixSizes = actualPhantom.getPixSizes();
+    auto numberOfPixels = actualPhantom.getNumberOfPixels();
+
+	//Convert Hounsfield to linear attenuation (LA) units
+    Phantom actualPhantomLA = actualPhantom;
+    if( I0 != 0.0){
+    	actualPhantomLA = (actualPhantom-1000.0) * (muWater/1000) + muWater;   // HU -> LA transform
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////
+    /// HaoGao calculation STARTS here !!
+    ////////////////////////////////////////////////////////////////////////////////
+
+    //Coordinates of the column boundaries
+    std::vector<double> colBoundaries(numberOfPixels[0]+1);
+    double halfPhantomWidth = numberOfPixels[0]*pixSizes[0]/2;
+    double halfPhantomHeight = numberOfPixels[1]*pixSizes[1]/2;
+    for(size_t boundIdx=0; boundIdx<numberOfPixels[0]+1; ++boundIdx){
+    	colBoundaries[boundIdx] = -1*halfPhantomWidth+boundIdx*pixSizes[0];
+    }
+
+    //trigonometric functions for the angles
+    std::vector<double>	thetaVector,
+    	                    sinThetaVector, cosThetaVector,
+    	                    tanThetaVector;
+
+
+    for(int i=0; i<numAngles; i++){
+    	thetaVector.push_back( std::fmod(angles[i], 2*M_PI) );
+    	sinThetaVector.push_back( sin(thetaVector[static_cast<size_t>(i)]) );
+    	cosThetaVector.push_back( cos(thetaVector[static_cast<size_t>(i)]) );
+    	tanThetaVector.push_back( tan(thetaVector[static_cast<size_t>(i)]) );
+    }
+
+    //Distance of the detector plane from origin which is outside of the phantom
+    double detDist = 1.1 * sqrt(pow(pixSizes[0]*numberOfPixels[0], 2) + pow(pixSizes[1]*numberOfPixels[1], 2) ); //Distance between the detector plane and centre of rotation
+
+    const double* dataPtr=actualPhantomLA.getDataAsEigenMatrixRef().data();
+
+    double halfPixelSize=detWidth/pixNum/2;
+    //Go through the angles
+    for(size_t angI=0; angI < static_cast<size_t>(numAngles); ++angI){
+
+    	//beam intersects the columns at most two pixels
+    	if( pixSizes[1] / pixSizes[0] >= std::abs(std::tan(M_PI/2-thetaVector[angI])) ){
+
+    		//go through the different t values
+    		for(size_t pixIdx=0; pixIdx<pixNum; ++pixIdx){
+    			double t = pixPositions[pixIdx] - halfPixelSize;
+    			std::array<double,2> p1{ detDist * sinThetaVector[angI] + t * cosThetaVector[angI],
+    							                     -1*detDist * cosThetaVector[angI] + t * sinThetaVector[angI]};
+    			std::array<double,2> p2{ -1 * detDist * sinThetaVector[angI] + t * cosThetaVector[angI],
+    			                                     detDist * cosThetaVector[angI] + t * sinThetaVector[angI]};
+
+    			double ky = (p1[1]-p2[1])/(p1[0]-p2[0]);
+    			//go through the columns of the image
+    			for(int colIdx=0; colIdx<numberOfPixels[0]; ++colIdx){
+    				double yi_minus = ( halfPhantomHeight - (ky*( colIdx   *pixSizes[0] - halfPhantomWidth - p1[0] ) + p1[1] ) ) / pixSizes[1];
+    				double yi_plus  = ( halfPhantomHeight - (ky*((colIdx+1)*pixSizes[0] - halfPhantomWidth - p1[0] ) + p1[1] ) ) / pixSizes[1];
+
+    				int Yi_minusIdx = static_cast<int>(yi_minus);
+    				int Yi_plusIdx = static_cast<int>(yi_plus);
+
+    				double l, l_minus, l_plus; //intersecting length
+    				if( Yi_minusIdx == Yi_plusIdx ){
+    					if( (Yi_minusIdx < numberOfPixels[1]) and (Yi_minusIdx >= 0 ) ){
+    						l=sqrt(1+ky*ky)*pixSizes[0];
+    						sinogram(pixIdx, angI) += l * dataPtr[Yi_minusIdx*numberOfPixels[0] + colIdx];
+    						//sinogram(pixIdx, angI) = l ; //DEBUG: why 0 when angI==45deg and pixI<256
+    					}
+    				} else{
+    					if ( (Yi_minusIdx < numberOfPixels[1]) and (Yi_minusIdx >= 0 ) ){
+    						l_minus=(std::max(Yi_minusIdx, Yi_plusIdx)-yi_minus) / (yi_plus - yi_minus) * sqrt(1+ky*ky)*pixSizes[0];
+    						sinogram(pixIdx, angI) += l_minus * dataPtr[Yi_minusIdx*numberOfPixels[0] + colIdx];
+    					}
+
+    					if ( (Yi_plusIdx < numberOfPixels[1]) and (Yi_plusIdx >= 0 ) ){
+    						l_plus=(yi_plus - std::max(Yi_minusIdx, Yi_plusIdx)) / (yi_plus - yi_minus) * sqrt(1+ky*ky)*pixSizes[0];
+    						sinogram(pixIdx, angI) += l_plus * dataPtr[Yi_plusIdx*numberOfPixels[0] + colIdx];
+    					}
+    				}
+
+    			}
+    		}
+    	}
+
+    	//beam intersects the rows at most two pixels
+    	if( pixSizes[1] / pixSizes[0] < std::abs(std::tan(M_PI/2-thetaVector[angI])) ){
+
+    	    //go through the different t values
+    	    for(size_t pixIdx=0; pixIdx<pixNum; ++pixIdx){
+    	    	double t = pixPositions[pixIdx] - halfPixelSize;
+    	    	std::array<double,2> p1{ detDist * sinThetaVector[angI] + t * cosThetaVector[angI],
+    	    					                     -1*detDist * cosThetaVector[angI] + t * sinThetaVector[angI]};
+    	    	std::array<double,2> p2{ -1 * detDist * sinThetaVector[angI] + t * cosThetaVector[angI],
+    	    	                                     detDist * cosThetaVector[angI] + t * sinThetaVector[angI]};
+
+    			double kx = (p1[0]-p2[0])/(p1[1]-p2[1]);
+    			//go through the rows of the image
+    	    	for(int rowIdx=0; rowIdx<numberOfPixels[1]; ++rowIdx){
+
+    	    		double xi_minus = (halfPhantomWidth + (kx*( halfPhantomHeight - rowIdx     *pixSizes[1] - p1[1] ) + p1[0] ) ) / pixSizes[0];
+    	    		double xi_plus  = (halfPhantomWidth + (kx*( halfPhantomHeight - (rowIdx+1) *pixSizes[1] - p1[1] ) + p1[0] ) ) / pixSizes[0];;
+
+    	    		int Xi_minusIdx = static_cast<int>(xi_minus); //statc_cast used instead of ceil to speed up calculation
+    	    		int Xi_plusIdx = static_cast<int>(xi_plus);   //statc_cast used instead of ceil to speed up calculation
+
+    	    				double l, l_minus, l_plus; //intersecting length
+    	    				if( Xi_minusIdx == Xi_plusIdx ){
+    	    					if( (Xi_minusIdx < numberOfPixels[0]) and (Xi_minusIdx >= 0 ) ){
+    	    						l=sqrt(1+kx*kx)*pixSizes[1];
+    	    						sinogram(pixIdx, angI) += l * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
+    	    						//sinogram(pixIdx, angI) = l ; //DEBUG: why 0 when angI==45deg and pixI<256
+    	    					}
+    	    				}
+    	    				else{
+    	    					if ( (Xi_minusIdx < numberOfPixels[0]) and (Xi_minusIdx >= 0 ) ){
+    	    						l_minus=(std::max(Xi_minusIdx, Xi_plusIdx)-xi_minus) / (xi_plus - xi_minus) * sqrt(1+kx*kx)*pixSizes[1];
+    	    						sinogram(pixIdx, angI) += l_minus * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
+    	    					}
+
+    	    					if ( (Xi_plusIdx < numberOfPixels[0]) and (Xi_plusIdx >= 0 ) ){
+    	    						l_plus=(xi_plus - std::max(Xi_minusIdx, Xi_plusIdx)) / (xi_plus - xi_minus) * sqrt(1+kx*kx)*pixSizes[1];
+    	    						sinogram(pixIdx, angI) += l_plus * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
+    	    					}
+    	    				}
+    	    			}
+    	    		}
+    	    	}
+
+    }
+
+
+    ////////////////////////////////////////////////////////////////////////////////
+    /// HaoGao calculation ENDS here !!
+    ////////////////////////////////////////////////////////////////////////////////
+
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds >(stop - start);
+    std::cout << "Radon took " << duration.count() << " milliseconds" << std::endl;
+
+    Eigen::MatrixXd Isinogram;
+    //Simulate the counts with Poison statistics
+    if(I0 != 0.0){
+    	//Calculate the expected value
+    	Isinogram = Eigen::exp( sinogram.array()* (-1.0) ) * I0 ;
+
+    	//Randomize the matrix
+    	unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
+    	std::mt19937_64 generator(seed1);    //Seed the generator
+    	for(int i=0; i<Isinogram.rows(); i++){
+    		for(int j=0; j<Isinogram.cols(); j++){
+    			std::poisson_distribution<int> poissonDist( Isinogram(i,j) );
+    			Isinogram(i,j) = (-1)* std::log( poissonDist(generator) / I0 );
+    		}
+    	}
+    }
+    else{
+    	Isinogram = sinogram;
+    }
+
+   	//Move the sinogram to CTScans map
+   	auto it = scans.find(scanLabel);
+   	if(it != scans.end()){
+   		std::cout << std::endl << "WARNING! A scan with label \"" << phantomLabel << "\" already exists!!! Overwriting!!!";
+   		scans.erase(it);
+   	}
+   	scans.emplace(scanLabel, CTScan(scanLabel,Isinogram, detWidth, angles));
+}
+
 
 void Gen1CT::measure_withInterpolation(const std::string& phantomLabel,
 		             const Eigen::VectorXd& angles,
