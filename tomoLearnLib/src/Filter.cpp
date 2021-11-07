@@ -54,14 +54,14 @@ void Filter::operator()(Eigen::MatrixXcd& fftOfSinogram){
 			break;
 	}
 
-//#ifdef FILTERING_DEBUG  //Show the filter
+#ifdef FILTERING_DEBUG  //Show the filter
 	matplotlibcpp::figure(3);
 	Eigen::MatrixXd absVector = freqFilter.imag().array().pow(2) + freqFilter.real().array().pow(2) ;
 	absVector = absVector.array().pow(0.5);
 	std::cout << "\n H(0)= " << absVector(0);
 	matplotlibcpp::plot(std::vector<float> (&absVector(0), absVector.data()+absVector.cols()*absVector.rows()) );
 	matplotlibcpp::show();
-//#endif
+#endif
 
 	//Multiply with filter
 	for(int i=0; i<fftOfSinogram.cols(); ++i){

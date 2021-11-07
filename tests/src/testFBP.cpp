@@ -16,7 +16,7 @@
 
 #include <config.h>
 
-void testFBP(const std::string& phantomName, const std::string& algoName);
+void testFBP(const std::string& phantomName, const std::string& projectAlgo, const std::string& backprojectAlgo);
 
 //TODO: A ct.compareRowPhantomAndReconst() Mukodjon. HA fajlbol olvasunk, akkor 1000-et ki kell vonni, mert akkor kapjuk meg HU unitban!
 
@@ -41,22 +41,31 @@ int main(){
 	std::cout << "\n \n CUDA disabled!!!" ;
 #endif
 
-	testFBP("modSL_symm", "Siddon");
+	//Test the naive implementations with interpolations
+//	testFBP("modSL_symm", "withInterpolation", "backProject_interpol");
+
+//	testFBP("modSL_symm", "haoGaoProject", "backProject_interpol");
+
+//	testFBP("modSL_symm", "withInterpolation", "backProject_HaoGao_CPU");
+
+	testFBP("modSL_symm", "haoGaoProject", "backProject_HaoGao_CPU");
 
 	std::cin.ignore();
 
 	return 0;
 }
 
-void testFBP(const std::string& phantomName, const std::string& algoName){
+void testFBP(const std::string& phantomName,
+		     const std::string& projectAlgo,
+			 const std::string& backprojectAlgo){
 	/**
 	 * Test the Filtered Backprojection algorithm with a Shepp-Logan phantom
 	 */
 
 	std::cout << "Parallel beam FBP simulation" << std::endl;
 
-	int detWidthInMM { 110 };
-	int detPixNum { 512 };
+	int detWidthInMM { 150 };
+	int detPixNum { 1024 };
 	Gen1CT ct(detWidthInMM, detPixNum);
 
 	//Reading Shepp-Logan phantom
@@ -71,31 +80,37 @@ void testFBP(const std::string& phantomName, const std::string& algoName){
 
 	const int numProjections{180};
 	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0.0/180.0 * M_PI,
-			179.0 / 180 * M_PI);
+			(1.0 - 1.0/numProjections) * M_PI);
 
 	ct.setI0(8e4);
+	ct.setI0(0.0);
 
-	if(algoName == "Siddon"){
+	if(projectAlgo == "Siddon"){
 		ct.measure_Siddon(phantomName, angles, "Sinogram");
-	} else if(algoName == "withInterpolation"){
+	}
+	else if(projectAlgo == "withInterpolation"){
 		ct.measure_withInterpolation(phantomName, angles, "Sinogram");
+	}
+	else if(projectAlgo == "haoGaoProject"){
+		ct.measure_HaoGao(phantomName, angles, "Sinogram");
 	} else{
-		std::cout << "\nalgoName parameter not recognized. Possible values: \"Siddon\" or \"withInterpolation\" ";
+		std::cout << "\nalgoName parameter not recognized. Possible values: \"Siddon\", \"withInterpolation\" or \"haoGaoProject\" ";
 		std::cout << "\nAborting testRadonTransform function";
 		return;
 	}
 
 	ct.displayMeasurement("Sinogram");
 
-	ct.filteredBackProject("Sinogram", std::array<int, 2> { 1024, 1024 },
-			std::array<double, 2> { 0.1, 0.1 }, FilterType::Hann, 0.5,
+	ct.filteredBackProject("Sinogram", std::array<int, 2> { 512, 512}, //jo 256 x 256 pixel, 0.4 felbontas
+			std::array<double, 2> { 0.2, 0.2 }, FilterType::Hann, 0.5, backprojectAlgo,
 			"RecImage");
+
 	ct.Gen1CT::displayReconstruction("RecImage");
 
-	//ct.compareRowPhantomAndReconst(821, phantomName, "RecImage");
+	ct.compareRowPhantomAndReconst('Y', -31.0, phantomName, "RecImage");
 
-	int tmpi;
-	std::cin>>tmpi;
+	std::cout<<"\n Press ENTER to continue";
+	std::cin.get();
 }
 
 
