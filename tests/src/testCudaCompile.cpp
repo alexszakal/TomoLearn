@@ -22,17 +22,17 @@ int main(){
 
 #if ENABLE_CUDA
 	std::cout << "\n \n CUDA enabled!!!!" ;
+	testCudaCompile();
 #else
 	std::cout << "\n \n CUDA disabled!!!" ;
 #endif
-
-	testCudaCompile();
 
 	std::cin.ignore();
 
 	return 0;
 }
 
+#if ENABLE_CUDA
 void testCudaCompile(){
 	/**
 	 * Test the Filtered Backprojection algorithm with a Shepp-Logan phantom
@@ -49,6 +49,6 @@ void testCudaCompile(){
 	int tmpi;
 	std::cin>>tmpi;
 }
-
+#endif
 
 

@@ -6,7 +6,7 @@ add_library(tomoLearnLib SHARED src/CTScan.cpp
                                 src/Object2D.cpp 
                                 src/Phantom.cpp)
 
-option(ENABLE_CUDA "Turn on CUDA reconstructions" ON)
+option(ENABLE_CUDA "Turn on CUDA reconstructions" OFF)
 
 if(ENABLE_CUDA)
     enable_language(CUDA)

@@ -10,6 +10,7 @@
 
 #include <matplotlibcpp.h>
 
+#include <utility>   //std::swap
 #include <iostream>
 #include <fstream>
 #include <cassert>
@@ -18,6 +19,8 @@
 #include <array>
 #include <vector>
 #include <random>
+#include <algorithm> //std::min and std::max
+
 
 #include <config.h>
 
@@ -27,7 +30,7 @@ Gen1CT::Gen1CT():detWidth{100},pixNum{100}{
 	};
 
 
-Gen1CT::Gen1CT(double detWidth, int pixNum):detWidth{detWidth},pixNum{pixNum}{
+Gen1CT::Gen1CT(double detWidth, size_t pixNum):detWidth{detWidth},pixNum{pixNum}{
 	pixPositions.resize( static_cast<size_t>(pixNum) );
 	double pixelDistance{detWidth/pixNum};
 	for (int i=0; i<pixNum; i++){
@@ -72,6 +75,192 @@ void Gen1CT::displayPhantom(const std::string& label){
 void Gen1CT::setI0(double newI0){
 	I0=newI0;
 }
+
+void Gen1CT::measure_HaoGao(const std::string& phantomLabel,
+		                    const Eigen::VectorXd& angles,
+							const std::string& scanLabel){
+	std::cout << std::endl << "Projection with HaoGao's method started" << std::endl;
+	auto start = std::chrono::high_resolution_clock::now();
+
+	int numAngles = angles.size();
+
+	Eigen::MatrixXd sinogram = Eigen::MatrixXd::Zero(static_cast<long>(pixNum), static_cast<long>(numAngles));
+
+	if(phantoms.find(phantomLabel) == phantoms.end()){
+			std::cout << std::endl << "ERROR!! phantomLabel: \"" << phantomLabel << "\" could not be found!! Abort mission";
+			return;
+	}
+
+	Phantom& actualPhantom = phantoms[phantomLabel];
+
+	auto pixSizes = actualPhantom.getPixSizes();
+    auto numberOfPixels = actualPhantom.getNumberOfPixels();
+
+	//Convert Hounsfield to linear attenuation (LA) units
+    Phantom actualPhantomLA = actualPhantom;
+    if( I0 != 0.0){
+    	actualPhantomLA = (actualPhantom-1000.0) * (muWater/1000) + muWater;   // HU -> LA transform
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////
+    /// HaoGao calculation STARTS here !!
+    ////////////////////////////////////////////////////////////////////////////////
+
+    //Coordinates of the column boundaries
+    std::vector<double> colBoundaries( static_cast<unsigned long>(numberOfPixels[0]+1) );
+    double halfPhantomWidth = numberOfPixels[0]*pixSizes[0]/2;
+    double halfPhantomHeight = numberOfPixels[1]*pixSizes[1]/2;
+    for(size_t boundIdx=0; boundIdx < static_cast<unsigned long>(numberOfPixels[0]+1); ++boundIdx){
+    	colBoundaries[boundIdx] = -1*halfPhantomWidth+boundIdx*pixSizes[0];
+    }
+
+    //trigonometric functions for the angles
+    std::vector<double>	thetaVector,
+    	                sinThetaVector,
+						cosThetaVector;
+
+    for(int i=0; i<numAngles; i++){
+    	thetaVector.push_back( std::fmod(angles[i], 2*M_PI) );
+    	sinThetaVector.push_back( sin(thetaVector[static_cast<size_t>(i)]) );
+    	cosThetaVector.push_back( cos(thetaVector[static_cast<size_t>(i)]) );
+    }
+
+    //Distance of the detector plane from origin which is outside of the phantom
+    double detDist = 1.1 * sqrt(pow(pixSizes[0]*numberOfPixels[0], 2) + pow(pixSizes[1]*numberOfPixels[1], 2) ); //Distance between the detector plane and centre of rotation
+
+    const double* dataPtr=actualPhantomLA.getDataAsEigenMatrixRef().data();
+
+    double halfPixelSize=detWidth/pixNum/2;
+    //Go through the angles
+    for(size_t angI=0; angI < static_cast<size_t>(numAngles); ++angI){
+
+    	//beam intersects the columns at most two pixels
+    	if( pixSizes[1] / pixSizes[0] >= std::abs(std::tan(M_PI/2-thetaVector[angI])) ){
+
+    		//go through the different t values
+    		for(size_t pixIdx=0; pixIdx<pixNum; ++pixIdx){
+    			double t = pixPositions[pixIdx] - halfPixelSize;
+    			std::array<double,2> p1{ detDist * sinThetaVector[angI] + t * cosThetaVector[angI],
+    							                     -1*detDist * cosThetaVector[angI] + t * sinThetaVector[angI]};
+    			std::array<double,2> p2{ -1 * detDist * sinThetaVector[angI] + t * cosThetaVector[angI],
+    			                                     detDist * cosThetaVector[angI] + t * sinThetaVector[angI]};
+
+    			double ky = (p1[1]-p2[1])/(p1[0]-p2[0]);
+    			//go through the columns of the image
+    			for(int colIdx=0; colIdx<numberOfPixels[0]; ++colIdx){
+    				double yi_minus = ( halfPhantomHeight - (ky*( colIdx   *pixSizes[0] - halfPhantomWidth - p1[0] ) + p1[1] ) ) / pixSizes[1];
+    				double yi_plus  = ( halfPhantomHeight - (ky*((colIdx+1)*pixSizes[0] - halfPhantomWidth - p1[0] ) + p1[1] ) ) / pixSizes[1];
+
+    				int Yi_minusIdx = static_cast<int>(yi_minus);
+    				int Yi_plusIdx = static_cast<int>(yi_plus);
+
+    				double l, l_minus, l_plus; //intersecting length
+    				if( Yi_minusIdx == Yi_plusIdx ){
+    					if( (Yi_minusIdx < numberOfPixels[1]) and (Yi_minusIdx >= 0 ) ){
+    						l=sqrt(1+ky*ky)*pixSizes[0];
+    						sinogram(static_cast<long>(pixIdx), static_cast<long>(angI)) += l * dataPtr[Yi_minusIdx*numberOfPixels[0] + colIdx];
+    						//sinogram(pixIdx, angI) = l ; //DEBUG: why 0 when angI==45deg and pixI<256
+    					}
+    				} else{
+    					if ( (Yi_minusIdx < numberOfPixels[1]) and (Yi_minusIdx >= 0 ) ){
+    						l_minus=(std::max(Yi_minusIdx, Yi_plusIdx)-yi_minus) / (yi_plus - yi_minus) * sqrt(1+ky*ky)*pixSizes[0];
+    						sinogram(static_cast<long>(pixIdx), static_cast<long>(angI)) += l_minus * dataPtr[Yi_minusIdx*numberOfPixels[0] + colIdx];
+    					}
+
+    					if ( (Yi_plusIdx < numberOfPixels[1]) and (Yi_plusIdx >= 0 ) ){
+    						l_plus=(yi_plus - std::max(Yi_minusIdx, Yi_plusIdx)) / (yi_plus - yi_minus) * sqrt(1+ky*ky)*pixSizes[0];
+    						sinogram(static_cast<long>(pixIdx), static_cast<long>(angI)) += l_plus * dataPtr[Yi_plusIdx*numberOfPixels[0] + colIdx];
+    					}
+    				}
+
+    			}
+    		}
+    	}
+
+    	//beam intersects the rows at most two pixels
+    	if( pixSizes[1] / pixSizes[0] < std::abs(std::tan(M_PI/2-thetaVector[angI])) ){
+
+    	    //go through the different t values
+    	    for(size_t pixIdx=0; pixIdx<pixNum; ++pixIdx){
+    	    	double t = pixPositions[pixIdx] - halfPixelSize;
+    	    	std::array<double,2> p1{ detDist * sinThetaVector[angI] + t * cosThetaVector[angI],
+    	    					                     -1*detDist * cosThetaVector[angI] + t * sinThetaVector[angI]};
+    	    	std::array<double,2> p2{ -1 * detDist * sinThetaVector[angI] + t * cosThetaVector[angI],
+    	    	                                     detDist * cosThetaVector[angI] + t * sinThetaVector[angI]};
+
+    			double kx = (p1[0]-p2[0])/(p1[1]-p2[1]);
+    			//go through the rows of the image
+    	    	for(int rowIdx=0; rowIdx<numberOfPixels[1]; ++rowIdx){
+
+    	    		double xi_minus = (halfPhantomWidth + (kx*( halfPhantomHeight - rowIdx     *pixSizes[1] - p1[1] ) + p1[0] ) ) / pixSizes[0];
+    	    		double xi_plus  = (halfPhantomWidth + (kx*( halfPhantomHeight - (rowIdx+1) *pixSizes[1] - p1[1] ) + p1[0] ) ) / pixSizes[0];;
+
+    	    		int Xi_minusIdx = static_cast<int>(xi_minus); //statc_cast used instead of ceil to speed up calculation
+    	    		int Xi_plusIdx = static_cast<int>(xi_plus);   //statc_cast used instead of ceil to speed up calculation
+
+    	    				double l, l_minus, l_plus; //intersecting length
+    	    				if( Xi_minusIdx == Xi_plusIdx ){
+    	    					if( (Xi_minusIdx < numberOfPixels[0]) and (Xi_minusIdx >= 0 ) ){
+    	    						l=sqrt(1+kx*kx)*pixSizes[1];
+    	    						sinogram(static_cast<long>(pixIdx), static_cast<long>(angI)) += l * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
+    	    						//sinogram(pixIdx, angI) = l ; //DEBUG: why 0 when angI==45deg and pixI<256
+    	    					}
+    	    				}
+    	    				else{
+    	    					if ( (Xi_minusIdx < numberOfPixels[0]) and (Xi_minusIdx >= 0 ) ){
+    	    						l_minus=(std::max(Xi_minusIdx, Xi_plusIdx)-xi_minus) / (xi_plus - xi_minus) * sqrt(1+kx*kx)*pixSizes[1];
+    	    						sinogram(static_cast<long>(pixIdx), static_cast<long>(angI)) += l_minus * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
+    	    					}
+
+    	    					if ( (Xi_plusIdx < numberOfPixels[0]) and (Xi_plusIdx >= 0 ) ){
+    	    						l_plus=(xi_plus - std::max(Xi_minusIdx, Xi_plusIdx)) / (xi_plus - xi_minus) * sqrt(1+kx*kx)*pixSizes[1];
+    	    						sinogram(static_cast<long>(pixIdx), static_cast<long>(angI)) += l_plus * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
+    	    					}
+    	    				}
+    	    			}
+    	    		}
+    	    	}
+
+    }
+
+
+    ////////////////////////////////////////////////////////////////////////////////
+    /// HaoGao calculation ENDS here !!
+    ////////////////////////////////////////////////////////////////////////////////
+
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds >(stop - start);
+    std::cout << "Radon took " << duration.count() << " milliseconds" << std::endl;
+
+    Eigen::MatrixXd Isinogram;
+    //Simulate the counts with Poison statistics
+    if(I0 != 0.0){
+    	//Calculate the expected value
+    	Isinogram = Eigen::exp( sinogram.array()* (-1.0) ) * I0 ;
+
+    	//Randomize the matrix
+    	unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
+    	std::mt19937_64 generator(seed1);    //Seed the generator
+    	for(int i=0; i<Isinogram.rows(); i++){
+    		for(int j=0; j<Isinogram.cols(); j++){
+    			std::poisson_distribution<int> poissonDist( Isinogram(i,j) );
+    			Isinogram(i,j) = (-1)* std::log( poissonDist(generator) / I0 );
+    		}
+    	}
+    }
+    else{
+    	Isinogram = sinogram;
+    }
+
+   	//Move the sinogram to CTScans map
+   	auto it = scans.find(scanLabel);
+   	if(it != scans.end()){
+   		std::cout << std::endl << "WARNING! A scan with label \"" << phantomLabel << "\" already exists!!! Overwriting!!!";
+   		scans.erase(it);
+   	}
+   	scans.emplace(scanLabel, CTScan(scanLabel,Isinogram, detWidth, angles));
+}
+
 
 void Gen1CT::measure_withInterpolation(const std::string& phantomLabel,
 		             const Eigen::VectorXd& angles,
@@ -450,6 +639,10 @@ void Gen1CT::displayMeasurement(const std::string& label){
 Eigen::MatrixXd Gen1CT::backProject(const CTScan& sinogram,
 						 const std::array<int,2>& numberOfRecPoints,
 		                 const std::array<double,2>& resolution){
+	/**
+	 * Backproject interpolated values of the sinogram to the pixels
+	 */
+
 	std::cout << "Backprojection started" << std::endl;
 	auto start = std::chrono::high_resolution_clock::now();
 
@@ -506,19 +699,122 @@ Eigen::MatrixXd Gen1CT::backProject(const CTScan& sinogram,
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 	std::cout << "Reconstruction took " << duration.count() << " milliseconds" << std::endl;
 
-	/* Regi kijelzes
-	cimg_library::CImg<uint16_t> BPImage (numberOfRecPoints[0], numberOfRecPoints[1], 1, 1);
-	double maxInt = backprojection.maxCoeff();
-	double minInt =backprojection.minCoeff();
-	for(int i=0; i<numberOfRecPoints[0]; ++i){
-		for(int j=0; j<numberOfRecPoints[1]; ++j){
-			BPImage(i,j) = static_cast<uint16_t>((backprojection(i,j)-minInt)/(maxInt-minInt)*65536);
+	return backprojection;
+}
+
+Eigen::MatrixXd Gen1CT::backProject_HaoGao_CPU(const CTScan& sinogram,
+						 const std::array<int,2>& numberOfRecPoints,
+		                 const std::array<double,2>& resolution){
+	/**
+	 * Backproject using the method proposed by Hao Gao
+	 */
+
+	std::cout << "Backprojection started" << std::endl;
+	auto start = std::chrono::high_resolution_clock::now();
+
+	assert(numberOfRecPoints.size()==2);
+	assert(resolution.size()==2);
+
+	Eigen::MatrixXd backProjection = Eigen::MatrixXd::Zero(numberOfRecPoints[0], numberOfRecPoints[1]);
+
+	//Vectors with coordinates of the grid in real space
+	double xMax=numberOfRecPoints[0]*resolution[0]/2;
+	double xMin=-1*xMax;
+	Eigen::VectorXd xValues{Eigen::VectorXd::LinSpaced(numberOfRecPoints[0], xMin, xMax)};
+
+	double yMax=numberOfRecPoints[1]*resolution[1]/2;
+	double yMin=-1*yMax;
+	Eigen::VectorXd yValues{Eigen::VectorXd::LinSpaced(numberOfRecPoints[1], yMax, yMin)};
+
+	const Eigen::VectorXd& angles=sinogram.getAnglesConstRef();
+	int numAngles = angles.size();
+	const Eigen::MatrixXd& sinoData=sinogram.getDataAsEigenMatrixRef();
+
+	////////////////////////////////////////////////////////
+	/// START the method of Hao Gao
+	////////////////////////////////////////////////////////
+
+    std::vector<double>	thetaVector,
+    	                sinThetaVector,
+						cosThetaVector;
+
+    for(int i=0; i<numAngles; i++){
+    	thetaVector.push_back( std::fmod(angles[i], 2*M_PI) );
+    	sinThetaVector.push_back( sin(thetaVector[static_cast<size_t>(i)]) );
+    	cosThetaVector.push_back( cos(thetaVector[static_cast<size_t>(i)]) );
+    }
+
+    const double pixelRadius = sqrt(pow(resolution[0]/2,2) + pow(resolution[1]/2,2)); //Radius of circle drawn around a pixel
+    const double halfDetWidth = detWidth / 2;
+    const double invDetPixSize= pixNum/detWidth;
+	//Go through the pixels
+	for(int xIdx=0; xIdx<numberOfRecPoints[0]; ++xIdx){
+		for(int yIdx=0; yIdx<numberOfRecPoints[1]; ++yIdx){
+			//Go through the angles
+			for(int angIdx=0; angIdx<numAngles; ++angIdx){
+				//Determine the contributing detector pixels
+				double xr = xValues(static_cast<long>(xIdx))*cosThetaVector[static_cast<size_t>(angIdx)]+
+						       yValues(static_cast<long>(yIdx))*sinThetaVector[static_cast<size_t>(angIdx)];
+
+				double minPixIdx = (xr + halfDetWidth - pixelRadius )*invDetPixSize;
+				double maxPixIdx = (xr + halfDetWidth + pixelRadius )*invDetPixSize;
+
+				//Calculate the intersection length and add to the backprojected image
+				//Go through the possible pixels
+				double lSum=0;
+				double angleContrib = 0;
+				for(int detPixIdx=std::max(0,static_cast<int>(minPixIdx));
+					    detPixIdx < std::min(static_cast<int>(maxPixIdx),
+							static_cast<int>(pixNum) ); ++detPixIdx){
+					double a = cosThetaVector[static_cast<size_t>(angIdx)];
+					double b = sinThetaVector[static_cast<size_t>(angIdx)];
+					double c = pixPositions[static_cast<size_t>(detPixIdx)];
+
+					//Calculate the boundaries of pixel intersection types
+					double d_max = (std::abs(a*resolution[0]) + std::abs(b*resolution[1]))/2; //For definition see HaoGao's article
+					double d_min =  std::abs( std::abs(a*resolution[0]) - std::abs(b*resolution[1]) )/2;
+
+					//Calculate the intersection length
+					double d_act=std::abs(a*xValues(xIdx) + b*yValues(yIdx) - c);
+					double l;
+
+					if(d_act < d_min){
+						if(std::abs(a) < std::abs(b)){
+							l=resolution[0]/std::abs(b);
+						}
+						else{
+							l=resolution[1]/std::abs(a);
+						}
+					}
+					else if( (d_act >= d_min) and (d_act < d_max) ){
+						l=(d_max-d_act)/std::abs(a)/std::abs(b);
+					}
+					else{
+						l=0;
+					}
+
+					lSum += l;
+					angleContrib += sinoData(detPixIdx, angIdx)*l;
+				}
+				if(lSum != 0){
+					backProjection(xIdx, yIdx) += angleContrib/lSum;
+				}
+			}
 		}
 	}
-	cimg_library::CImgDisplay BPImageDisplay;
-	BPImage.display(BPImageDisplay, true,0, true);
-	*/
-	return backprojection;
+	//Multiply with dTheta
+	backProjection = backProjection*M_PI/numAngles;
+
+
+	////////////////////////////////////////////////////////
+	/// END of the method of Hao Gao
+	////////////////////////////////////////////////////////
+
+	auto stop = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+	std::cout << "Reconstruction took " << duration.count() << " milliseconds" << std::endl;
+
+	return backProjection;
 }
 
 CTScan Gen1CT::applyFilter(const std::string& sinogramID, Filter filter){
@@ -574,6 +870,7 @@ void Gen1CT::filteredBackProject(std::string sinogramID,
 								const std::array<double,2>& resolution,
 								FilterType filterType,
 								double cutOffFreq,
+								std::string backProjectAlgo,
 								const std::string& imageID){
 
 	if(scans.find(sinogramID) == scans.end()){
@@ -584,7 +881,20 @@ void Gen1CT::filteredBackProject(std::string sinogramID,
 	//Apply filter on the sinogram
 	CTScan filteredScan = applyFilter(sinogramID, Filter(filterType, cutOffFreq) );
 	filteredScan.display(sinogramID + " filtered");
-	Eigen::MatrixXd backprojectedImage = backProject(filteredScan, numberOfRecPoints,resolution);
+
+	//Backproject the image
+	Eigen::MatrixXd backprojectedImage;
+	if(backProjectAlgo == "backProject_interpol"){
+		backprojectedImage = backProject(filteredScan, numberOfRecPoints,resolution);
+	}
+	else if (backProjectAlgo == "backProject_HaoGao_CPU"){
+		backprojectedImage = backProject_HaoGao_CPU(filteredScan, numberOfRecPoints,resolution);
+	}
+	else{
+		std::cout << "\nalgoName parameter not recognized. Possible values: \"backProject_interpol\", or \"backProject_HaoGao_CPU\" ";
+		std::cout << "\nAborting testRadonTransform function";
+		return;
+	}
 
 	//Move the backprojected image to reconsts map
 	auto it = reconsts.find(imageID);
@@ -602,19 +912,104 @@ void Gen1CT::displayReconstruction(const std::string& label){
 		std::cout << std::endl << "ERROR!! Label: \"" << label << "\" could not be found!! Skipping the display.";
 }
 
-void Gen1CT::compareRowPhantomAndReconst(int rowNum, const std::string& phantomID, const std::string& reconstID){
+void Gen1CT::compareRowPhantomAndReconst(char direction, double position, const std::string& phantomID, const std::string& reconstID){
 	/*** Compare the same rows of the phantom and the reconstruction
 	 *
 	 */
-
+/*
 	Eigen::VectorXd BPSlice = reconsts[reconstID].getDataAsEigenMatrixRef().col(rowNum);
 	Eigen::VectorXd ObjSlice = phantoms[phantomID].getDataAsEigenMatrixRef().col(rowNum);
 	matplotlibcpp::figure(27);
 	matplotlibcpp::plot(std::vector<float> (&BPSlice[0], BPSlice.data()+BPSlice.cols()*BPSlice.rows()) );
 	matplotlibcpp::plot(std::vector<float> (&ObjSlice[0], ObjSlice.data()+ObjSlice.cols()*ObjSlice.rows()) );
 	matplotlibcpp::show();
+*/
+	if(phantoms.find(phantomID) == phantoms.end()){
+		std::cout << std::endl << "ERROR!! phantomID: \"" << phantomID << "\" could not be found!! Aborting compareRowPhantomAndReconst function";
+		return;
+	}
+
+	if(reconsts.find(reconstID) == reconsts.end()){
+		std::cout << std::endl << "ERROR!! reconstID: \"" << reconstID << "\" could not be found!! Aborting compareRowPhantomAndReconst function";
+		return;
+	}
+
+	std::array<double,2> phantomPixSizes= phantoms[phantomID].getPixSizes();
+	std::array<int,2> phantomPixNum  = phantoms[phantomID].getNumberOfPixels();
+
+	std::array<double,2> recPixSizes=reconsts[reconstID].getPixSizes();
+	std::array<int,2> recPixNum  =reconsts[reconstID].getNumberOfPixels();
+
+	if( direction == 'Y' ){ //cut at the y=position line
+		int recRowNum = std::round( (recPixSizes[1]*recPixNum[1]/2 - position)/recPixSizes[1] );
+		if ( (recRowNum < 0) or (recRowNum >= recPixNum[1]) ){
+			std::cout << "Not possible to show the required slice of the reconstructed image!!";
+			return;
+		}
+		int phantomRowNum = std::round( (phantomPixSizes[1]*phantomPixNum[1]/2 - position)/phantomPixSizes[1] );
+		if ( (phantomRowNum < 0) or (phantomRowNum >= phantomPixNum[1]) ){
+			std::cout << "Not possible to show the required slice of the phantom!!";
+			return;
+		}
+
+		Eigen::VectorXd BPSlice = reconsts[reconstID].getDataAsEigenMatrixRef().col(recRowNum);
+		Eigen::VectorXd ObjSlice = phantoms[phantomID].getDataAsEigenMatrixRef().col(phantomRowNum);
+
+		std::vector<float> recXvals(recPixNum[1]);
+		for(int idx=0; idx<recPixNum[1]; ++idx){
+			recXvals[idx] = -1*recPixSizes[1]*recPixNum[1]/2 + (idx+0.5)*recPixSizes[1];
+		}
+		std::vector<float> phantomXvals(phantomPixNum[1]);
+		for(int idx=0; idx<phantomPixNum[1]; ++idx){
+			phantomXvals[idx] = -1*phantomPixSizes[1]*phantomPixNum[1]/2 + (idx+0.5)*phantomPixSizes[1];
+		}
+
+		matplotlibcpp::figure(27);
+		matplotlibcpp::plot(recXvals, std::vector<float> (&BPSlice[0], BPSlice.data()+BPSlice.cols()*BPSlice.rows()) );
+		matplotlibcpp::plot(phantomXvals, std::vector<float> (&ObjSlice[0], ObjSlice.data()+ObjSlice.cols()*ObjSlice.rows()) );
+		matplotlibcpp::show();
+	}
+	else if (direction == 'X'){
+		int recColNum = std::round( (position + recPixSizes[0]*recPixNum[0]/2)/recPixSizes[0] );
+		if ( (recColNum < 0) or (recColNum >= recPixNum[0]) ){
+			std::cout << "Not possible to show the required slice of the reconstructed image!!";
+			return;
+		}
+		int phantomColNum = std::round( (position + phantomPixSizes[0]*phantomPixNum[0]/2)/phantomPixSizes[0] );
+		if ( (phantomColNum < 0) or (phantomColNum >= phantomPixNum[0]) ){
+			std::cout << "Not possible to show the required slice of the phantom!!";
+			return;
+		}
+		Eigen::VectorXd BPSlice = reconsts[reconstID].getDataAsEigenMatrixRef().row(recColNum);
+		Eigen::VectorXd ObjSlice = phantoms[phantomID].getDataAsEigenMatrixRef().row(phantomColNum);
+
+		std::vector<float> recYvals(recPixNum[0]);
+		for(int idx=0; idx<recPixNum[0]; ++idx){
+			recYvals[idx] = recPixSizes[0]*recPixNum[0]/2 - (idx+0.5)*recPixSizes[0];
+		}
+		std::vector<float> phantomYvals(phantomPixNum[0]);
+		for(int idx=0; idx<phantomPixNum[0]; ++idx){
+			phantomYvals[idx] = phantomPixSizes[0]*phantomPixNum[0]/2 - (idx+0.5)*phantomPixSizes[0];
+		}
+
+		matplotlibcpp::figure(27);
+		matplotlibcpp::plot(recYvals, std::vector<float> (&BPSlice[0], BPSlice.data()+BPSlice.cols()*BPSlice.rows()) );
+		matplotlibcpp::plot(phantomYvals, std::vector<float> (&ObjSlice[0], ObjSlice.data()+ObjSlice.cols()*ObjSlice.rows()) );
+		matplotlibcpp::show();
+	}
+	else{
+		std::cout << "Unable to determine the slicing direction in compareRowPhantomAndReconst function."
+				  << "\n direction should be \'X\' or \'Y\'. Aborting function";
+		return;
+	}
 }
 
+void Gen1CT::printPhantomParams(const std::string& phantomLabel){
+
+	std::cout << "\n Phantom name: " << phantomLabel;
+	std::cout << "\n Number of pixels: " << phantoms[phantomLabel].getNumberOfPixels()[0] << " x " << phantoms[phantomLabel].getNumberOfPixels()[1];
+	std::cout << "\n Pixel sizes: " << phantoms[phantomLabel].getPixSizes()[0] << " x " << phantoms[phantomLabel].getPixSizes()[1];
+}
 
 
 

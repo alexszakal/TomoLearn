@@ -16,7 +16,7 @@
 class Gen1CT{
 public:
 	Gen1CT();      //REGI
-	Gen1CT(double detWidth, int pixNum);
+	Gen1CT(double detWidth, size_t pixNum);
 
 	void addPhantom(const std::string& label,
 			        const std::string& phantomImageSource,
@@ -32,6 +32,8 @@ public:
 
 	void measure_Siddon(const std::string& label, const Eigen::VectorXd& angles, const std::string& scanLabel);
 
+	void measure_HaoGao(const std::string& phantomLabel, const Eigen::VectorXd& angles, const std::string& scanLabel);
+
 	void displayMeasurement(const std::string& label);
 
 	CTScan getMeasurement(const std::string& label);
@@ -41,14 +43,21 @@ public:
 							 const std::array<double,2>& resolution,
 							 FilterType filterType,
 							 double cutOffFreq,
+							 std::string backProjectAlgo,
 							 const std::string& imageID);
 
 	CTScan applyFilter(const std::string& sinogramID, Filter filter);
 	Eigen::MatrixXd backProject(const CTScan& sinogram, const std::array<int,2>& numberOfRecPoints,
 			                                 const std::array<double,2>& resolution);
+
+	Eigen::MatrixXd backProject_HaoGao_CPU(const CTScan& sinogram, const std::array<int,2>& numberOfRecPoints,
+				                                 const std::array<double,2>& resolution);
+
 	void displayReconstruction(const std::string& label);
 
-	void compareRowPhantomAndReconst(int rowNum, const std::string& phantomID, const std::string& reconstID);
+	void compareRowPhantomAndReconst(char direction, double position, const std::string& phantomID, const std::string& reconstID);
+
+	void printPhantomParams(const std::string& phantomLabel);
 
 #if ENABLE_CUDA
 	void printGpuParameters();
@@ -56,7 +65,7 @@ public:
 
 private:
 	const double detWidth;
-	const int pixNum;
+	const size_t pixNum;
 	std::vector<double> pixPositions;
 
 	double I0 = 3.0;   //Intensity of the tube
