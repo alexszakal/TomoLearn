@@ -912,6 +912,24 @@ void Gen1CT::displayReconstruction(const std::string& label){
 		std::cout << std::endl << "ERROR!! Label: \"" << label << "\" could not be found!! Skipping the display.";
 }
 
+void Gen1CT::MLEMReconst(std::string sinogramID,
+			             const std::array<int,2>& numberOfRecPoints,
+					     const std::array<double,2>& resolution,
+						 const std::string& imageID){
+	/**
+	 * Implement the MLEM algorithm
+	 */
+
+
+	if(scans.find(sinogramID) == scans.end()){
+				std::cout << std::endl << "ERROR!! sinogramID: \"" << sinogramID << "\" could not be found!! Abort mission";
+				return;
+	}
+
+
+
+}
+
 void Gen1CT::compareRowPhantomAndReconst(char direction, double position, const std::string& phantomID, const std::string& reconstID){
 	/*** Compare the same rows of the phantom and the reconstruction
 	 *

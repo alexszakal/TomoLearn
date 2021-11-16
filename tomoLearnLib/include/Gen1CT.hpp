@@ -46,6 +46,11 @@ public:
 							 std::string backProjectAlgo,
 							 const std::string& imageID);
 
+	void MLEMReconst(std::string sinogramID,
+				     const std::array<int,2>& numberOfRecPoints,
+					 const std::array<double,2>& resolution,
+					 const std::string& imageID);
+
 	CTScan applyFilter(const std::string& sinogramID, Filter filter);
 	Eigen::MatrixXd backProject(const CTScan& sinogram, const std::array<int,2>& numberOfRecPoints,
 			                                 const std::array<double,2>& resolution);
