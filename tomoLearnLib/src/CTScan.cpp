@@ -51,14 +51,27 @@ CTScan::CTScan(std::string scanID,
 
 			}
 		}
-
-
 	}
-
 }
 
 const Eigen::VectorXd& CTScan::getAnglesConstRef() const{
 	return angles;
 }
 
+double CTScan::getDetWidth() const{
+	return getNumberOfPixels()[0] * getPixSizes()[0];
+}
 
+CTScan operator+(const CTScan& lhs, double rhs){
+	return CTScan( lhs.scanID,
+		       lhs.getDataAsEigenMatrixRef().array() + rhs,
+			   lhs.getDetWidth(),
+			   lhs.getAnglesConstRef() );
+}
+
+CTScan operator/(const CTScan& lhs, const CTScan& rhs){
+	return CTScan( lhs.scanID,
+		       lhs.getDataAsEigenMatrixRef().array() / (rhs.getDataAsEigenMatrixRef().array()),
+			   lhs.getDetWidth(),
+			   lhs.getAnglesConstRef() );
+}

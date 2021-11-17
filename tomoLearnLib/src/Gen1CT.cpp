@@ -63,7 +63,6 @@ void Gen1CT::addPhantom(const Phantom& newPhantom){
 	phantoms.emplace(phantomLabel, Phantom(newPhantom));
 }
 
-
 void Gen1CT::displayPhantom(const std::string& label){
 	if(phantoms.find(label) != phantoms.end()){
 		phantoms[label].display(label);
@@ -79,6 +78,27 @@ void Gen1CT::setI0(double newI0){
 void Gen1CT::measure_HaoGao(const std::string& phantomLabel,
 		                    const Eigen::VectorXd& angles,
 							const std::string& scanLabel){
+
+	if(phantoms.find(phantomLabel) == phantoms.end()){
+			std::cout << std::endl << "ERROR!! phantomLabel: \"" << phantomLabel << "\" could not be found!! Abort mission";
+			return;
+	}
+	Phantom& actualPhantom = phantoms[phantomLabel];
+
+	Eigen::MatrixXd sinogram = project_HaoGao_CPU(actualPhantom, angles);
+
+   	//Move the sinogram to CTScans map
+   	auto it = scans.find(scanLabel);
+   	if(it != scans.end()){
+   		std::cout << std::endl << "WARNING! A scan with label \"" << scanLabel << "\" already exists!!! Overwriting!!!";
+   		scans.erase(it);
+   	}
+   	scans.emplace(scanLabel, CTScan(scanLabel,sinogram, detWidth, angles));
+
+}
+
+Eigen::MatrixXd Gen1CT::project_HaoGao_CPU(const Phantom& actualPhantom,
+		                    const Eigen::VectorXd& angles){
 	std::cout << std::endl << "Projection with HaoGao's method started" << std::endl;
 	auto start = std::chrono::high_resolution_clock::now();
 
@@ -86,12 +106,6 @@ void Gen1CT::measure_HaoGao(const std::string& phantomLabel,
 
 	Eigen::MatrixXd sinogram = Eigen::MatrixXd::Zero(static_cast<long>(pixNum), static_cast<long>(numAngles));
 
-	if(phantoms.find(phantomLabel) == phantoms.end()){
-			std::cout << std::endl << "ERROR!! phantomLabel: \"" << phantomLabel << "\" could not be found!! Abort mission";
-			return;
-	}
-
-	Phantom& actualPhantom = phantoms[phantomLabel];
 
 	auto pixSizes = actualPhantom.getPixSizes();
     auto numberOfPixels = actualPhantom.getNumberOfPixels();
@@ -252,14 +266,9 @@ void Gen1CT::measure_HaoGao(const std::string& phantomLabel,
     	Isinogram = sinogram;
     }
 
-   	//Move the sinogram to CTScans map
-   	auto it = scans.find(scanLabel);
-   	if(it != scans.end()){
-   		std::cout << std::endl << "WARNING! A scan with label \"" << phantomLabel << "\" already exists!!! Overwriting!!!";
-   		scans.erase(it);
-   	}
-   	scans.emplace(scanLabel, CTScan(scanLabel,Isinogram, detWidth, angles));
+    return Isinogram;
 }
+
 
 
 void Gen1CT::measure_withInterpolation(const std::string& phantomLabel,
@@ -357,7 +366,7 @@ void Gen1CT::measure_withInterpolation(const std::string& phantomLabel,
 	//Move the sinogram to CTScans map
 	auto it = scans.find(scanLabel);
 	if(it != scans.end()){
-		std::cout << std::endl << "WARNING! A scan with label \"" << phantomLabel << "\" already exists!!! Overwriting!!!";
+		std::cout << std::endl << "WARNING! A scan with label \"" << scanLabel << "\" already exists!!! Overwriting!!!";
 		scans.erase(it);
 	}
 	scans.emplace(scanLabel, CTScan(scanLabel,Isinogram, detWidth, angles));
@@ -612,7 +621,7 @@ void Gen1CT::measure_Siddon(const std::string& phantomLabel,
 	//Move the sinogram to CTScans map
 	auto it = scans.find(scanLabel);
 	if(it != scans.end()){
-		std::cout << std::endl << "WARNING! A scan with label \"" << phantomLabel << "\" already exists!!! Overwriting!!!";
+		std::cout << std::endl << "WARNING! A scan with label \"" << scanLabel << "\" already exists!!! Overwriting!!!";
 		scans.erase(it);
 	}
 	scans.emplace(scanLabel, CTScan(scanLabel,Isinogram, detWidth, angles));
@@ -705,9 +714,9 @@ Eigen::MatrixXd Gen1CT::backProject(const CTScan& sinogram,
 Eigen::MatrixXd Gen1CT::backProject_HaoGao_CPU(const CTScan& sinogram,
 						 const std::array<int,2>& numberOfRecPoints,
 		                 const std::array<double,2>& resolution){
-	/**
-	 * Backproject using the method proposed by Hao Gao
-	 */
+	 //
+	 // Backproject using the method proposed by Hao Gao
+	 //
 
 	std::cout << "Backprojection started" << std::endl;
 	auto start = std::chrono::high_resolution_clock::now();
@@ -915,19 +924,64 @@ void Gen1CT::displayReconstruction(const std::string& label){
 void Gen1CT::MLEMReconst(std::string sinogramID,
 			             const std::array<int,2>& numberOfRecPoints,
 					     const std::array<double,2>& resolution,
-						 const std::string& imageID){
+						 const std::string& imageID,
+						 int numberOfIterations){
 	/**
 	 * Implement the MLEM algorithm
 	 */
-
 
 	if(scans.find(sinogramID) == scans.end()){
 				std::cout << std::endl << "ERROR!! sinogramID: \"" << sinogramID << "\" could not be found!! Abort mission";
 				return;
 	}
+	CTScan actualScan = scans.at(sinogramID);
 
+	//CT scan of const numbers:
+	CTScan constOnes("constOnes",
+			         Eigen::MatrixXd::Ones(pixNum, actualScan.getNumberOfPixels()[1] ),
+					 detWidth,
+					 actualScan.getAnglesConstRef() );
+	//Calculate the normalization factors
+	Phantom normFactors("normFactors",
+			             backProject_HaoGao_CPU(constOnes, numberOfRecPoints, resolution),
+						 resolution);
 
+	//initialize the image
+	Phantom reconstImage("reconstructedImage",
+			             Eigen::MatrixXd::Ones(numberOfRecPoints[0], numberOfRecPoints[1]),
+						 resolution);
 
+	for(int itNumber = 0; itNumber < numberOfIterations; ++itNumber){
+
+		std::cout << "\nIteration:" << itNumber+1 << " / " << numberOfIterations;
+
+		//Forward project the estimation
+		CTScan forwardProj ( "iteration",
+					project_HaoGao_CPU(reconstImage, actualScan.getAnglesConstRef()),
+					detWidth,
+			        actualScan.getAnglesConstRef() );
+
+		//Create the correction image
+		//backproject the measurement elementwise divided with forwardprojection
+		Phantom corrImage("corrImage",
+				           backProject_HaoGao_CPU( actualScan/(forwardProj+0.00001),
+								                   numberOfRecPoints,
+				                                   resolution),
+		                   resolution);
+		//corrImage.display();
+
+		reconstImage = reconstImage / normFactors * corrImage;
+	}
+
+	//reconstImage.display();
+
+	//Move the backprojected image to reconsts map
+	auto it = reconsts.find(imageID);
+	if(it != reconsts.end()){
+		std::cout << std::endl << "WARNING! A reconstructed image with label \"" << imageID << "\" already exists!!! Overwriting!!!";
+		reconsts.erase(it);
+	}
+	reconsts.emplace(imageID, Reconst(imageID, reconstImage.getDataAsEigenMatrixRef(), resolution));
 }
 
 void Gen1CT::compareRowPhantomAndReconst(char direction, double position, const std::string& phantomID, const std::string& reconstID){

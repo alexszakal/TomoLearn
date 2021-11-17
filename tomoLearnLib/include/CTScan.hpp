@@ -20,6 +20,10 @@ public:
 			const std::vector< std::array<double,2> >& axes );
 
 	const Eigen::VectorXd& getAnglesConstRef() const;
+	double getDetWidth() const;
+
+	friend CTScan operator/(const CTScan& lhs, const CTScan& rhs);
+	friend CTScan operator+(const CTScan& lhs, double rhs);
 
 
 

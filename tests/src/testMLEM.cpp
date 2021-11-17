@@ -34,7 +34,7 @@ int main(){
 
 //	testFBP("modSL_symm", "withInterpolation", "backProject_HaoGao_CPU");
 
-	testMLEM("modSL_symm", "haoGaoProject");
+	testMLEM("SD", "haoGaoProject");
 
 	std::cin.ignore();
 
@@ -63,7 +63,7 @@ void testMLEM(const std::string& phantomName,
 
 	ct.displayPhantom(phantomName);
 
-	const int numProjections{180};
+	const int numProjections{180*2};
 	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0.0/180.0 * M_PI,
 			(1.0 - 1.0/numProjections) * M_PI);
 
@@ -86,8 +86,8 @@ void testMLEM(const std::string& phantomName,
 
 	ct.displayMeasurement("Sinogram");
 
-	ct.MLEMReconst("Sinogram", std::array<int, 2> { 512, 512}, //jo 256 x 256 pixel, 0.4 felbontas
-			std::array<double, 2> { 0.2, 0.2 }, "RecImage");
+	ct.MLEMReconst("Sinogram", std::array<int, 2> { 256, 256}, //jo 256 x 256 pixel, 0.4 felbontas
+			std::array<double, 2> { 0.4, 0.4 }, "RecImage", 15);
 
 	ct.Gen1CT::displayReconstruction("RecImage");
 

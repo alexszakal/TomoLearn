@@ -36,6 +36,9 @@ public:
 
 	std::string getLabel() const;
 
+	friend Phantom operator/(const Phantom& lhs, const Phantom& rhs);
+	friend Phantom operator*(const Phantom& lhs, const Phantom& rhs);
+
 private:
 	std::string label;
 

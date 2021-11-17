@@ -53,9 +53,6 @@ Phantom::Phantom(std::string label,
         		}
         	}
         }
-
-
-
 }
 
 std::string Phantom::getLabel() const{
@@ -72,6 +69,19 @@ Phantom Phantom::operator+(double addVal) const {
 
 Phantom Phantom::operator-(double subVal) const {
 	return *this + (-1.0*subVal);
+}
+
+Phantom operator/(const Phantom& lhs, const Phantom& rhs){
+	return Phantom(lhs.label,
+		         lhs.getDataAsEigenMatrixRef().array() / (rhs.getDataAsEigenMatrixRef().array()),
+				 lhs.getPixSizes());
+}
+
+
+Phantom operator*(const Phantom& lhs, const Phantom& rhs){
+	return Phantom(lhs.label,
+		         lhs.getDataAsEigenMatrixRef().array() * (rhs.getDataAsEigenMatrixRef().array()),
+				 lhs.getPixSizes());
 }
 
 

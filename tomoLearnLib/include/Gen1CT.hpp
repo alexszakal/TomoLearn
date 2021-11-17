@@ -34,6 +34,8 @@ public:
 
 	void measure_HaoGao(const std::string& phantomLabel, const Eigen::VectorXd& angles, const std::string& scanLabel);
 
+	Eigen::MatrixXd project_HaoGao_CPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles);
+
 	void displayMeasurement(const std::string& label);
 
 	CTScan getMeasurement(const std::string& label);
@@ -49,7 +51,8 @@ public:
 	void MLEMReconst(std::string sinogramID,
 				     const std::array<int,2>& numberOfRecPoints,
 					 const std::array<double,2>& resolution,
-					 const std::string& imageID);
+					 const std::string& imageID,
+					 int numberOfIterations);
 
 	CTScan applyFilter(const std::string& sinogramID, Filter filter);
 	Eigen::MatrixXd backProject(const CTScan& sinogram, const std::array<int,2>& numberOfRecPoints,
