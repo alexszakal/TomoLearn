@@ -16,7 +16,7 @@
 
 #include <config.h>
 
-void testRadonTransform(const std::string& phantomName, const std::string& algoName);
+void testRadonTransform(const std::string& phantomName, projectorType projectAlgo);
 
 //TODO: A ct.compareRowPhantomAndReconst() Mukodjon. HA fajlbol olvasunk, akkor 1000-et ki kell vonni, mert akkor kapjuk meg HU unitban!
 
@@ -41,14 +41,14 @@ int main(){
 	std::cout << "\n \n CUDA disabled!!!" ;
 #endif
 
-	testRadonTransform("SL", "withInterpolation" );
+	testRadonTransform("SL", projectorType::pixelDriven );
 
 	std::cin.ignore();
 
 	return 0;
 }
 
-void testRadonTransform(const std::string& phantomName, const std::string& algoName){
+void testRadonTransform(const std::string& phantomName, projectorType projectAlgo){
 	/**
 	 * Compare the numerical and analytic Radon transform of an ellipse
 	 */
@@ -140,15 +140,7 @@ void testRadonTransform(const std::string& phantomName, const std::string& algoN
 
 	ct.addPhantom(ellipsePhantom);
 
-	if(algoName == "Siddon"){
-		ct.measure_Siddon("ellipsePhantom", angles, "Sinogram");
-	} else if( algoName == "withInterpolation") {
-		ct.measure_withInterpolation("ellipsePhantom", angles, "Sinogram");
-	} else{
-		std::cout << "\nalgoName parameter not recognized. Possible values: \"Siddon\" or \"withInterpolation\" ";
-		std::cout << "\nAborting testRadonTransform function";
-		return;
-	}
+	ct.measure("ellipsePhantom", angles, "Sinogram", projectAlgo);
 
 	ct.displayMeasurement("Sinogram");
 

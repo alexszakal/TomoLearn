@@ -16,7 +16,7 @@
 
 #include <config.h>
 
-void testFBP(const std::string& phantomName, const std::string& projectAlgo, const std::string& backprojectAlgo);
+void testFBP(const std::string& phantomName, projectorType projectAlgo, const std::string& backprojectAlgo);
 
 //TODO: A ct.compareRowPhantomAndReconst() Mukodjon. HA fajlbol olvasunk, akkor 1000-et ki kell vonni, mert akkor kapjuk meg HU unitban!
 
@@ -48,7 +48,7 @@ int main(){
 
 //	testFBP("modSL_symm", "withInterpolation", "backProject_HaoGao_CPU");
 
-	testFBP("modSL_symm", "haoGaoProject", "backProject_HaoGao_CPU");
+	testFBP("modSL_symm", projectorType::rayDriven, "backProject_HaoGao_CPU");
 
 	std::cin.ignore();
 
@@ -56,7 +56,7 @@ int main(){
 }
 
 void testFBP(const std::string& phantomName,
-		     const std::string& projectAlgo,
+		     projectorType projectAlgo,
 			 const std::string& backprojectAlgo){
 	/**
 	 * Test the Filtered Backprojection algorithm with a Shepp-Logan phantom
@@ -85,19 +85,7 @@ void testFBP(const std::string& phantomName,
 	ct.setI0(8e4);
 	ct.setI0(0.0);
 
-	if(projectAlgo == "Siddon"){
-		ct.measure_Siddon(phantomName, angles, "Sinogram");
-	}
-	else if(projectAlgo == "withInterpolation"){
-		ct.measure_withInterpolation(phantomName, angles, "Sinogram");
-	}
-	else if(projectAlgo == "haoGaoProject"){
-		ct.measure_HaoGao(phantomName, angles, "Sinogram");
-	} else{
-		std::cout << "\nalgoName parameter not recognized. Possible values: \"Siddon\", \"withInterpolation\" or \"haoGaoProject\" ";
-		std::cout << "\nAborting testRadonTransform function";
-		return;
-	}
+	ct.measure(phantomName, angles, "Sinogram", projectAlgo);
 
 	ct.displayMeasurement("Sinogram");
 

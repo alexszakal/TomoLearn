@@ -8,6 +8,7 @@
 
 class CTScan : public Object2D{
 public:
+	CTScan();
 	CTScan(std::string scanID, Eigen::MatrixXd sinogram, double detWidth, const Eigen::VectorXd& angles);
 	CTScan(const std::string& scanID, const Eigen::VectorXd& angles, const Object2D& dataPar);
 	CTScan(std::string scanID,
@@ -25,9 +26,7 @@ public:
 	friend CTScan operator/(const CTScan& lhs, const CTScan& rhs);
 	friend CTScan operator+(const CTScan& lhs, double rhs);
 
-
-
 private:
-	const std::string scanID;
-	const Eigen::VectorXd angles;
+	std::string scanID;
+	Eigen::VectorXd angles;
 };

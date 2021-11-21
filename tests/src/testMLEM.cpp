@@ -17,7 +17,8 @@
 #include <config.h>
 
 
-void testMLEM(const std::string& phantomName, const std::string& projectAlgo);
+void testMLEM(const std::string& phantomName, projectorType measureAlgo, projectorType projectAlgo,
+		  const std::string& backprojectAlgo);
 
 int main(){
 
@@ -34,7 +35,8 @@ int main(){
 
 //	testFBP("modSL_symm", "withInterpolation", "backProject_HaoGao_CPU");
 
-	testMLEM("SD", "haoGaoProject");
+//	testMLEM("modSL_symm", "haoGaoProject");
+	testMLEM("modSL_symm", projectorType::pixelDriven, projectorType::pixelDriven, "backprojectSimple");
 
 	std::cin.ignore();
 
@@ -42,7 +44,9 @@ int main(){
 }
 
 void testMLEM(const std::string& phantomName,
-		      const std::string& projectAlgo){
+		      projectorType measureAlgo,
+			  projectorType projectAlgo,
+			  const std::string& backprojectAlgo){
 	/**
 	 * Test the MLEM algorithm with a given phantom
 	 */
@@ -70,24 +74,26 @@ void testMLEM(const std::string& phantomName,
 	ct.setI0(8e4);
 	ct.setI0(0.0);
 
-	if(projectAlgo == "Siddon"){
-		ct.measure_Siddon(phantomName, angles, "Sinogram");
-	}
-	else if(projectAlgo == "withInterpolation"){
-		ct.measure_withInterpolation(phantomName, angles, "Sinogram");
-	}
-	else if(projectAlgo == "haoGaoProject"){
-		ct.measure_HaoGao(phantomName, angles, "Sinogram");
-	} else{
-		std::cout << "\nalgoName parameter not recognized. Possible values: \"Siddon\", \"withInterpolation\" or \"haoGaoProject\" ";
-		std::cout << "\nAborting testRadonTransform function";
-		return;
-	}
+	ct.measure(phantomName, angles, "Sinogram", measureAlgo);
+
+//	if(measureAlgo == "Siddon"){
+//		ct.measure_Siddon(phantomName, angles, "Sinogram");
+//	}
+//	else if(measureAlgo == "withInterpolation"){
+//		ct.measure_withInterpolation(phantomName, angles, "Sinogram");
+//	}
+//	else if(measureAlgo == "haoGaoProject"){
+//		ct.measure_HaoGao(phantomName, angles, "Sinogram");
+//	} else{
+//		std::cout << "\nalgoName parameter not recognized. Possible values: \"Siddon\", \"withInterpolation\" or \"haoGaoProject\" ";
+//		std::cout << "\nAborting testRadonTransform function";
+//		return;
+//	}
 
 	ct.displayMeasurement("Sinogram");
 
 	ct.MLEMReconst("Sinogram", std::array<int, 2> { 256, 256}, //jo 256 x 256 pixel, 0.4 felbontas
-			std::array<double, 2> { 0.4, 0.4 }, "RecImage", 15);
+			std::array<double, 2> { 0.4, 0.4 }, projectAlgo, backprojectAlgo, "RecImage", 5);
 
 	ct.Gen1CT::displayReconstruction("RecImage");
 

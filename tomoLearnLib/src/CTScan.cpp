@@ -3,6 +3,9 @@
 
 #include <iostream>
 
+CTScan::CTScan():Object2D(),scanID("Empty"),angles(){
+}
+
 CTScan::CTScan(std::string scanID,
 		       Eigen::MatrixXd sinogram,
 			   double detWidth,

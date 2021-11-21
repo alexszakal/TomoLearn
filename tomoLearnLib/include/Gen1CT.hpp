@@ -13,6 +13,15 @@
 
 #include <config.h>
 
+enum class projectorType{pixelDriven,
+                         Siddon,
+                         rayDriven
+                         };
+
+enum class backprojectorType{pixelDriven,
+                             rayDriven
+                             };
+
 class Gen1CT{
 public:
 	Gen1CT();      //REGI
@@ -28,13 +37,21 @@ public:
 
     void setI0(double newI0);
 
+    void measure(const std::string& label, const Eigen::VectorXd& angles, const std::string& scanLabel, projectorType projector);
+
+    Eigen::MatrixXd project(const Phantom& actualPhantom, const Eigen::VectorXd& angles, projectorType projector);
+
 	void measure_withInterpolation(const std::string& label, const Eigen::VectorXd& angles, const std::string& scanLabel);
+
+	Eigen::MatrixXd project_pixelDriven_CPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles);
 
 	void measure_Siddon(const std::string& label, const Eigen::VectorXd& angles, const std::string& scanLabel);
 
+	Eigen::MatrixXd project_Siddon_CPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles);
+
 	void measure_HaoGao(const std::string& phantomLabel, const Eigen::VectorXd& angles, const std::string& scanLabel);
 
-	Eigen::MatrixXd project_HaoGao_CPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles);
+	Eigen::MatrixXd project_rayDriven_CPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles);
 
 	void displayMeasurement(const std::string& label);
 
@@ -51,6 +68,8 @@ public:
 	void MLEMReconst(std::string sinogramID,
 				     const std::array<int,2>& numberOfRecPoints,
 					 const std::array<double,2>& resolution,
+					 projectorType projectAlgo,
+					 const std::string& backProjectAlgo,
 					 const std::string& imageID,
 					 int numberOfIterations);
 

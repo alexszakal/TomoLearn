@@ -75,29 +75,29 @@ void Gen1CT::setI0(double newI0){
 	I0=newI0;
 }
 
-void Gen1CT::measure_HaoGao(const std::string& phantomLabel,
-		                    const Eigen::VectorXd& angles,
-							const std::string& scanLabel){
+//void Gen1CT::measure_HaoGao(const std::string& phantomLabel,
+//		                    const Eigen::VectorXd& angles,
+//							const std::string& scanLabel){
+//
+//	if(phantoms.find(phantomLabel) == phantoms.end()){
+//			std::cout << std::endl << "ERROR!! phantomLabel: \"" << phantomLabel << "\" could not be found!! Abort mission";
+//			return;
+//	}
+//	Phantom& actualPhantom = phantoms[phantomLabel];
+//
+//	Eigen::MatrixXd sinogram = project_HaoGao_CPU(actualPhantom, angles);
+//
+//   	//Move the sinogram to CTScans map
+//   	auto it = scans.find(scanLabel);
+//   	if(it != scans.end()){
+//   		std::cout << std::endl << "WARNING! A scan with label \"" << scanLabel << "\" already exists!!! Overwriting!!!";
+//   		scans.erase(it);
+//   	}
+//   	scans.emplace(scanLabel, CTScan(scanLabel,sinogram, detWidth, angles));
+//
+//}
 
-	if(phantoms.find(phantomLabel) == phantoms.end()){
-			std::cout << std::endl << "ERROR!! phantomLabel: \"" << phantomLabel << "\" could not be found!! Abort mission";
-			return;
-	}
-	Phantom& actualPhantom = phantoms[phantomLabel];
-
-	Eigen::MatrixXd sinogram = project_HaoGao_CPU(actualPhantom, angles);
-
-   	//Move the sinogram to CTScans map
-   	auto it = scans.find(scanLabel);
-   	if(it != scans.end()){
-   		std::cout << std::endl << "WARNING! A scan with label \"" << scanLabel << "\" already exists!!! Overwriting!!!";
-   		scans.erase(it);
-   	}
-   	scans.emplace(scanLabel, CTScan(scanLabel,sinogram, detWidth, angles));
-
-}
-
-Eigen::MatrixXd Gen1CT::project_HaoGao_CPU(const Phantom& actualPhantom,
+Eigen::MatrixXd Gen1CT::project_rayDriven_CPU(const Phantom& actualPhantom,
 		                    const Eigen::VectorXd& angles){
 	std::cout << std::endl << "Projection with HaoGao's method started" << std::endl;
 	auto start = std::chrono::high_resolution_clock::now();
@@ -114,6 +114,7 @@ Eigen::MatrixXd Gen1CT::project_HaoGao_CPU(const Phantom& actualPhantom,
     Phantom actualPhantomLA = actualPhantom;
     if( I0 != 0.0){
     	actualPhantomLA = (actualPhantom-1000.0) * (muWater/1000) + muWater;   // HU -> LA transform
+    	std::cout << "\n\nHounsfield units converted to linear attenuation units!!!";
     }
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -165,24 +166,36 @@ Eigen::MatrixXd Gen1CT::project_HaoGao_CPU(const Phantom& actualPhantom,
     				double yi_minus = ( halfPhantomHeight - (ky*( colIdx   *pixSizes[0] - halfPhantomWidth - p1[0] ) + p1[1] ) ) / pixSizes[1];
     				double yi_plus  = ( halfPhantomHeight - (ky*((colIdx+1)*pixSizes[0] - halfPhantomWidth - p1[0] ) + p1[1] ) ) / pixSizes[1];
 
-    				int Yi_minusIdx = static_cast<int>(yi_minus);
-    				int Yi_plusIdx = static_cast<int>(yi_plus);
+    				//int Yi_minusIdx = static_cast<int>(yi_minus);
+    				//int Yi_plusIdx = static_cast<int>(yi_plus);
+
+    				int Yi_minusIdx = floor(yi_minus);
+    				int Yi_plusIdx = floor(yi_plus);
 
     				double l, l_minus, l_plus; //intersecting length
     				if( Yi_minusIdx == Yi_plusIdx ){
     					if( (Yi_minusIdx < numberOfPixels[1]) and (Yi_minusIdx >= 0 ) ){
     						l=sqrt(1+ky*ky)*pixSizes[0];
+    						if( l * dataPtr[Yi_minusIdx*numberOfPixels[0] + colIdx] < 0){  //DEBUG
+    							std::cout<<"\nHiba";
+    						}
     						sinogram(static_cast<long>(pixIdx), static_cast<long>(angI)) += l * dataPtr[Yi_minusIdx*numberOfPixels[0] + colIdx];
     						//sinogram(pixIdx, angI) = l ; //DEBUG: why 0 when angI==45deg and pixI<256
     					}
     				} else{
-    					if ( (Yi_minusIdx < numberOfPixels[1]) and (Yi_minusIdx >= 0 ) ){
+    					if ( (Yi_minusIdx < numberOfPixels[1]) and (Yi_minusIdx >= 0 ) and (Yi_minusIdx < numberOfPixels[1]) ){
     						l_minus=(std::max(Yi_minusIdx, Yi_plusIdx)-yi_minus) / (yi_plus - yi_minus) * sqrt(1+ky*ky)*pixSizes[0];
+    						if( l_minus * dataPtr[Yi_minusIdx*numberOfPixels[0] + colIdx] < 0){  //DEBUG
+    						    std::cout<<"\nHiba";
+    						}
     						sinogram(static_cast<long>(pixIdx), static_cast<long>(angI)) += l_minus * dataPtr[Yi_minusIdx*numberOfPixels[0] + colIdx];
     					}
 
-    					if ( (Yi_plusIdx < numberOfPixels[1]) and (Yi_plusIdx >= 0 ) ){
+    					if ( (Yi_plusIdx < numberOfPixels[1]) and (Yi_plusIdx >= 0 ) and (Yi_plusIdx < numberOfPixels[1]) ){
     						l_plus=(yi_plus - std::max(Yi_minusIdx, Yi_plusIdx)) / (yi_plus - yi_minus) * sqrt(1+ky*ky)*pixSizes[0];
+    						if( l_plus * dataPtr[Yi_plusIdx*numberOfPixels[0] + colIdx] < 0){  //DEBUG
+    							std::cout<<"\nHiba";
+    						}
     						sinogram(static_cast<long>(pixIdx), static_cast<long>(angI)) += l_plus * dataPtr[Yi_plusIdx*numberOfPixels[0] + colIdx];
     					}
     				}
@@ -193,7 +206,6 @@ Eigen::MatrixXd Gen1CT::project_HaoGao_CPU(const Phantom& actualPhantom,
 
     	//beam intersects the rows at most two pixels
     	if( pixSizes[1] / pixSizes[0] < std::abs(std::tan(M_PI/2-thetaVector[angI])) ){
-
     	    //go through the different t values
     	    for(size_t pixIdx=0; pixIdx<pixNum; ++pixIdx){
     	    	double t = pixPositions[pixIdx] - halfPixelSize;
@@ -209,35 +221,44 @@ Eigen::MatrixXd Gen1CT::project_HaoGao_CPU(const Phantom& actualPhantom,
     	    		double xi_minus = (halfPhantomWidth + (kx*( halfPhantomHeight - rowIdx     *pixSizes[1] - p1[1] ) + p1[0] ) ) / pixSizes[0];
     	    		double xi_plus  = (halfPhantomWidth + (kx*( halfPhantomHeight - (rowIdx+1) *pixSizes[1] - p1[1] ) + p1[0] ) ) / pixSizes[0];;
 
-    	    		int Xi_minusIdx = static_cast<int>(xi_minus); //statc_cast used instead of ceil to speed up calculation
-    	    		int Xi_plusIdx = static_cast<int>(xi_plus);   //statc_cast used instead of ceil to speed up calculation
+    	    		//int Xi_minusIdx = static_cast<int>(xi_minus); //statc_cast used instead of ceil to speed up calculation
+    	    		//int Xi_plusIdx = static_cast<int>(xi_plus);   //statc_cast used instead of ceil to speed up calculation
 
-    	    				double l, l_minus, l_plus; //intersecting length
-    	    				if( Xi_minusIdx == Xi_plusIdx ){
-    	    					if( (Xi_minusIdx < numberOfPixels[0]) and (Xi_minusIdx >= 0 ) ){
-    	    						l=sqrt(1+kx*kx)*pixSizes[1];
-    	    						sinogram(static_cast<long>(pixIdx), static_cast<long>(angI)) += l * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
-    	    						//sinogram(pixIdx, angI) = l ; //DEBUG: why 0 when angI==45deg and pixI<256
-    	    					}
-    	    				}
-    	    				else{
-    	    					if ( (Xi_minusIdx < numberOfPixels[0]) and (Xi_minusIdx >= 0 ) ){
-    	    						l_minus=(std::max(Xi_minusIdx, Xi_plusIdx)-xi_minus) / (xi_plus - xi_minus) * sqrt(1+kx*kx)*pixSizes[1];
-    	    						sinogram(static_cast<long>(pixIdx), static_cast<long>(angI)) += l_minus * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
-    	    					}
+    	    		int Xi_minusIdx = floor(xi_minus);
+    	    		int Xi_plusIdx = floor(xi_plus);
 
-    	    					if ( (Xi_plusIdx < numberOfPixels[0]) and (Xi_plusIdx >= 0 ) ){
-    	    						l_plus=(xi_plus - std::max(Xi_minusIdx, Xi_plusIdx)) / (xi_plus - xi_minus) * sqrt(1+kx*kx)*pixSizes[1];
-    	    						sinogram(static_cast<long>(pixIdx), static_cast<long>(angI)) += l_plus * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
-    	    					}
+    	    		double l, l_minus, l_plus; //intersecting length
+    	    		if( Xi_minusIdx == Xi_plusIdx ){
+    	    			if( (Xi_minusIdx < numberOfPixels[0]) and (Xi_minusIdx >= 0 ) ){
+    	    				l=sqrt(1+kx*kx)*pixSizes[1];
+    	    				if( l * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx] < 0){  //DEBUG
+    	    					std::cout<<"\nHiba";
     	    				}
+    	    				sinogram(static_cast<long>(pixIdx), static_cast<long>(angI)) += l * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
+    	    				//sinogram(pixIdx, angI) = l ; //DEBUG: why 0 when angI==45deg and pixI<256
     	    			}
     	    		}
-    	    	}
+    	    		else{
+    	    			if ( (Xi_minusIdx < numberOfPixels[0]) and (Xi_minusIdx >= 0 ) and (Xi_minusIdx < numberOfPixels[1]) ){
+    	    				l_minus=(std::max(Xi_minusIdx, Xi_plusIdx)-xi_minus) / (xi_plus - xi_minus) * sqrt(1+kx*kx)*pixSizes[1];
+    	    				if( l_minus * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx] < 0 ){  //DEBUG
+    	    				    std::cout<<"\nHiba";
+    	    				}
+    	    				sinogram(static_cast<long>(pixIdx), static_cast<long>(angI)) += l_minus * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
+    	    			}
 
+    					if ( (Xi_plusIdx < numberOfPixels[0]) and (Xi_plusIdx >= 0 and (Xi_plusIdx < numberOfPixels[1])) ){
+    						l_plus=(xi_plus - std::max(Xi_minusIdx, Xi_plusIdx)) / (xi_plus - xi_minus) * sqrt(1+kx*kx)*pixSizes[1];
+    						if( l_plus * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx] < 0 ){  //DEBUG
+    						    std::cout<<"\nHiba";
+    						}
+    						sinogram(static_cast<long>(pixIdx), static_cast<long>(angI)) += l_plus * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
+    	    			}
+    	    		}
+    			}
+    	    }
+    	}
     }
-
-
     ////////////////////////////////////////////////////////////////////////////////
     /// HaoGao calculation ENDS here !!
     ////////////////////////////////////////////////////////////////////////////////
@@ -269,18 +290,10 @@ Eigen::MatrixXd Gen1CT::project_HaoGao_CPU(const Phantom& actualPhantom,
     return Isinogram;
 }
 
-
-
-void Gen1CT::measure_withInterpolation(const std::string& phantomLabel,
-		             const Eigen::VectorXd& angles,
-		             const std::string& scanLabel){
-
-	std::cout << std::endl << "Radon transformation started" << std::endl;
-	auto start = std::chrono::high_resolution_clock::now();
-
-	int numAngles = angles.size();
-
-	Eigen::MatrixXd sinogram = Eigen::MatrixXd::Zero(pixNum, numAngles);
+void Gen1CT::measure(const std::string& phantomLabel,
+		     const Eigen::VectorXd& angles,
+			 const std::string& scanLabel,
+			 projectorType projector){
 
 	if(phantoms.find(phantomLabel) == phantoms.end()){
 		std::cout << std::endl << "ERROR!! phantomLabel: \"" << phantomLabel << "\" could not be found!! Abort mission";
@@ -288,15 +301,79 @@ void Gen1CT::measure_withInterpolation(const std::string& phantomLabel,
 	}
 
 	Phantom& actualPhantom = phantoms[phantomLabel];
+	int numAngles = angles.size();
+	Eigen::MatrixXd sinogram = Eigen::MatrixXd::Zero(pixNum, numAngles);
+
+	sinogram = project(actualPhantom, angles, projector);
+
+	//Move the sinogram to CTScans map
+	auto it = scans.find(scanLabel);
+	if(it != scans.end()){
+		std::cout << std::endl << "WARNING! A scan with label \"" << scanLabel << "\" already exists!!! Overwriting!!!";
+		scans.erase(it);
+	}
+	scans.emplace(scanLabel, CTScan(scanLabel,sinogram, detWidth, angles));
+}
+
+Eigen::MatrixXd Gen1CT::project(const Phantom& actualPhantom, const Eigen::VectorXd& angles, projectorType projector){
+	int numAngles = angles.size();
+	Eigen::MatrixXd sinogram = Eigen::MatrixXd::Zero(pixNum, numAngles);
+
+	switch (projector){
+		case projectorType::pixelDriven:
+			sinogram = project_pixelDriven_CPU(actualPhantom, angles);
+			break;
+		case projectorType::Siddon:
+			sinogram = project_Siddon_CPU(actualPhantom, angles);
+			break;
+		case projectorType::rayDriven:
+			sinogram = project_rayDriven_CPU(actualPhantom, angles);
+			break;
+	}
+	return sinogram;
+}
+
+//void Gen1CT::measure_withInterpolation(const std::string& phantomLabel,
+//		             const Eigen::VectorXd& angles,
+//		             const std::string& scanLabel){
+//
+//	if(phantoms.find(phantomLabel) == phantoms.end()){
+//		std::cout << std::endl << "ERROR!! phantomLabel: \"" << phantomLabel << "\" could not be found!! Abort mission";
+//		return;
+//	}
+//
+//	Phantom& actualPhantom = phantoms[phantomLabel];
+//	int numAngles = angles.size();
+//	Eigen::MatrixXd sinogram = Eigen::MatrixXd::Zero(pixNum, numAngles);
+//
+//	sinogram = project_withInterpolation(actualPhantom, angles);
+//
+//	//Move the sinogram to CTScans map
+//	auto it = scans.find(scanLabel);
+//	if(it != scans.end()){
+//		std::cout << std::endl << "WARNING! A scan with label \"" << scanLabel << "\" already exists!!! Overwriting!!!";
+//		scans.erase(it);
+//	}
+//	scans.emplace(scanLabel, CTScan(scanLabel,sinogram, detWidth, angles));
+//}
+
+Eigen::MatrixXd Gen1CT::project_pixelDriven_CPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles){
+
+	std::cout << std::endl << "Projecting with interpolation started" << std::endl;
+	auto start = std::chrono::high_resolution_clock::now();
+
+	int numAngles = angles.size();
+
+	Eigen::MatrixXd sinogram = Eigen::MatrixXd::Zero(pixNum, numAngles);
 
 	auto pixSizes = actualPhantom.getPixSizes();
-    auto numberOfPixels = actualPhantom.getNumberOfPixels();
+	auto numberOfPixels = actualPhantom.getNumberOfPixels();
 
 	//Convert Hounsfield to linear attenuation (LA) units
-    Phantom actualPhantomLA = actualPhantom;
-    if( I0 != 0.0){
-    	actualPhantomLA = (actualPhantom-1000.0) * (muWater/1000) + muWater;   // HU -> LA transform
-    }
+	Phantom actualPhantomLA = actualPhantom;
+	if( I0 != 0.0){
+	  	actualPhantomLA = (actualPhantom-1000.0) * (muWater/1000) + muWater;   // HU -> LA transform
+	}
 
 	double t;
 	const double piPer4 = M_PI/4;
@@ -321,10 +398,8 @@ void Gen1CT::measure_withInterpolation(const std::string& phantomLabel,
 	}
 
 	for(size_t pixI=0; pixI<static_cast<size_t>(pixNum); ++pixI){
-
 		t=pixPositions[pixI];
 		for(size_t angI=0; angI < static_cast<size_t>(numAngles); ++angI){
-
 			if( interpIsInY[angI] ){
 				for(int objectXIndex=0; objectXIndex < numberOfPixels[0]; ++objectXIndex){
 					double objectYinMM = t*sinThetaVector[angI]+ (t*cosThetaVector[angI] - actualPhantomLA.getXValueAtPix(objectXIndex))*cotThetaVector[angI];
@@ -341,7 +416,7 @@ void Gen1CT::measure_withInterpolation(const std::string& phantomLabel,
 
 	auto stop = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds >(stop - start);
-	std::cout << "Radon took " << duration.count() << " milliseconds" << std::endl;
+	std::cout << "Projecting with interpolation took " << duration.count() << " milliseconds" << std::endl;
 
 	Eigen::MatrixXd Isinogram;
 	//Simulate the counts with Poison statistics
@@ -363,44 +438,55 @@ void Gen1CT::measure_withInterpolation(const std::string& phantomLabel,
 		Isinogram = sinogram;
 	}
 
-	//Move the sinogram to CTScans map
-	auto it = scans.find(scanLabel);
-	if(it != scans.end()){
-		std::cout << std::endl << "WARNING! A scan with label \"" << scanLabel << "\" already exists!!! Overwriting!!!";
-		scans.erase(it);
-	}
-	scans.emplace(scanLabel, CTScan(scanLabel,Isinogram, detWidth, angles));
+	return Isinogram;
+
 }
 
-void Gen1CT::measure_Siddon(const std::string& phantomLabel,
-		             const Eigen::VectorXd& angles,
-		             const std::string& scanLabel){
+//void Gen1CT::measure_Siddon(const std::string& phantomLabel,
+//		             const Eigen::VectorXd& angles,
+//		             const std::string& scanLabel){
+//
+//    int numAngles = angles.size();
+//
+//	Eigen::MatrixXd sinogram = Eigen::MatrixXd::Zero(pixNum, numAngles);
+//
+//	if(phantoms.find(phantomLabel) == phantoms.end()){
+//		std::cout << std::endl << "ERROR!! phantomLabel: \"" << phantomLabel << "\" could not be found!! Abort mission";
+//		return;
+//	}
+//
+//	Phantom& actualPhantom = phantoms[phantomLabel];
+//
+//	sinogram = project_Siddon(actualPhantom, angles);
+//
+//	//Move the sinogram to CTScans map
+//	auto it = scans.find(scanLabel);
+//	if(it != scans.end()){
+//		std::cout << std::endl << "WARNING! A scan with label \"" << scanLabel << "\" already exists!!! Overwriting!!!";
+//		scans.erase(it);
+//	}
+//	scans.emplace(scanLabel, CTScan(scanLabel,sinogram, detWidth, angles));
+//}
 
-	std::cout << std::endl << "Radon transformation with improved Siddon's algo started" << std::endl;
+Eigen::MatrixXd Gen1CT::project_Siddon_CPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles){
+
+	std::cout << std::endl << "Projection with improved Siddon's algo started";
 	auto start = std::chrono::high_resolution_clock::now();
 
-    int numAngles = angles.size();
-
+	int numAngles = angles.size();
 	Eigen::MatrixXd sinogram = Eigen::MatrixXd::Zero(pixNum, numAngles);
 
-	if(phantoms.find(phantomLabel) == phantoms.end()){
-		std::cout << std::endl << "ERROR!! phantomLabel: \"" << phantomLabel << "\" could not be found!! Abort mission";
-		return;
-	}
-
-	Phantom& actualPhantom = phantoms[phantomLabel];
-
 	auto pixSizes = actualPhantom.getPixSizes();
-    auto numberOfPixels = actualPhantom.getNumberOfPixels();
+	auto numberOfPixels = actualPhantom.getNumberOfPixels();
 
 	//Convert Hounsfield to linear attenuation (LA) units
-    Phantom actualPhantomLA = actualPhantom;
-    if( I0 != 0.0){
-    	actualPhantomLA = (actualPhantom-1000.0) * (muWater/1000) + muWater;   // HU -> LA transform
-    }
+	Phantom actualPhantomLA = actualPhantom;
+	if( I0 != 0.0){
+		actualPhantomLA = (actualPhantom-1000.0) * (muWater/1000) + muWater;   // HU -> LA transform
+	}
 
 	std::vector<double>	thetaVector,
-	                    sinThetaVector, cosThetaVector;
+						sinThetaVector, cosThetaVector;
 
 	for(int i=0; i<numAngles; i++){
 		thetaVector.push_back( std::fmod(angles[i], 2*M_PI) );
@@ -428,9 +514,9 @@ void Gen1CT::measure_Siddon(const std::string& phantomLabel,
 		for(size_t pixI=0; pixI<pixNum; ++pixI){
 			double t=pixPositions[pixI];
 			std::array<double,2> p1{ detDist * sinThetaVector[angI] + t * cosThetaVector[angI],
-				                     -1*detDist * cosThetaVector[angI] + t * sinThetaVector[angI]};
+									 -1*detDist * cosThetaVector[angI] + t * sinThetaVector[angI]};
 			std::array<double,2> p2{ -1 * detDist * sinThetaVector[angI] + t * cosThetaVector[angI],
-                                     detDist * cosThetaVector[angI] + t * sinThetaVector[angI]};
+									 detDist * cosThetaVector[angI] + t * sinThetaVector[angI]};
 
 			double xDiff = p2[0] - p1[0];
 			double yDiff = p2[1] - p1[1];
@@ -566,36 +652,36 @@ void Gen1CT::measure_Siddon(const std::string& phantomLabel,
 				int i = std::floor( (p1[0] + argument*(p2[0]-p1[0]) - bX) / dX );  //Index of the first intersected pixel
 				int j = std::floor( (p1[1] + argument*(p2[1]-p1[1]) - bY) / dY );  //Index of the first intersected pixel
 
-	            double alp_c= alp_min;
+				double alp_c= alp_min;
 
-	            for(int counter =0; counter<Np; counter++){
-	            	if(alpX < alpY){
-	            		//double l_ij=(alpX-alp_c)*d_conv;
-	            		//d12 += (alpX-alp_c) * dataPtr[ i + j*(Ny-1)];  Regi
-	            		d12 += (alpX-alp_c) * dataPtr[ j*(Nx-1) + i];
-	            		i += i_u;
-	            		alp_c=alpX;
-	            		alpX += alp_xu;
-	            	} else{
-	            		//double l_ij=(alpY-alp_c)*d_conv;
-	            		//d12 += (alpY-alp_c) * dataPtr[ i + j*(Ny-1)];  Regi
-	            		d12 += (alpY-alp_c) * dataPtr[ j*(Nx-1) + i];
-	            		j += j_u;
-	            		alp_c=alpY;
-	            		alpY += alp_yu;
-	            	}
-	            }
-	            d12 *= d_conv;
+				for(int counter =0; counter<Np; counter++){
+					if(alpX < alpY){
+						//double l_ij=(alpX-alp_c)*d_conv;
+						//d12 += (alpX-alp_c) * dataPtr[ i + j*(Ny-1)];  Regi
+						d12 += (alpX-alp_c) * dataPtr[ j*(Nx-1) + i];
+						i += i_u;
+						alp_c=alpX;
+						alpX += alp_xu;
+					} else{
+						//double l_ij=(alpY-alp_c)*d_conv;
+						//d12 += (alpY-alp_c) * dataPtr[ i + j*(Ny-1)];  Regi
+						d12 += (alpY-alp_c) * dataPtr[ j*(Nx-1) + i];
+						j += j_u;
+						alp_c=alpY;
+						alpY += alp_yu;
+					}
+				}
+				d12 *= d_conv;
 			}
 
-            //Update the sinogram
-            sinogram(pixI, angI) += d12;
+			//Update the sinogram
+			sinogram(pixI, angI) += d12;
 		}
 	}
 
 	auto stop = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds >(stop - start);
-	std::cout << "\n\nRadon with Siddon's algorithm took " << duration.count() << " milliseconds" << std::endl;
+	std::cout << "\nProjection with Siddon's algorithm took " << duration.count() << " milliseconds" << std::endl;
 
 
 	Eigen::MatrixXd Isinogram;
@@ -618,13 +704,7 @@ void Gen1CT::measure_Siddon(const std::string& phantomLabel,
 		Isinogram = sinogram;
 	}
 
-	//Move the sinogram to CTScans map
-	auto it = scans.find(scanLabel);
-	if(it != scans.end()){
-		std::cout << std::endl << "WARNING! A scan with label \"" << scanLabel << "\" already exists!!! Overwriting!!!";
-		scans.erase(it);
-	}
-	scans.emplace(scanLabel, CTScan(scanLabel,Isinogram, detWidth, angles));
+	return Isinogram;
 }
 
 CTScan Gen1CT::getMeasurement(const std::string& label){
@@ -924,6 +1004,8 @@ void Gen1CT::displayReconstruction(const std::string& label){
 void Gen1CT::MLEMReconst(std::string sinogramID,
 			             const std::array<int,2>& numberOfRecPoints,
 					     const std::array<double,2>& resolution,
+						 projectorType projectAlgo,
+						 const std::string& backprojectAlgo,
 						 const std::string& imageID,
 						 int numberOfIterations){
 	/**
@@ -942,35 +1024,76 @@ void Gen1CT::MLEMReconst(std::string sinogramID,
 					 detWidth,
 					 actualScan.getAnglesConstRef() );
 	//Calculate the normalization factors
-	Phantom normFactors("normFactors",
-			             backProject_HaoGao_CPU(constOnes, numberOfRecPoints, resolution),
-						 resolution);
+	Phantom normFactors;
+	if (backprojectAlgo == "backproject_HaoGao_CPU"){
+		normFactors = Phantom("normFactors",
+		      	             backProject_HaoGao_CPU(constOnes, numberOfRecPoints, resolution),
+				     		 resolution);
+	}
+	else if (backprojectAlgo == "backprojectSimple"){
+		normFactors = Phantom("normFactors",
+				      	      backProject(constOnes, numberOfRecPoints, resolution),
+						      resolution);
+	}
+	else{
+		std::cout << "backprojectAlgo incorrectly defined for MLEMReconst function!";
+		return;
+	}
 
 	//initialize the image
 	Phantom reconstImage("reconstructedImage",
 			             Eigen::MatrixXd::Ones(numberOfRecPoints[0], numberOfRecPoints[1]),
 						 resolution);
+//	reconstImage.display("ReconstImage");
+//	std::cout << "Press ENTER to continue!";
+//	std::cin.get();
 
 	for(int itNumber = 0; itNumber < numberOfIterations; ++itNumber){
 
 		std::cout << "\nIteration:" << itNumber+1 << " / " << numberOfIterations;
 
+
 		//Forward project the estimation
-		CTScan forwardProj ( "iteration",
-					project_HaoGao_CPU(reconstImage, actualScan.getAnglesConstRef()),
-					detWidth,
-			        actualScan.getAnglesConstRef() );
+		CTScan forwardProj( "iteration",
+							project(reconstImage, actualScan.getAnglesConstRef(), projectAlgo),
+							detWidth,
+					        actualScan.getAnglesConstRef() );
+
+//		forwardProj.display("ForwardProj");
 
 		//Create the correction image
 		//backproject the measurement elementwise divided with forwardprojection
-		Phantom corrImage("corrImage",
+		CTScan tmpCorrScan = actualScan/(forwardProj+0.00001);
+		CTScan tmpFwProj = forwardProj+0.00001;
+//		tmpFwProj.display("tmpFwProj");
+//		tmpCorrScan.display("tmpCorrScan");
+
+		Phantom corrImage;
+		if (backprojectAlgo == "backproject_HaoGao_CPU"){
+			corrImage = Phantom("corrImage",
 				           backProject_HaoGao_CPU( actualScan/(forwardProj+0.00001),
 								                   numberOfRecPoints,
 				                                   resolution),
 		                   resolution);
-		//corrImage.display();
+		}
+		else if (backprojectAlgo == "backprojectSimple"){
+			corrImage = Phantom("corrImage",
+					   	      backProject(actualScan/(forwardProj+0.00001),
+					   	    		      numberOfRecPoints,
+										  resolution),
+						      resolution);
+		}
+		else{
+			std::cout << "backprojectAlgo incorrectly defined for MLEMReconst function!";
+			return;
+		}
+//		corrImage.display("Corrimage");
 
 		reconstImage = reconstImage / normFactors * corrImage;
+//		reconstImage.display("reconstImage");
+//
+//		std::cout << "Iteration finished press ENTER to continue";
+//		std::cin.get();
 	}
 
 	//reconstImage.display();
@@ -988,14 +1111,6 @@ void Gen1CT::compareRowPhantomAndReconst(char direction, double position, const 
 	/*** Compare the same rows of the phantom and the reconstruction
 	 *
 	 */
-/*
-	Eigen::VectorXd BPSlice = reconsts[reconstID].getDataAsEigenMatrixRef().col(rowNum);
-	Eigen::VectorXd ObjSlice = phantoms[phantomID].getDataAsEigenMatrixRef().col(rowNum);
-	matplotlibcpp::figure(27);
-	matplotlibcpp::plot(std::vector<float> (&BPSlice[0], BPSlice.data()+BPSlice.cols()*BPSlice.rows()) );
-	matplotlibcpp::plot(std::vector<float> (&ObjSlice[0], ObjSlice.data()+ObjSlice.cols()*ObjSlice.rows()) );
-	matplotlibcpp::show();
-*/
 	if(phantoms.find(phantomID) == phantoms.end()){
 		std::cout << std::endl << "ERROR!! phantomID: \"" << phantomID << "\" could not be found!! Aborting compareRowPhantomAndReconst function";
 		return;

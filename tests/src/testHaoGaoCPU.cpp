@@ -136,7 +136,7 @@ void testHaoGaoTransform_CPU(const std::string& phantomName){
 
 	ct.displayPhantom(phantomName);
 
-	ct.measure_HaoGao(phantomName, angles, "HaoGaoSinogram");
+	ct.measure(phantomName, angles, "HaoGaoSinogram", projectorType::rayDriven);
 
 	ct.displayMeasurement("HaoGaoSinogram");
 
