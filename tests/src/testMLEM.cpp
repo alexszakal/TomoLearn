@@ -67,7 +67,7 @@ void testMLEM(const std::string& phantomName,
 
 	ct.displayPhantom(phantomName);
 
-	const int numProjections{180*2};
+	const int numProjections{180};
 	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0.0/180.0 * M_PI,
 			(1.0 - 1.0/numProjections) * M_PI);
 
@@ -76,24 +76,10 @@ void testMLEM(const std::string& phantomName,
 
 	ct.measure(phantomName, angles, "Sinogram", measureAlgo);
 
-//	if(measureAlgo == "Siddon"){
-//		ct.measure_Siddon(phantomName, angles, "Sinogram");
-//	}
-//	else if(measureAlgo == "withInterpolation"){
-//		ct.measure_withInterpolation(phantomName, angles, "Sinogram");
-//	}
-//	else if(measureAlgo == "haoGaoProject"){
-//		ct.measure_HaoGao(phantomName, angles, "Sinogram");
-//	} else{
-//		std::cout << "\nalgoName parameter not recognized. Possible values: \"Siddon\", \"withInterpolation\" or \"haoGaoProject\" ";
-//		std::cout << "\nAborting testRadonTransform function";
-//		return;
-//	}
-
 	ct.displayMeasurement("Sinogram");
 
 	ct.MLEMReconst("Sinogram", std::array<int, 2> { 256, 256}, //jo 256 x 256 pixel, 0.4 felbontas
-			std::array<double, 2> { 0.4, 0.4 }, projectAlgo, backprojectAlgo, "RecImage", 5);
+			std::array<double, 2> { 0.4, 0.4 }, projectAlgo, backprojectAlgo, "RecImage", 100);
 
 	ct.Gen1CT::displayReconstruction("RecImage");
 

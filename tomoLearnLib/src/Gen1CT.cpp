@@ -1059,6 +1059,10 @@ void Gen1CT::MLEMReconst(std::string sinogramID,
 							detWidth,
 					        actualScan.getAnglesConstRef() );
 
+		if(forwardProj.getDataAsEigenMatrixRef().minCoeff() < 0){
+			std::cout << "\n ERROR! negative value in forwardProj!";
+		}
+
 //		forwardProj.display("ForwardProj");
 
 		//Create the correction image
@@ -1088,6 +1092,14 @@ void Gen1CT::MLEMReconst(std::string sinogramID,
 			return;
 		}
 //		corrImage.display("Corrimage");
+
+		if(corrImage.getDataAsEigenMatrixRef().minCoeff() < 0){
+					std::cout << "\n ERROR! negative value in corrImage!";
+		}
+
+		if(normFactors.getDataAsEigenMatrixRef().minCoeff() < 0){
+							std::cout << "\n ERROR! negative value in normFactors!";
+		}
 
 		reconstImage = reconstImage / normFactors * corrImage;
 //		reconstImage.display("reconstImage");
