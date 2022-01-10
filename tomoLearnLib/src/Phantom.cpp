@@ -11,8 +11,9 @@ Phantom::Phantom():Object2D(),label("Empty"){
 
 Phantom::Phantom(const std::string& label,
 		         const std::string& imageFilePath,
-				 const std::array<double, 2>& objPixSizes):
-				                                          Object2D{imageFilePath, objPixSizes},
+				 const std::array<double, 2>& objPixSizes,
+				 bool convertFromHUtoLA):
+				                                          Object2D{imageFilePath, objPixSizes, convertFromHUtoLA},
 														  label{label}{
 }
 

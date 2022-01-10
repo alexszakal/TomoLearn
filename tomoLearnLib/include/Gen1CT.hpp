@@ -29,7 +29,8 @@ public:
 
 	void addPhantom(const std::string& label,
 			        const std::string& phantomImageSource,
-					std::array<double, 2> pixSizes={0.1, 0.1});
+					std::array<double, 2> pixSizes={0.1, 0.1},
+					bool convertFromHUtoLA = false);
 
 	void addPhantom(const Phantom& newPhantom);
 
@@ -62,22 +63,28 @@ public:
 							 const std::array<double,2>& resolution,
 							 FilterType filterType,
 							 double cutOffFreq,
-							 std::string backProjectAlgo,
+							 backprojectorType backProjectAlgo,
 							 const std::string& imageID);
 
 	void MLEMReconst(std::string sinogramID,
 				     const std::array<int,2>& numberOfRecPoints,
 					 const std::array<double,2>& resolution,
 					 projectorType projectAlgo,
-					 const std::string& backProjectAlgo,
+					 backprojectorType backProjectAlgo,
 					 const std::string& imageID,
 					 int numberOfIterations);
 
 	CTScan applyFilter(const std::string& sinogramID, Filter filter);
-	Eigen::MatrixXd backProject(const CTScan& sinogram, const std::array<int,2>& numberOfRecPoints,
+
+	Eigen::MatrixXd backProject(const CTScan& sinogram,
+										const std::array<int,2>& numberOfRecPoints,
+										const std::array<double,2>& resolution,
+										backprojectorType backProjector);
+
+	Eigen::MatrixXd backProject_pixelDriven_CPU(const CTScan& sinogram, const std::array<int,2>& numberOfRecPoints,
 			                                 const std::array<double,2>& resolution);
 
-	Eigen::MatrixXd backProject_HaoGao_CPU(const CTScan& sinogram, const std::array<int,2>& numberOfRecPoints,
+	Eigen::MatrixXd backProject_rayDriven_CPU(const CTScan& sinogram, const std::array<int,2>& numberOfRecPoints,
 				                                 const std::array<double,2>& resolution);
 
 	void displayReconstruction(const std::string& label);

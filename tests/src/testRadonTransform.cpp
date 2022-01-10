@@ -41,9 +41,7 @@ int main(){
 	std::cout << "\n \n CUDA disabled!!!" ;
 #endif
 
-	testRadonTransform("SL", projectorType::pixelDriven );
-
-	std::cin.ignore();
+	testRadonTransform("SL", projectorType::rayDriven );
 
 	return 0;
 }
@@ -125,8 +123,17 @@ void testRadonTransform(const std::string& phantomName, projectorType projectAlg
 						   centers,  //centers
 						   axes //axes
                            );
-	ellipsePhantom.display();
+	//ellipsePhantom.display();
 
+	Phantom centerDotPhantom( "centerDotPhantom",
+	            {1024, 1024},
+				   {0.1, 0.1},
+				   std::vector<double>{1000}, //rhos
+				   std::vector<double>{0.0}, //alphas
+				   std::vector<std::array<double,2>> {{0,0}},  //centers
+				   std::vector<std::array<double,2>> {{10,10}} //axes
+	            );
+	centerDotPhantom.display();
 
 	//generate Radon Transform Numerically
 	int detWidthInMM { 110 };
@@ -139,22 +146,24 @@ void testRadonTransform(const std::string& phantomName, projectorType projectAlg
 			179.0 / 180 * M_PI);
 
 	ct.addPhantom(ellipsePhantom);
+	ct.addPhantom(centerDotPhantom);
 
-	ct.measure("ellipsePhantom", angles, "Sinogram", projectAlgo);
+	ct.measure("centerDotPhantom", angles, "Sinogram", projectAlgo);
 
 	ct.displayMeasurement("Sinogram");
 
 	CTScan numericalSinogram = ct.getMeasurement("Sinogram");
 
-	CTScan analyticSinogram("analyticSinogram",
+	CTScan analyticSinogram("analyticCenterDotSinogram",
 							detWidthInMM,
 							detPixNum,
 							angles,
-							rhos, //rhos
-							alphas, //alphas
-							centers,  //centers
-							axes //axes
-            );
+							std::vector<double>{1000}, //rhos
+							std::vector<double>{0.0}, //alphas
+							std::vector<std::array<double,2>> {{0,0}},  //centers
+							std::vector<std::array<double,2>> {{10,10}}, //axes
+							0.0); //I0=0 -> do not draw Poisson statistics
+
 	analyticSinogram.display("AnalyticResult");
 
 	const Eigen::MatrixXd& numRes = numericalSinogram.getDataAsEigenMatrixRef();
@@ -162,15 +171,15 @@ void testRadonTransform(const std::string& phantomName, projectorType projectAlg
 
 	const Eigen::MatrixXd relativeError((numRes.array()-anRes.array())/((numRes.array() + anRes.array()+0.000001) * 0.5)*100); // @suppress("Invalid arguments")
 
-	CTScan metric("metric", relativeError.cwiseAbs(), detWidthInMM, angles);
+	CTScan metric("metric", relativeError.cwiseAbs(), detWidthInMM, angles, 0.0);
 	metric.display();
 
 	std::cout << "\nDifference was normalized with the average of the corresponding pixel values.";
 	std::cout << "\nMaximal relative error: " << relativeError.cwiseAbs().maxCoeff() << "%";
 	std::cout << "\nAverage error: " << relativeError.cwiseAbs().mean() << "%";
 
-	int tmpi;
-	std::cin>>tmpi;
+	std::cout<<"\n Press ENTER to continue";
+	std::cin.get();
 }
 
 

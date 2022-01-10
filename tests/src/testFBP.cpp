@@ -16,7 +16,7 @@
 
 #include <config.h>
 
-void testFBP(const std::string& phantomName, projectorType projectAlgo, const std::string& backprojectAlgo);
+void testFBP(const std::string& phantomName, projectorType projectAlgo, backprojectorType backprojectAlgo);
 
 //TODO: A ct.compareRowPhantomAndReconst() Mukodjon. HA fajlbol olvasunk, akkor 1000-et ki kell vonni, mert akkor kapjuk meg HU unitban!
 
@@ -41,14 +41,7 @@ int main(){
 	std::cout << "\n \n CUDA disabled!!!" ;
 #endif
 
-	//Test the naive implementations with interpolations
-//	testFBP("modSL_symm", "withInterpolation", "backProject_interpol");
-
-//	testFBP("modSL_symm", "haoGaoProject", "backProject_interpol");
-
-//	testFBP("modSL_symm", "withInterpolation", "backProject_HaoGao_CPU");
-
-	testFBP("modSL_symm", projectorType::rayDriven, "backProject_HaoGao_CPU");
+	testFBP("modSL_symm", projectorType::rayDriven, backprojectorType::pixelDriven);
 
 	std::cin.ignore();
 
@@ -57,33 +50,33 @@ int main(){
 
 void testFBP(const std::string& phantomName,
 		     projectorType projectAlgo,
-			 const std::string& backprojectAlgo){
+			backprojectorType backprojectAlgo){
 	/**
 	 * Test the Filtered Backprojection algorithm with a Shepp-Logan phantom
 	 */
 
 	std::cout << "Parallel beam FBP simulation" << std::endl;
 
-	int detWidthInMM { 150 };
-	int detPixNum { 1024 };
+	double detWidthInMM { 145.3 };
+	int detPixNum { 1453 };
 	Gen1CT ct(detWidthInMM, detPixNum);
 
 	//Reading Shepp-Logan phantom
-	ct.addPhantom("SL", "Phantoms/SheppLogan_HU.png");
-	ct.addPhantom("SL_asym", "Phantoms/SheppLogan_asymmetric_HU.png");
-	ct.addPhantom("modSL_symm", "Phantoms/ModifiedSheppLogan_HU.png");
-	ct.addPhantom("modSL_asym", "Phantoms/ModifiedSheppLogan_asymmetric_HU.png"); //default pixSize: 0.1mm x 0.1mm
+	ct.addPhantom("SL", "Phantoms/SheppLogan_HU.png", {0.1, 0.1}, true);
+	ct.addPhantom("SL_asym", "Phantoms/SheppLogan_asymmetric_HU.png", {0.1, 0.1}, true);
+	ct.addPhantom("modSL_symm", "Phantoms/ModifiedSheppLogan_HU.png", {0.1, 0.1}, true);
+	ct.addPhantom("modSL_asym", "Phantoms/ModifiedSheppLogan_asymmetric_HU.png", {0.1, 0.1}, true); //default pixSize: 0.1mm x 0.1mm
 	ct.addPhantom("SD", "Phantoms/SingleDot.png"); //Single dot Phantom
 	ct.addPhantom("rectangle", "Phantoms/rectangle.png", {0.025,0.025}); //Single rectangle with 400HU CT number in  the center
 
 	ct.displayPhantom(phantomName);
 
-	const int numProjections{180};
+	const int numProjections{180*2};
 	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0.0/180.0 * M_PI,
 			(1.0 - 1.0/numProjections) * M_PI);
 
-	ct.setI0(8e4);
-	ct.setI0(0.0);
+	ct.setI0(2e5);
+	//ct.setI0(0.0);
 
 	ct.measure(phantomName, angles, "Sinogram", projectAlgo);
 

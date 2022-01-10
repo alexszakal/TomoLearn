@@ -151,8 +151,8 @@ void testHaoGaoTransform_CPU(const std::string& phantomName){
 				                rhos, //rhos
 				                alphas, //alphas
 				                centers,  //centers
-				                axes //axes
-                                );
+				                axes, //axes
+                                0.0); //I0
 		analyticSinogram.display("AnalyticResult");
 
 		const Eigen::MatrixXd& numRes = numericalSinogram.getDataAsEigenMatrixRef();
@@ -160,7 +160,7 @@ void testHaoGaoTransform_CPU(const std::string& phantomName){
 
 		const Eigen::MatrixXd relativeError((numRes.array()-anRes.array())/((numRes.array() + anRes.array()+0.000001) * 0.5)*100); // @suppress("Invalid arguments")
 
-		CTScan metric("metric", relativeError.cwiseAbs(), detWidthInMM, angles);
+		CTScan metric("metric", relativeError.cwiseAbs(), detWidthInMM, angles, 0.0);
 		metric.display();
 
 		std::cout << "\nDifference was normalized with the average of the corresponding pixel values.";

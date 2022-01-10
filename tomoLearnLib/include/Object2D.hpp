@@ -17,7 +17,7 @@ public:
 	//Default constructor, initialize an empty image
 	Object2D():numberOfPixels{0,0},objPixSizes{1,1},objWidthHeightInMM{0,0}{}
 	//Constructor for init with data from file
-	Object2D(const std::string& imageFilePath, const std::array<double, 2>& objPixSizes={0.1, 0.1});
+	Object2D(const std::string& imageFilePath, const std::array<double, 2>& objPixSizes={0.1, 0.1}, bool convertFromHUtoLA = false);
 	//Constructor of a zero-initialized Object2D
 	Object2D(const std::array<int, 2>& numberOfPixels, const std::array<double, 2>& objPixSizes);
 	//Constructor for initializing with Eigen::Matrix for Sinogram
