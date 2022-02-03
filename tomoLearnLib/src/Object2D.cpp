@@ -108,7 +108,7 @@ Object2D::Object2D(const Eigen::MatrixXd& inData, const std::array<double, 2>& o
 	}
 	yPixCentreCoords.resize(numberOfPixels[1]);
 	for(int i=0; i<numberOfPixels[1]; i++){
-		yPixCentreCoords[i]=-1*objWidthHeightInMM[1]/2+(i+0.5)*objPixSizes[1];
+		yPixCentreCoords[i]=1*objWidthHeightInMM[1]/2-(i+0.5)*objPixSizes[1];
 	}
 }
 

@@ -41,7 +41,23 @@ int main(){
 	std::cout << "\n \n CUDA disabled!!!" ;
 #endif
 
+	//Works: rayDriven Projector and pixelDriven BackProjector
 	testFBP("modSL_symm", projectorType::rayDriven, backprojectorType::pixelDriven);
+
+	//Works: rayDriven Projector and rayDriven BackProjector
+	//testFBP("modSL_symm", projectorType::rayDriven, backprojectorType::rayDriven);
+
+	//Works: pixelDriven Projector and pixelDriven BackProjector
+	//testFBP("modSL_symm", projectorType::pixelDriven, backprojectorType::pixelDriven);
+
+	//Works: pixelDriven Projector and rayDriven BackProjector
+	//testFBP("modSL_symm", projectorType::pixelDriven, backprojectorType::rayDriven);
+
+	//Works: Siddon Projector and pixelDriven BackProjector
+	//testFBP("modSL_symm", projectorType::Siddon, backprojectorType::pixelDriven);
+
+	//Works: Siddon Projector and rayDriven BackProjector
+	//testFBP("modSL_symm", projectorType::Siddon, backprojectorType::rayDriven);
 
 	std::cin.ignore();
 

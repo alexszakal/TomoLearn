@@ -79,9 +79,24 @@ inline double Object2D::linear_atY(int xPixelValue, double yCoordinateInMM) cons
 	/** Linear interpolation in X direction at yCoordinateInMM exactly at xPixelValue
 	 *
 	 */
-	double yCoordinateInPixel = (objWidthHeightInMM[1]/2 - yCoordinateInMM) / objPixSizes[1];
+//	double yCoordinateInPixel = (objWidthHeightInMM[1]/2 - yCoordinateInMM) / objPixSizes[1];
+//
+//	if( ( yCoordinateInPixel > 0 ) && ( yCoordinateInPixel < numberOfPixels[1]-1 ) ){
+//		int lowerPixelIndex = static_cast<int>(yCoordinateInPixel); //Casting is MUCH faster than floor and res. is same because yCoordinateInPixel > 0
+//
+//		//Linear interpolation
+//		double neighbor0 = objData(xPixelValue, lowerPixelIndex );     //Data access limits the throughput
+//		double neighbor1 = objData(xPixelValue, lowerPixelIndex+1 );   //Data access limits the throughput
+//
+//		return neighbor0 + (neighbor1 - neighbor0) * (yCoordinateInPixel - lowerPixelIndex);
+//	}
+//	else{
+//		return 0;
+//	}
 
-	if( ( yCoordinateInPixel > 0 ) && ( yCoordinateInPixel < numberOfPixels[1]-1 ) ){
+	double yCoordinateInPixel = ( (objWidthHeightInMM[1]/2 - objPixSizes[1]/2) - yCoordinateInMM) / objPixSizes[1]; //Hany pixelre vagyunk a 0. pixeltol
+
+	if( ( yCoordinateInPixel >= 0.0 ) && ( yCoordinateInPixel < numberOfPixels[1]-1.0 ) ){
 		int lowerPixelIndex = static_cast<int>(yCoordinateInPixel); //Casting is MUCH faster than floor and res. is same because yCoordinateInPixel > 0
 
 		//Linear interpolation
@@ -99,9 +114,24 @@ inline double Object2D::linear_atX(int yPixelValue, double xCoordinateInMM) cons
 	/** Linear interpolation in X direction at xCoordinateInMM exactly at yPixelValue
 	 *
 	 */
-	double xCoordinateInPixel = (objWidthHeightInMM[0]/2 + xCoordinateInMM) / objPixSizes[0];
+//	double xCoordinateInPixel = (objWidthHeightInMM[0]/2 + xCoordinateInMM) / objPixSizes[0];
+//
+//	if( ( xCoordinateInPixel > 0 ) && ( xCoordinateInPixel < numberOfPixels[0]-1 ) ){
+//		int lowerPixelIndex = static_cast<int>(xCoordinateInPixel); //Casting is MUCH faster than floor and res. is same because xCoordinateInPixel > 0
+//
+//		//Linear interpolation
+//		double neighbor0 = objData(lowerPixelIndex, yPixelValue);   //Data access limits the throughput
+//		double neighbor1 = objData(lowerPixelIndex+1, yPixelValue); //Data access limits the throughput
+//
+//		return neighbor0 + (neighbor1 - neighbor0) * (xCoordinateInPixel - lowerPixelIndex);
+//	}
+//	else{
+//		return 0;
+//	}
 
-	if( ( xCoordinateInPixel > 0 ) && ( xCoordinateInPixel < numberOfPixels[0]-1 ) ){
+	double xCoordinateInPixel = (   (objWidthHeightInMM[0]/2 - objPixSizes[0]/2) + xCoordinateInMM  ) / objPixSizes[0];
+
+	if( ( xCoordinateInPixel > 0.0 ) && ( xCoordinateInPixel < numberOfPixels[0]-1.0 ) ){
 		int lowerPixelIndex = static_cast<int>(xCoordinateInPixel); //Casting is MUCH faster than floor and res. is same because xCoordinateInPixel > 0
 
 		//Linear interpolation
@@ -113,6 +143,7 @@ inline double Object2D::linear_atX(int yPixelValue, double xCoordinateInMM) cons
 	else{
 		return 0;
 	}
+
 }
 
 inline double Object2D::getXValueAtPix(int pixIndex) const{

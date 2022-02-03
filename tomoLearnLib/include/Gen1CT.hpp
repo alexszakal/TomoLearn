@@ -100,7 +100,7 @@ public:
 private:
 	const double detWidth;
 	const size_t pixNum;
-	std::vector<double> pixPositions;
+	std::vector<double> pixPositions; ///Positon of the pixel centers
 
 	double I0 = 3.0;   //Intensity of the tube
 

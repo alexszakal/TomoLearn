@@ -29,23 +29,23 @@ int main(){
 	std::cout << "\n \n CUDA disabled!!!" ;
 #endif
 
-	//Works: rayDriven Projector and pixelDriven BackProjector
-	testMLEM("modSL_symm", projectorType::rayDriven, projectorType::rayDriven, backprojectorType::pixelDriven);
+	//Works: rayDriven Projector and pixelDriven BackProjector Standard config.
+	//testMLEM("modSL_symm", projectorType::rayDriven, projectorType::rayDriven, backprojectorType::pixelDriven);
 
-	//BUGGY
+	//Works
 	//testMLEM("modSL_symm", projectorType::rayDriven, projectorType::rayDriven, backprojectorType::rayDriven);
 
-	//BUGGY
+	//Works
 	//testMLEM("modSL_symm", projectorType::rayDriven, projectorType::pixelDriven, backprojectorType::pixelDriven);
 
-	//BUGGY
+	//Works
 	//testMLEM("modSL_symm", projectorType::rayDriven, projectorType::pixelDriven, backprojectorType::rayDriven);
 
-	//BUGGY
+	//Works
 	//testMLEM("modSL_symm", projectorType::rayDriven, projectorType::Siddon, backprojectorType::pixelDriven);
 
-	//BUGGY
-	//testMLEM("modSL_symm", projectorType::rayDriven, projectorType::Siddon, backprojectorType::rayDriven);
+	//Works
+	testMLEM("modSL_symm", projectorType::rayDriven, projectorType::Siddon, backprojectorType::rayDriven);
 
 	std::cin.ignore();
 
@@ -75,7 +75,7 @@ void testMLEM(const std::string& phantomName,
 	ct.addPhantom("rectangle", "Phantoms/rectangle.png", {0.025,0.025}); //Single rectangle with 400HU CT number in  the center
 
 	Phantom centerDotPhantom( "centerDotPhantom",
-            {1024, 1024},
+               {1024, 1024},
 			   {0.1, 0.1},
 			   std::vector<double>{1000}, //rhos
 			   std::vector<double>{0.0}, //alphas
@@ -83,7 +83,6 @@ void testMLEM(const std::string& phantomName,
 			   std::vector<std::array<double,2>> {{10,10}} //axes
             );
 	ct.addPhantom(centerDotPhantom);
-
 
 	ct.displayPhantom(phantomName);
 
@@ -98,8 +97,8 @@ void testMLEM(const std::string& phantomName,
 
 	ct.displayMeasurement("Sinogram");
 
-	ct.MLEMReconst("Sinogram", std::array<int, 2> { 1024, 1024}, //jo 256 x 256 pixel, 0.4 felbontas
-			std::array<double, 2> { 0.1, 0.1 }, projectAlgo, backprojectAlgo, "RecImage", 20);
+	ct.MLEMReconst("Sinogram", std::array<int, 2> { 1024, 1024}, // 1024 x 1024 pixel, 0.1mm felbontas
+			std::array<double, 2> { 0.1, 0.1}, projectAlgo, backprojectAlgo, "RecImage", 80);
 
 	ct.Gen1CT::displayReconstruction("RecImage");
 
