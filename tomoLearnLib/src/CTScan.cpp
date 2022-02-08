@@ -88,3 +88,11 @@ CTScan operator/(const CTScan& lhs, const CTScan& rhs){
 			   lhs.getAnglesConstRef(),
 			   lhs.I0);
 }
+
+CTScan operator-(const CTScan& lhs, const CTScan& rhs){
+	return CTScan( lhs.scanID,
+		       lhs.getDataAsEigenMatrixRef().array() - (rhs.getDataAsEigenMatrixRef().array()),
+			   lhs.getDetWidth(),
+			   lhs.getAnglesConstRef(),
+			   lhs.I0);
+}

@@ -33,6 +33,7 @@ public:
 	double getI0() const;
 
 	friend CTScan operator/(const CTScan& lhs, const CTScan& rhs);
+	friend CTScan operator-(const CTScan& lhs, const CTScan& rhs);
 	friend CTScan operator+(const CTScan& lhs, double rhs);
 
 private:

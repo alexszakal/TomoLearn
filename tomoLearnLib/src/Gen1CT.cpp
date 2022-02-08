@@ -19,7 +19,7 @@
 #include <array>
 #include <vector>
 #include <random>
-#include <algorithm> //std::min and std::max
+#include <algorithm> //std::min and std::max and std::clamp
 
 
 #include <config.h>
@@ -170,6 +170,9 @@ Eigen::MatrixXd Gen1CT::project(const Phantom& actualPhantom, const Eigen::Vecto
 		case projectorType::rayDriven:
 			sinogram = project_rayDriven_CPU(actualPhantom, angles);
 			break;
+		case projectorType::rayDrivenOptimized:
+			sinogram = project_rayDrivenOptimized_CPU(actualPhantom, angles);
+			break;
 	}
 	return sinogram;
 }
@@ -191,15 +194,10 @@ Eigen::MatrixXd Gen1CT::project_rayDriven_CPU(const Phantom& actualPhantom,
     /// Projection with ray-driven method STARTS here !!
     ////////////////////////////////////////////////////////////////////////////////
 
-    //Coordinates of the column boundaries
-    std::vector<double> colBoundaries( static_cast<unsigned long>(numberOfPixels[0]+1) );
     double halfPhantomWidth = numberOfPixels[0]*pixSizes[0]/2;
     double halfPhantomHeight = numberOfPixels[1]*pixSizes[1]/2;
-    for(size_t boundIdx=0; boundIdx < static_cast<unsigned long>(numberOfPixels[0]+1); ++boundIdx){
-    	colBoundaries[boundIdx] = -1*halfPhantomWidth+boundIdx*pixSizes[0];
-    }
 
-    //trigonometric functions for the angles
+    //trigonometric functions of the angles
     std::vector<double>	thetaVector,
     	                sinThetaVector,
 						cosThetaVector;
@@ -338,6 +336,291 @@ Eigen::MatrixXd Gen1CT::project_rayDriven_CPU(const Phantom& actualPhantom,
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds >(stop - start);
     std::cout << "Projection with ray-driven method took " << duration.count() << " milliseconds" << std::endl;
+
+    return sinogram;
+}
+
+Eigen::MatrixXd Gen1CT::project_rayDrivenOptimized_CPU(const Phantom& actualPhantom,
+		                    const Eigen::VectorXd& angles){
+	std::cout << std::endl << "Projection with ray-driven method (optimized) started" << std::endl;
+	auto start = std::chrono::high_resolution_clock::now();
+
+	int numAngles = angles.size();
+
+	Eigen::MatrixXd sinogram = Eigen::MatrixXd::Zero(static_cast<long>(pixNum), static_cast<long>(numAngles));
+	double* sinogramPtr = sinogram.data();
+
+	auto pixSizes = actualPhantom.getPixSizes();
+    auto numberOfPixels = actualPhantom.getNumberOfPixels();
+    double invPixSize= pixNum / detWidth;
+
+    ////////////////////////////////////////////////////////////////////////////////
+    /// Projection with ray-driven method STARTS here !!
+    ////////////////////////////////////////////////////////////////////////////////
+
+    double halfPhantomWidth = numberOfPixels[0]*pixSizes[0]/2;
+    double halfPhantomHeight = numberOfPixels[1]*pixSizes[1]/2;
+
+    //trigonometric functions of the angles
+    std::vector<double>	thetaVector,
+    	                sinThetaVector,
+						cosThetaVector,
+						minusTanThetaVector,
+    					minusCotanThetaVector;
+    std::vector<bool>	intersectColumns;
+    std::vector<double> pathInSinglePixelX,
+	                    pathInSinglePixelY;
+
+    for(int i=0; i<numAngles; i++){
+    	thetaVector.push_back( std::fmod(angles[i], 2*M_PI) );
+    	sinThetaVector.push_back( sin(thetaVector[static_cast<size_t>(i)]) );
+    	cosThetaVector.push_back( cos(thetaVector[static_cast<size_t>(i)]) );
+    	minusTanThetaVector.push_back( -1*tan(thetaVector[static_cast<size_t>(i)]));
+    	minusCotanThetaVector.push_back(-1*1/tan(thetaVector[static_cast<size_t>(i)]));
+
+    	pathInSinglePixelX.push_back(sqrt(1+minusCotanThetaVector[i]*minusCotanThetaVector[i])*pixSizes[0]);
+    	pathInSinglePixelY.push_back(sqrt(1+minusTanThetaVector[i]*minusTanThetaVector[i])*pixSizes[1]);
+
+    	intersectColumns.push_back( pixSizes[1] / pixSizes[0] >= std::abs(std::tan(M_PI/2-thetaVector[static_cast<size_t>(i)])) );
+    }
+
+    //Distance of the detector plane from origin which is outside of the phantom
+    double detDist = 1.1 * sqrt(pow(pixSizes[0]*numberOfPixels[0], 2) + pow(pixSizes[1]*numberOfPixels[1], 2) );
+
+    const double* dataPtr=actualPhantom.getDataAsEigenMatrixRef().data();
+
+    const double invPixSize0 = 1 / pixSizes[0];
+    const double invPixSize1 = 1 / pixSizes[1];
+
+    const double pixSizeRatio01 = pixSizes[0] / pixSizes[1];
+    const double pixSizeRatio10 = pixSizes[1] / pixSizes[0];
+
+    double p1[2];
+    //double p2[2]; //Not needed for the optimized calculation
+
+    size_t subImageSize=128;  //This has to be tuned for the processor. 128 or 256 is ideal for the old ThinkPad
+    double subImageRadius = std::sqrt( std::pow(subImageSize*pixSizes[0],2) + std::pow(subImageSize*pixSizes[1],2) );
+    size_t subImageDimX=numberOfPixels[0]/subImageSize +1;
+    size_t subImageDimY=numberOfPixels[1]/subImageSize +1;
+
+    double leftmostPixCenter=(numberOfPixels[0]/2-0.5)*pixSizes[0];
+    double bottomPixCenter=(numberOfPixels[1]/2-0.5)*pixSizes[1];
+    //Go through the SubImages
+    for(size_t subImageXIdx=0; subImageXIdx<subImageDimX; ++subImageXIdx){
+    	for(size_t subImageYIdx=0; subImageYIdx<subImageDimY; ++subImageYIdx){
+
+    		int colIdxMin=subImageXIdx*subImageSize;
+    		if(colIdxMin >= numberOfPixels[0])
+    		    colIdxMin = numberOfPixels[0]-1;
+    		int colIdxMax=colIdxMin+subImageSize-1;
+    		if(colIdxMax >= numberOfPixels[0])
+    			colIdxMax = numberOfPixels[0]-1;
+    		int rowIdxMin=subImageYIdx*subImageSize;
+    		if(rowIdxMin >= numberOfPixels[1])
+    		    rowIdxMin = numberOfPixels[1]-1;
+    		int rowIdxMax=rowIdxMin+subImageSize-1;
+    		if(rowIdxMax >= numberOfPixels[1])
+    		    rowIdxMax = numberOfPixels[1]-1;
+
+    		//Center of the subImage in laboratory coordinate system
+    		double colMinPos = colIdxMin*pixSizes[0] - leftmostPixCenter;
+    		double colMaxPos = colIdxMax*pixSizes[0] - leftmostPixCenter;
+    		double subImageCenterX = (colMinPos + colMaxPos)/2 ;
+    		double rowMinPos = bottomPixCenter - rowIdxMax*pixSizes[1];
+    		double rowMaxPos = bottomPixCenter - rowIdxMin*pixSizes[1];
+    		double subImageCenterY = (rowMinPos + rowMaxPos)/2 ;
+
+    		//Go through the angles
+			for(size_t angI=0; angI < static_cast<size_t>(numAngles); ++angI){
+				//t-values that can intercept the subImage
+				double subImageCenter_t = subImageCenterX * cosThetaVector[angI] + subImageCenterY * sinThetaVector[angI];
+				int minPixIdx = std::ceil( (subImageCenter_t - subImageRadius + detWidth/2) * invPixSize );
+				int maxPixIdx = minPixIdx + subImageRadius*2 * invPixSize ;
+
+				//minPixIdx = std::clamp(minPixIdx, 0, static_cast<int>(pixNum-1));    //This is slower :(
+				//maxPixIdx = std::clamp(maxPixIdx, 0, static_cast<int>(pixNum-1));
+				if(minPixIdx<0)
+					minPixIdx=0;
+				if(minPixIdx>=pixNum)
+					minPixIdx=pixNum-1;
+				if(maxPixIdx<0)
+					maxPixIdx=0;
+				if(maxPixIdx>=pixNum)
+					maxPixIdx=pixNum-1;
+
+				//beam intersects the columns at most two pixels
+				if( intersectColumns[angI] ){
+					//go through the different t values
+					for(size_t pixIdx=minPixIdx; pixIdx<=maxPixIdx; ++pixIdx){
+						const double t = pixPositions[pixIdx];
+
+						size_t sinogramPoint = pixIdx + angI*pixNum;       //Index of the point in sinogram array
+
+						p1[0]=detDist * sinThetaVector[angI] + t * cosThetaVector[angI];
+						p1[1]=-1*detDist * cosThetaVector[angI] + t * sinThetaVector[angI];
+
+						//p2[0] = -1 * detDist * sinThetaVector[angI] + t * cosThetaVector[angI];   //Not needed for the optimized code
+						//p2[1] = detDist * cosThetaVector[angI] + t * sinThetaVector[angI];
+
+						//double ky = (p1[1]-p2[1])/(p1[0]-p2[0]);     //Optimized away using lookup table
+						const double ky = minusCotanThetaVector[angI];      //This gives slightly different value for Theta=90deg which leads to small diff. compared to the non-optimized code
+						//double pathInSinglePixel = sqrt(1+ky*ky)*pixSizes[0];   //Optimized away using lookup table
+						const double pathInSinglePixel = pathInSinglePixelX[angI];
+
+						//go through the columns of the image
+						double yi_minus = ( halfPhantomHeight - (ky*( (colIdxMin-1)   *pixSizes[0] - halfPhantomWidth - p1[0] ) + p1[1] ) ) * invPixSize1;
+						const double yi_minusIncrement = -1*ky*invPixSize1*pixSizes[0];
+						const double yi_plusIncrement = -1 * ky*pixSizeRatio01;
+						for(int colIdx=colIdxMin; colIdx<=colIdxMax; ++colIdx){
+							//double yi_minus = ( halfPhantomHeight - (ky*( colIdx   *pixSizes[0] - halfPhantomWidth - p1[0] ) + p1[1] ) ) * invPixSize1;  //Always on the left side of the column
+							//double yi_plus  = ( halfPhantomHeight - (ky*((colIdx+1)*pixSizes[0] - halfPhantomWidth - p1[0] ) + p1[1] ) ) / pixSizes[1]; //Always on the right side of the column      //Optimized code in next line
+							//Note: The heavy math wa pulled out from the for cycle. This leads slightly diferent results when Theta=90deg due to numerical errors
+							yi_minus += yi_minusIncrement;
+							double yi_plus = yi_minus + yi_plusIncrement;
+
+							//Early exit criterion for performance
+							if( (yi_minus < rowIdxMin-2) or (yi_plus < rowIdxMin-2) )
+								continue;
+							if( (yi_minus > rowIdxMax+2) or (yi_plus > rowIdxMax+2) )
+								continue;
+
+							//Early exit criterion for performance; This is the correct but the one above is faster
+							/*if( (yi_minus <= rowIdxMin-1) and (yi_plus <= rowIdxMin-1) )
+								continue;
+							if( (yi_minus >= rowIdxMax+1) and (yi_plus >= rowIdxMax+1) )
+								continue;*/
+
+							int Yi_minusIdx, Yi_plusIdx;
+							if( (yi_minus >= rowIdxMin) or (yi_plus >= rowIdxMin)){
+								Yi_minusIdx = static_cast<int>(yi_minus+1)-1;     //This floor() has to be correct is yi_minus>-1 otherwise we don't care because it is out of bounds
+								Yi_plusIdx = static_cast<int>(yi_plus+1)-1;
+							}
+							else{
+								continue;
+							}
+
+							//double l_minus, l_plus; //intersecting lengths when crossing two pixels
+							if( Yi_minusIdx == Yi_plusIdx ){ //intersecting only one pixel
+								if( (Yi_minusIdx <= rowIdxMax) ){ // and (Yi_minusIdx >= rowIdxMin ) ){
+									//l=sqrt(1+ky*ky)*pixSizes[0]; //Optimized away with pathInSinglePixel
+
+									//sinogram(static_cast<long>(pixIdx), static_cast<long>(angI)) += pathInSinglePixel * dataPtr[Yi_minusIdx*numberOfPixels[0] + colIdx];
+									sinogramPtr[sinogramPoint] += pathInSinglePixel * dataPtr[Yi_minusIdx*numberOfPixels[0] + colIdx];
+								}
+							} else{
+								if ( (Yi_minusIdx <= rowIdxMax) and (Yi_minusIdx >= rowIdxMin) ){
+									const double l_minus=(std::max(Yi_minusIdx, Yi_plusIdx)-yi_minus) / (yi_plus - yi_minus) * pathInSinglePixel;
+
+									sinogramPtr[sinogramPoint] += l_minus * dataPtr[Yi_minusIdx*numberOfPixels[0] + colIdx];
+									//We hale l_minus -> we can calculate l_plus with only a subtraction from pathInSinglePixel
+									if( (Yi_plusIdx <= rowIdxMax) and (Yi_plusIdx >= rowIdxMin ) ){
+										sinogramPtr[sinogramPoint] += (pathInSinglePixel- l_minus) * dataPtr[Yi_plusIdx*numberOfPixels[0] + colIdx];
+										continue;
+									}
+								}
+
+								if ( (Yi_plusIdx <= rowIdxMax) and (Yi_plusIdx >= rowIdxMin ) ){
+									const double l_plus=(yi_plus - std::max(Yi_minusIdx, Yi_plusIdx)) / (yi_plus - yi_minus) * pathInSinglePixel;
+
+									sinogramPtr[sinogramPoint] += l_plus * dataPtr[Yi_plusIdx*numberOfPixels[0] + colIdx];
+								}
+							}
+
+						}
+					}
+				}
+				else{      //beam intersects the rows at most two pixels
+					//go through the different t values
+					for(size_t pixIdx=minPixIdx; pixIdx<=maxPixIdx; ++pixIdx){
+						const double t = pixPositions[pixIdx];
+
+						size_t sinogramPoint = pixIdx + angI*pixNum;       //Index of the point in sinogram array
+
+						p1[0]=detDist * sinThetaVector[angI] + t * cosThetaVector[angI];
+						p1[1]=-1*detDist * cosThetaVector[angI] + t * sinThetaVector[angI];
+
+						//p2[0] = -1 * detDist * sinThetaVector[angI] + t * cosThetaVector[angI];
+						//p2[1] = detDist * cosThetaVector[angI] + t * sinThetaVector[angI];
+
+						//double kx = (p1[0]-p2[0])/(p1[1]-p2[1]);
+						double kx = minusTanThetaVector[angI];
+						//double pathInSinglePixel = sqrt(1+kx*kx)*pixSizes[1];
+						double pathInSinglePixel = pathInSinglePixelY[angI];
+
+						//go through the rows of the image
+						double xi_minus = (halfPhantomWidth + kx*( halfPhantomHeight - (rowIdxMin-1)     *pixSizes[1] - p1[1] ) + p1[0]  )  * invPixSize0;
+						const double xi_minusIncrement = -1*kx*invPixSize0*pixSizes[1];
+						const double xi_plusIncrement = -1* kx*pixSizeRatio10;
+						for(int rowIdx=rowIdxMin; rowIdx<=rowIdxMax; ++rowIdx){
+							//double xi_minusReal = (halfPhantomWidth + kx*( halfPhantomHeight - rowIdx     *pixSizes[1] - p1[1] ) + p1[0]  )  * invPixSize0;
+							//double xi_plus  = (halfPhantomWidth + (kx*( halfPhantomHeight - (rowIdx+1) *pixSizes[1] - p1[1] ) + p1[0] ) ) / pixSizes[0];    //Optimized code in next line
+							xi_minus += xi_minusIncrement;
+							//if(xi_minus != xi_minusReal)
+							//	std::cout << "\nHoppacska";
+							//double xi_plus = xi_minus - kx*pixSizeRatio10;
+							double xi_plus = xi_minus + xi_plusIncrement;
+
+							//Early exit criterion for performance
+							if( (xi_minus < colIdxMin-2) or (xi_plus < colIdxMin-2) )
+								continue;
+							if( (xi_plus > colIdxMax+2) or (xi_plus > colIdxMax+2) )
+								continue;
+
+							//Early exit criterion for performance; This is the correct but the one above is faster
+							/*if( (xi_minus <= colIdxMin-1) and (xi_plus <= colIdxMin-1) )
+								continue;
+							if( (xi_minus >= colIdxMax+1) and (xi_plus >= colIdxMax+1) )
+								continue;*/
+
+							int Xi_minusIdx, Xi_plusIdx;
+							if( (xi_minus >= colIdxMin) or (xi_plus >= colIdxMin)){
+								Xi_minusIdx = static_cast<int>(xi_minus+1)-1;
+								Xi_plusIdx = static_cast<int>(xi_plus+1)-1;
+							}
+							else{
+								continue;
+							}
+
+							double l_minus, l_plus; //intersecting lengths
+							if( Xi_minusIdx == Xi_plusIdx ){
+								if( (Xi_minusIdx <= colIdxMax) and (Xi_minusIdx >= colIdxMin ) ){
+									//l=sqrt(1+kx*kx)*pixSizes[1]; //Optimized away with pathInSinglePixel
+
+									sinogramPtr[sinogramPoint] += pathInSinglePixel * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
+								}
+							}
+							else{
+								if ( (Xi_minusIdx <= colIdxMax) and (Xi_minusIdx >= colIdxMin ) ){
+									l_minus=(std::max(Xi_minusIdx, Xi_plusIdx)-xi_minus) / (xi_plus - xi_minus) * pathInSinglePixel;
+
+									sinogramPtr[sinogramPoint] += l_minus * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
+									//We hale l_minus -> we can calculate l_plus with only a subtraction from pathInSinglePixel
+									if ( (Xi_plusIdx <= colIdxMax) and (Xi_plusIdx >= colIdxMin ) ){   //Shortcut to avoid one more std::max call
+										sinogramPtr[sinogramPoint] += (pathInSinglePixel-l_minus) * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
+										continue;
+									}
+								}
+
+								if ( (Xi_plusIdx <= colIdxMax) and (Xi_plusIdx >= colIdxMin ) ){
+									l_plus=(xi_plus - std::max(Xi_minusIdx, Xi_plusIdx)) / (xi_plus - xi_minus) * pathInSinglePixel;
+
+									sinogramPtr[sinogramPoint] += l_plus * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
+								}
+							}
+						}
+					}
+				}
+			}
+    	}
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////
+    /// Projection with ray-driven method ENDS here !!
+    ////////////////////////////////////////////////////////////////////////////////
+
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds >(stop - start);
+    std::cout << "Projection with ray-driven method (optimized) took " << duration.count() << " milliseconds" << std::endl;
 
     return sinogram;
 }
@@ -1188,24 +1471,4 @@ void Gen1CT::printPhantomParams(const std::string& phantomLabel){
 	std::cout << "\n Number of pixels: " << phantoms[phantomLabel].getNumberOfPixels()[0] << " x " << phantoms[phantomLabel].getNumberOfPixels()[1];
 	std::cout << "\n Pixel sizes: " << phantoms[phantomLabel].getPixSizes()[0] << " x " << phantoms[phantomLabel].getPixSizes()[1];
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

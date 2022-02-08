@@ -15,7 +15,8 @@
 
 enum class projectorType{pixelDriven,
                          Siddon,
-                         rayDriven
+                         rayDriven,
+						 rayDrivenOptimized
                          };
 
 enum class backprojectorType{pixelDriven,
@@ -53,6 +54,8 @@ public:
 	void measure_HaoGao(const std::string& phantomLabel, const Eigen::VectorXd& angles, const std::string& scanLabel);
 
 	Eigen::MatrixXd project_rayDriven_CPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles);
+
+	Eigen::MatrixXd project_rayDrivenOptimized_CPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles);
 
 	void displayMeasurement(const std::string& label);
 

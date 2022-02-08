@@ -21,4 +21,5 @@ enable_sanitizers(project_options)
 add_subdirectory(external) #This contains the nontrivial external dependencies
 add_subdirectory(tomoLearnLib)
 add_subdirectory(tests)
+add_subdirectory(benchmarks)
 

@@ -1,0 +1,2 @@
+add_executable(bench_rayDrProj src/bench_rayDrProj.cpp)
+target_link_libraries(bench_rayDrProj PRIVATE tomoLearnLib)
