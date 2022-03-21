@@ -96,3 +96,97 @@ CTScan operator-(const CTScan& lhs, const CTScan& rhs){
 			   lhs.getAnglesConstRef(),
 			   lhs.I0);
 }
+
+/***
+ * Convert the CTScan from counts to line integral values.
+ *
+ * Calculates the (-1)*std::log(CTScan/I0) value
+ */
+void CTScan::convertToLineIntegrals(){
+
+	const Eigen::MatrixXd& objDataRef = getDataAsEigenMatrixRef();
+
+	//Calculate the line integrals from the measured counts
+	for(int i=0; i<objDataRef.rows(); i++){
+		for(int j=0; j<objDataRef.cols(); j++){
+			double lineIntegralValue = (-1)* std::log( objDataRef(i,j) / I0 );
+			if (lineIntegralValue<0.0){    //The line integral has to be non-negative. It can become neg. because of statistics
+				setData(i,j, 0);
+			} else{
+				setData(i,j, lineIntegralValue);
+			}
+		}
+	}
+}
+
+/***
+ * Elementwise multiply two CTScans
+ * @param lhs Left handside operand of multiply
+ * @param rhs Right handside operand of multiply
+ * @return Elementwise multiplied CTScan object
+ */
+CTScan operator*(const CTScan& lhs, const CTScan& rhs){
+	return CTScan( lhs.scanID,
+				   lhs.getDataAsEigenMatrixRef().array() * rhs.getDataAsEigenMatrixRef().array(),
+			       lhs.getDetWidth(),
+			       lhs.getAnglesConstRef(),
+			       lhs.I0);
+}
+
+/***
+ * Multiply a CTScan object with a double
+ * @param lhs multiplier
+ * @param rhs CTScan object to be multiplied
+ * @return Multiplied CTScan object
+ */
+CTScan operator*(double lhs, const CTScan& rhs){
+	return CTScan( rhs.scanID,
+			       rhs.getDataAsEigenMatrixRef().array()*lhs,
+				   rhs.getDetWidth(),
+				   rhs.getAnglesConstRef(),
+				   rhs.I0);
+}
+
+/***
+ * Calculate elementvise exp(CTScan)
+ * @return CTScan object with the exponentiated elements
+ */
+CTScan CTScan::exp(){
+	return CTScan(scanID,
+			      getDataAsEigenMatrixRef().array().exp(),
+				  getDetWidth(),
+				  angles,
+				  I0);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

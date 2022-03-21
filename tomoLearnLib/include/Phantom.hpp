@@ -37,13 +37,15 @@ public:
 
 	std::string getLabel() const;
 
+	std::array<Phantom,2> calculateQuadRegTerms() const;
+	std::array<Phantom,2> calculateHuberRegTerms(double delta) const;
+
 	friend Phantom operator/(const Phantom& lhs, const Phantom& rhs);
 	friend Phantom operator*(const Phantom& lhs, const Phantom& rhs);
+	friend Phantom operator+(const Phantom& lhs, const Phantom& rhs);
 
 private:
 	std::string label;
-
-
 };
 
 

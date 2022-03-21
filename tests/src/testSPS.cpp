@@ -92,15 +92,15 @@ void testMLEM(const std::string& phantomName,
 	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0.0/180.0 * M_PI,
 			(1.0 - 1.0/numProjections) * M_PI);
 
-	ct.setI0(1e6);
+	ct.setI0(1e3);
 	//ct.setI0(0.0);
 
 	ct.measure(phantomName, angles, "Sinogram", measureAlgo);
 
 	ct.displayMeasurement("Sinogram");
 
-	ct.MLEMReconst("Sinogram", std::array<int, 2> { 512, 512}, // 1024 x 1024 pixel, 0.1mm felbontas
-			std::array<double, 2> { 0.2, 0.2}, projectAlgo, backprojectAlgo, "RecImage", 5);  //optimalis iteracio: 60
+	ct.SPSReconst("Sinogram", std::array<int, 2> { 512, 512}, // 1024 x 1024 pixel, 0.1mm felbontas
+			std::array<double, 2> { 0.2, 0.2}, projectAlgo, backprojectAlgo, "RecImage", 160);
 
 	ct.Gen1CT::displayReconstruction("RecImage");
 

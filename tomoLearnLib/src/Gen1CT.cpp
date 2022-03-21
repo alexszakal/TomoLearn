@@ -142,7 +142,8 @@ void Gen1CT::measure(const std::string& phantomLabel,
 		for(int i=0; i<Isinogram.rows(); i++){
 			for(int j=0; j<Isinogram.cols(); j++){
 				std::poisson_distribution<int> poissonDist( Isinogram(i,j) );
-				Isinogram(i,j) = (-1)* std::log( poissonDist(generator) / I0 );
+				Isinogram(i,j) = poissonDist(generator);
+				//Isinogram(i,j) = (-1)* std::log( poissonDist(generator) / I0 );        //Removed and placed in the reconstruction algorithm
 				if (Isinogram(i,j)<0.0){    //The line integral has to be non-negative. It can become neg. because of statistics
 					Isinogram(i,j) = 0.0;
 				}
@@ -262,7 +263,7 @@ Eigen::MatrixXd Gen1CT::project_rayDriven_CPU(const Phantom& actualPhantom,
     					}
     				} else{
     					if ( (Yi_minusIdx < numberOfPixels[1]) and (Yi_minusIdx >= 0) ){
-    						l_minus=(std::max(Yi_minusIdx, Yi_plusIdx)-yi_minus) / (yi_plus - yi_minus) * pathInSinglePixel;      //TODO: Kiemelni mindent ami kozos a ket IF agon!!!
+    						l_minus=(std::max(Yi_minusIdx, Yi_plusIdx)-yi_minus) / (yi_plus - yi_minus) * pathInSinglePixel;
 
     						sinogram(static_cast<long>(pixIdx), static_cast<long>(angI)) += l_minus * dataPtr[Yi_minusIdx*numberOfPixels[0] + colIdx];
     						}
@@ -1247,6 +1248,9 @@ void Gen1CT::filteredBackProject(std::string sinogramID,
 			return;
 	}
 
+	//Convert the counts to line integrals
+	scans[sinogramID].convertToLineIntegrals();
+
 	//Apply filter on the sinogram
 	CTScan filteredScan = applyFilter(sinogramID, Filter(filterType, cutOffFreq) );
 	filteredScan.display(sinogramID + " filtered");
@@ -1288,6 +1292,10 @@ void Gen1CT::MLEMReconst(std::string sinogramID,
 	}
 	CTScan actualScan = scans.at(sinogramID);
 
+	//Convert from counts to line integrals.
+	//This is only an APPROXIMATION!! -> Not valid for low counts!!!
+	actualScan.convertToLineIntegrals();
+
 	//CT scan of const numbers:
 	CTScan constOnes("constOnes",
 			         Eigen::MatrixXd::Ones(pixNum, actualScan.getNumberOfPixels()[1] ),
@@ -1300,17 +1308,14 @@ void Gen1CT::MLEMReconst(std::string sinogramID,
 	normFactors = Phantom("normFactors",
 		      	          backProject(constOnes, numberOfRecPoints, resolution, backprojectAlgo),
 						  resolution);
-//	normFactors.display("normFactors");
-//	std::cout << "Press ENTER to continue!";
-//	std::cin.get();
+	if(normFactors.getDataAsEigenMatrixRef().minCoeff() < 0){
+		std::cout << "\n ERROR! negative value in normFactors!";
+	}
 
 	//initialize the image
 	Phantom reconstImage("reconstructedImage",
 			             Eigen::MatrixXd::Ones(numberOfRecPoints[0], numberOfRecPoints[1])*muWater,
 						 resolution);
-//	reconstImage.display("ReconstImage");
-//	std::cout << "Press ENTER to continue!";
-//	std::cin.get();
 
 	for(int itNumber = 0; itNumber < numberOfIterations; ++itNumber){
 
@@ -1327,20 +1332,8 @@ void Gen1CT::MLEMReconst(std::string sinogramID,
 			std::cout << "\n ERROR! negative value in forwardProj!";
 		}
 
-//		forwardProj.display("ForwardProj of Estimation");
-//		std::cout << "Press ENTER to continue!";
-//		std::cin.get();
-
 		//Create the correction image
 		//backproject the measurement elementwise divided with forwardprojection
-		CTScan ratio = actualScan/(forwardProj+0.0005);
-		//CTScan tmpFwProj = forwardProj+0.0005;
-//		tmpFwProj.display("tmpFwProj");
-//		ratio.display("Ratio");
-//		std::cout << "\npress ENTER to continue";
-//		std::cin.get();
-		//actualScan.display("actual Scan");
-
 		Phantom corrImage;
 		corrImage = Phantom("corrImage",
 				           backProject( actualScan/(forwardProj+0.001),
@@ -1348,29 +1341,13 @@ void Gen1CT::MLEMReconst(std::string sinogramID,
 				                                   resolution,
 												   backprojectAlgo),
 		                   resolution);
-//		corrImage.display("Corrimage");
-//		std::cout << "\npress ENTER to continue";
-//		std::cin.get();
 
 		if(corrImage.getDataAsEigenMatrixRef().minCoeff() < 0){
 					std::cout << "\n ERROR! negative value in corrImage!";
 		}
 
-		if(normFactors.getDataAsEigenMatrixRef().minCoeff() < 0){
-							std::cout << "\n ERROR! negative value in normFactors!";
-		}
-
 		reconstImage = reconstImage / normFactors * corrImage;
-//		reconstImage.display("reconstImage");
-//
-//		std::cout << "Iteration finished press ENTER to continue";
-//		std::cin.get();
-
-//		if((itNumber+1) % 5 ==0)
-//			reconstImage.display("Reconstruction state");
 	}
-
-	//reconstImage.display();
 
 	//Move the backprojected image to reconsts map
 	auto it = reconsts.find(imageID);
@@ -1381,10 +1358,17 @@ void Gen1CT::MLEMReconst(std::string sinogramID,
 	reconsts.emplace(imageID, Reconst(imageID, reconstImage.getDataAsEigenMatrixRef(), resolution));
 }
 
+/***
+ * Compare the same horizontal or vertical cuts (rows or columns)
+ * of the phantom and the reconstruction
+ *
+ * @param direction  'Y' or 'X' for rows or columns respectively
+ * @param position   position in [mm] of the comparision
+ * @param phantomID  ID of the phantom
+ * @param reconstID  ID of the reconstruction
+ */
 void Gen1CT::compareRowPhantomAndReconst(char direction, double position, const std::string& phantomID, const std::string& reconstID){
-	/*** Compare the same rows of the phantom and the reconstruction
-	 *
-	 */
+
 	if(phantoms.find(phantomID) == phantoms.end()){
 		std::cout << std::endl << "ERROR!! phantomID: \"" << phantomID << "\" could not be found!! Aborting compareRowPhantomAndReconst function";
 		return;
@@ -1471,4 +1455,117 @@ void Gen1CT::printPhantomParams(const std::string& phantomLabel){
 	std::cout << "\n Number of pixels: " << phantoms[phantomLabel].getNumberOfPixels()[0] << " x " << phantoms[phantomLabel].getNumberOfPixels()[1];
 	std::cout << "\n Pixel sizes: " << phantoms[phantomLabel].getPixSizes()[0] << " x " << phantoms[phantomLabel].getPixSizes()[1];
 }
+
+void Gen1CT::SPSReconst(std::string sinogramID,
+						const std::array<int,2>& numberOfRecPoints,
+						const std::array<double,2>& resolution,
+						projectorType projectAlgo,
+						backprojectorType backProjectAlgo,
+						const std::string& imageID,
+						int numberOfIterations){
+	if(scans.find(sinogramID) == scans.end()){
+					std::cout << std::endl << "ERROR!! sinogramID: \"" << sinogramID << "\" could not be found!! Abort mission";
+					return;
+	}
+	CTScan actualScan = scans.at(sinogramID);
+
+	//Phantom of const numbers:
+	Phantom constOnesPhantom("constOnesPhantom",
+			         Eigen::MatrixXd::Ones(numberOfRecPoints[0], numberOfRecPoints[1] ),
+					 resolution);
+
+	//Calculate the normalization factors
+	CTScan normFactors("normFactors",
+		      	       project(constOnesPhantom, actualScan.getAnglesConstRef(), projectAlgo),
+					   detWidth,
+					   actualScan.getAnglesConstRef(),
+					   0.0); //I0=0 because the Poisson statistics is not applied
+	if(normFactors.getDataAsEigenMatrixRef().minCoeff() < 0){
+		std::cout << "\n ERROR! negative value in normFactors!";
+	}
+	//normFactors.display("normFactors");
+
+	//initialize the image
+	Phantom reconstImage("reconstructedImage",
+			             Eigen::MatrixXd::Ones(numberOfRecPoints[0], numberOfRecPoints[1])*muWater,
+						 resolution);
+
+	//START the ITERATION
+	for(int itNumber = 0; itNumber < numberOfIterations; ++itNumber){
+
+		std::cout << "\nIteration:" << itNumber+1 << " / " << numberOfIterations;
+
+		//Calculate l_i^(n) = [A\mu^(n)]_i Forward-project the actual estimate
+		CTScan li("li",
+				  project(reconstImage, actualScan.getAnglesConstRef(), projectAlgo),
+				  detWidth,
+				  actualScan.getAnglesConstRef(),
+				  0.0); //I0=0 because the Poisson statistics is not applied
+
+		CTScan hi_dot = actualScan.getI0()*(-1*(actualScan/(actualScan.getI0()*(-1.0*li).exp())) + 1) * (-1.0*li).exp();
+		//hi_dot.display("hi_dot");
+
+		Phantom numerator("Numerator",
+						  backProject(hi_dot, numberOfRecPoints, resolution, backProjectAlgo),
+						  resolution);
+		//numerator.display("hi_dot");
+
+		//Calculate the curvatures
+		CTScan curvatures("curvatures",
+				(-1.0 * actualScan + actualScan.getI0()).getDataAsEigenMatrixRef().cwiseMax(0.0),
+				detWidth,
+				actualScan.getAnglesConstRef(),
+				0.0); //I0=0 because the Poisson statistics is not applied
+		//curvatures.display("Curvtures");
+
+		Phantom denominator("Denominator",
+							backProject(normFactors*curvatures, numberOfRecPoints, resolution, backProjectAlgo),
+							resolution);
+		//denominator.display();
+
+		double beta = 1000.0*0;
+		double delta = 0.004;
+		//for(int subIterNum=1; subIterNum < 2; ++subIterNum){
+			//Calculate the regularization terms
+			//std::array<Phantom,2> regTerms = reconstImage.calculateHuberRegTerms(delta);
+			std::array<Phantom,2> regTerms = reconstImage.calculateQuadRegTerms();
+			//regTerms[0].display("Reg numerator term");
+			//regTerms[1].display("Reg denominator term");
+			//std::cin.get();
+
+			reconstImage = Phantom("reconstructedImage",
+				               (reconstImage.getDataAsEigenMatrixRef().array() + (numerator.getDataAsEigenMatrixRef().array() - beta*regTerms[0].getDataAsEigenMatrixRef().array())
+				            		                                             / (denominator.getDataAsEigenMatrixRef().array() + beta*regTerms[1].getDataAsEigenMatrixRef().array()) ).cwiseMax(0.0),
+							   resolution);
+		//}
+		//reconstImage.display();
+
+		//std::cin.get();
+
+	}
+
+	//Move the backprojected image to reconsts map
+	auto it = reconsts.find(imageID);
+	if(it != reconsts.end()){
+		std::cout << std::endl << "WARNING! A reconstructed image with label \"" << imageID << "\" already exists!!! Overwriting!!!";
+		reconsts.erase(it);
+	}
+	reconsts.emplace(imageID, Reconst(imageID, reconstImage.getDataAsEigenMatrixRef(), resolution));
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

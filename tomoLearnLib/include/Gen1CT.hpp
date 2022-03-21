@@ -77,6 +77,14 @@ public:
 					 const std::string& imageID,
 					 int numberOfIterations);
 
+	void SPSReconst(std::string sinogramID,
+				     const std::array<int,2>& numberOfRecPoints,
+					 const std::array<double,2>& resolution,
+					 projectorType projectAlgo,
+					 backprojectorType backProjectAlgo,
+					 const std::string& imageID,
+					 int numberOfIterations);
+
 	CTScan applyFilter(const std::string& sinogramID, Filter filter);
 
 	Eigen::MatrixXd backProject(const CTScan& sinogram,

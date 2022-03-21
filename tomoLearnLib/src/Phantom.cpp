@@ -2,6 +2,8 @@
 #include <iostream>
 #include <cmath>
 
+#include <Eigen/Dense>
+
 //Phantom::Phantom():Object2D(){
 //
 //}
@@ -56,6 +58,99 @@ Phantom::Phantom(std::string label,
         }
 }
 
+/***
+* Calculate the two terms that is required for the quadratic regularization of the SPS algorithm
+* @return Array of the two terms, [0] is the term in the numerator [1] is needed in the denominator
+*/
+std::array<Phantom, 2> Phantom::calculateQuadRegTerms() const{
+    auto image = getDataAsEigenMatrixRef();
+    auto imageSize = getNumberOfPixels();
+    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> numeratorTerm = Eigen::MatrixXd::Zero(imageSize[0], imageSize[1]);
+    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> denomTerm = Eigen::MatrixXd::Zero(imageSize[0], imageSize[1]);
+
+    //Go through the pixels
+    for(int xIdx=0; xIdx<imageSize[0]; ++xIdx){
+        for(int yIdx=0; yIdx<imageSize[1]; ++yIdx){
+        	for(int xRelIdx = -1; xRelIdx<=1; ++xRelIdx){
+        		for(int yRelIdx = -1; yRelIdx<=1; ++yRelIdx){
+        		    //calculate the numeratorTerm
+        		    if (xRelIdx ==0 and yRelIdx ==0)
+        		        continue;
+        		    int xNeighborIdx = xIdx+xRelIdx;
+        		    int yNeighborIdx = yIdx+yRelIdx;
+        		    if (xNeighborIdx < 0 or xNeighborIdx >= imageSize[0] or  //Check if the neighbor is out of the image
+        		           yNeighborIdx < 0 or yNeighborIdx >= imageSize[1]){
+        		         continue;
+        		    }
+        		    double omega_k = 1/std::sqrt(xRelIdx*xRelIdx + yRelIdx*yRelIdx);
+        		    numeratorTerm(xIdx, yIdx) += omega_k*(image(xIdx, yIdx) - image(xNeighborIdx, yNeighborIdx));
+
+        		    //Calculate the denominatorTerm
+        		    denomTerm(xIdx, yIdx) += 2*omega_k;
+        		}
+        	}
+        }
+    }
+
+    return std::array<Phantom, 2>{Phantom("numeratorTerm", numeratorTerm),
+        		                  Phantom("denomTerm", denomTerm) };
+}
+
+/***
+ * Calculate the two terms that is required for the regularization with Huber prior in the SPS algorithm
+ * @param delta Regularization parameter of Huber function
+ * @return Array of the two terms, [0] is the term in the numerator [1] is needed in the denominator
+ */
+std::array<Phantom, 2> Phantom::calculateHuberRegTerms(double delta) const{
+    auto image = getDataAsEigenMatrixRef();
+    auto imageSize = getNumberOfPixels();
+    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> numeratorTerm = Eigen::MatrixXd::Zero(imageSize[0], imageSize[1]);
+    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> denomTerm = Eigen::MatrixXd::Zero(imageSize[0], imageSize[1]);
+
+    //Go through the pixels
+    for(int xIdx=0; xIdx<imageSize[0]; ++xIdx){
+        for(int yIdx=0; yIdx<imageSize[1]; ++yIdx){
+        	for(int xRelIdx = -1; xRelIdx<=1; ++xRelIdx){
+        		for(int yRelIdx = -1; yRelIdx<=1; ++yRelIdx){
+        		    //calculate the numeratorTerm
+        		    if (xRelIdx ==0 and yRelIdx ==0)
+        		        continue;
+        		    int xNeighborIdx = xIdx+xRelIdx;
+        		    int yNeighborIdx = yIdx+yRelIdx;
+        		    if (xNeighborIdx < 0 or xNeighborIdx >= imageSize[0] or  //Check if the neighbor is out of the image
+        		           yNeighborIdx < 0 or yNeighborIdx >= imageSize[1]){
+        		         continue;
+        		    }
+        		    double omega_k = 1/std::sqrt(xRelIdx*xRelIdx + yRelIdx*yRelIdx);
+        		    double t = image(xIdx, yIdx) - image(xNeighborIdx, yNeighborIdx);
+        		    if ( std::abs(t) <= delta){
+        		    	numeratorTerm(xIdx, yIdx) += omega_k * t;
+        		    }
+        		    else{
+        		    	if(t>=0){
+        		    		numeratorTerm(xIdx, yIdx) += omega_k * delta;
+        		    	}
+        		    	else{
+        		    		numeratorTerm(xIdx, yIdx) += omega_k * (-1.0) * delta;
+        		    	}
+        		    }
+
+        		    //Calculate the denominatorTerm
+        		    if(std::abs(t) <= delta){
+        		    	denomTerm(xIdx, yIdx) += 2*omega_k;
+        		    }
+        		    else{
+        		    	denomTerm(xIdx, yIdx)=0;
+        		    }
+        		}
+        	}
+        }
+    }
+
+    return std::array<Phantom, 2>{Phantom("numeratorTerm", numeratorTerm),
+        		                  Phantom("denomTerm", denomTerm) };
+}
+
 std::string Phantom::getLabel() const{
 	return label;
 }
@@ -78,10 +173,15 @@ Phantom operator/(const Phantom& lhs, const Phantom& rhs){
 				 lhs.getPixSizes());
 }
 
-
 Phantom operator*(const Phantom& lhs, const Phantom& rhs){
 	return Phantom(lhs.label,
 		         lhs.getDataAsEigenMatrixRef().array() * (rhs.getDataAsEigenMatrixRef().array()),
+				 lhs.getPixSizes());
+}
+
+Phantom operator+(const Phantom& lhs, const Phantom& rhs){
+	return Phantom(lhs.label,
+		         lhs.getDataAsEigenMatrixRef().array() + (rhs.getDataAsEigenMatrixRef().array()),
 				 lhs.getPixSizes());
 }
 

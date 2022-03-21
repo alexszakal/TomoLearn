@@ -91,7 +91,7 @@ void testFBP(const std::string& phantomName,
 	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0.0/180.0 * M_PI,
 			(1.0 - 1.0/numProjections) * M_PI);
 
-	ct.setI0(2e5);
+	ct.setI0(1e2);
 	//ct.setI0(0.0);
 
 	ct.measure(phantomName, angles, "Sinogram", projectAlgo);

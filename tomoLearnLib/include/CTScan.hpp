@@ -2,6 +2,7 @@
 #include <Object2D.hpp>
 #include <string>
 #include <thread>
+#include <array>
 #include <Eigen/Dense>
 
 #include <iostream>
@@ -31,10 +32,14 @@ public:
 	const Eigen::VectorXd& getAnglesConstRef() const;
 	double getDetWidth() const;
 	double getI0() const;
+	void convertToLineIntegrals();
 
 	friend CTScan operator/(const CTScan& lhs, const CTScan& rhs);
 	friend CTScan operator-(const CTScan& lhs, const CTScan& rhs);
 	friend CTScan operator+(const CTScan& lhs, double rhs);
+	friend CTScan operator*(const CTScan& lhs, const CTScan& rhs);
+	friend CTScan operator*(double lhs, const CTScan& rhs);
+	CTScan exp();
 
 private:
 	std::string scanID;

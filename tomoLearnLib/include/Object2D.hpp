@@ -40,7 +40,6 @@ public:
 	//Set data
 	void setData(int i, int j, double setValue);
 
-
 	std::array<double, 2> getPixSizes() const;
 	std::array<int, 2> getNumberOfPixels() const;
 

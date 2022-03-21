@@ -14,3 +14,5 @@ target_link_libraries(testCudaCompile PRIVATE tomoLearnLib)
 add_executable(testHaoGaoCPU src/testHaoGaoCPU.cpp)
 target_link_libraries(testHaoGaoCPU PRIVATE tomoLearnLib)
 
+add_executable(testSPS src/testSPS.cpp)
+target_link_libraries(testSPS PRIVATE tomoLearnLib)
