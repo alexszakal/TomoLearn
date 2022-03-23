@@ -39,6 +39,7 @@ public:
 
 	std::array<Phantom,2> calculateQuadRegTerms() const;
 	std::array<Phantom,2> calculateHuberRegTerms(double delta) const;
+	std::array<Phantom,2> calculateGibbsRegTerms(double delta) const;
 
 	friend Phantom operator/(const Phantom& lhs, const Phantom& rhs);
 	friend Phantom operator*(const Phantom& lhs, const Phantom& rhs);

@@ -23,6 +23,12 @@ enum class backprojectorType{pixelDriven,
                              rayDriven
                              };
 
+enum class regularizerType{none,
+						   quadratic,
+						   Huber,
+						   Gibbs
+						   };
+
 class Gen1CT{
 public:
 	Gen1CT();      //REGI
@@ -83,7 +89,10 @@ public:
 					 projectorType projectAlgo,
 					 backprojectorType backProjectAlgo,
 					 const std::string& imageID,
-					 int numberOfIterations);
+					 int numberOfIterations,
+					 regularizerType regularizerFunction,
+					 double beta=1000.0,
+					 double delta=0.004);
 
 	CTScan applyFilter(const std::string& sinogramID, Filter filter);
 

@@ -1462,7 +1462,10 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 						projectorType projectAlgo,
 						backprojectorType backProjectAlgo,
 						const std::string& imageID,
-						int numberOfIterations){
+						int numberOfIterations,
+						regularizerType regularizerFunction,
+						double beta,
+						double delta){
 	if(scans.find(sinogramID) == scans.end()){
 					std::cout << std::endl << "ERROR!! sinogramID: \"" << sinogramID << "\" could not be found!! Abort mission";
 					return;
@@ -1523,21 +1526,49 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 							resolution);
 		//denominator.display();
 
-		double beta = 1000.0*0;
-		double delta = 0.004;
-		//for(int subIterNum=1; subIterNum < 2; ++subIterNum){
-			//Calculate the regularization terms
-			//std::array<Phantom,2> regTerms = reconstImage.calculateHuberRegTerms(delta);
-			std::array<Phantom,2> regTerms = reconstImage.calculateQuadRegTerms();
-			//regTerms[0].display("Reg numerator term");
-			//regTerms[1].display("Reg denominator term");
-			//std::cin.get();
-
+		beta = 2000.0;
+		delta = 0.004;
+		if(regularizerFunction == regularizerType::none){
 			reconstImage = Phantom("reconstructedImage",
+							        (reconstImage.getDataAsEigenMatrixRef().array() + (numerator.getDataAsEigenMatrixRef().array() )
+			                              / (denominator.getDataAsEigenMatrixRef().array() ) ).cwiseMax(0.0),
+										   resolution);
+		}else if(regularizerFunction == regularizerType::quadratic){
+			std::array<Phantom,2> regTerms = reconstImage.calculateQuadRegTerms();
+			reconstImage = Phantom("reconstructedImage",
+							               (reconstImage.getDataAsEigenMatrixRef().array() + (numerator.getDataAsEigenMatrixRef().array() - beta*regTerms[0].getDataAsEigenMatrixRef().array())
+			                              / (denominator.getDataAsEigenMatrixRef().array() + beta*regTerms[1].getDataAsEigenMatrixRef().array()) ).cwiseMax(0.0),
+										   resolution);
+		}else if(regularizerFunction == regularizerType::Huber){
+			for(int subIterNum=0; subIterNum < 3; ++subIterNum){
+				//Calculate the regularization terms
+				std::array<Phantom,2> regTerms = reconstImage.calculateHuberRegTerms(delta);
+				//regTerms[0].display("Reg numerator term");
+				//regTerms[1].display("Reg denominator term");
+				//std::cin.get();
+
+				reconstImage = Phantom("reconstructedImage",
 				               (reconstImage.getDataAsEigenMatrixRef().array() + (numerator.getDataAsEigenMatrixRef().array() - beta*regTerms[0].getDataAsEigenMatrixRef().array())
-				            		                                             / (denominator.getDataAsEigenMatrixRef().array() + beta*regTerms[1].getDataAsEigenMatrixRef().array()) ).cwiseMax(0.0),
+                                                                               / (denominator.getDataAsEigenMatrixRef().array() + beta*regTerms[1].getDataAsEigenMatrixRef().array()) ).cwiseMax(0.0),
 							   resolution);
-		//}
+			}
+		}else if(regularizerFunction == regularizerType::Gibbs){
+			for(int subIterNum=0; subIterNum < 3; ++subIterNum){
+				//Calculate the regularization terms
+				std::array<Phantom,2> regTerms = reconstImage.calculateGibbsRegTerms(delta);
+				//regTerms[0].display("Reg numerator term");
+				//regTerms[1].display("Reg denominator term");
+				//std::cin.get();
+
+				reconstImage = Phantom("reconstructedImage",
+				                       (reconstImage.getDataAsEigenMatrixRef().array() + (numerator.getDataAsEigenMatrixRef().array() - beta*regTerms[0].getDataAsEigenMatrixRef().array())
+			                                                                           / (denominator.getDataAsEigenMatrixRef().array() + beta*regTerms[1].getDataAsEigenMatrixRef().array()) ).cwiseMax(0.0),
+				     				   resolution);
+						}
+		}
+		else{
+			std::cout << "\nERROR!! regularizer function not recognized";
+		}
 		//reconstImage.display();
 
 		//std::cin.get();
