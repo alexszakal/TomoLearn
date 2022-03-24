@@ -1540,7 +1540,7 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 			                              / (denominator.getDataAsEigenMatrixRef().array() + beta*regTerms[1].getDataAsEigenMatrixRef().array()) ).cwiseMax(0.0),
 										   resolution);
 		}else if(regularizerFunction == regularizerType::Huber){
-			for(int subIterNum=0; subIterNum < 3; ++subIterNum){
+			for(int subIterNum=0; subIterNum < 1; ++subIterNum){
 				//Calculate the regularization terms
 				std::array<Phantom,2> regTerms = reconstImage.calculateHuberRegTerms(delta);
 				//regTerms[0].display("Reg numerator term");
@@ -1553,7 +1553,7 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 							   resolution);
 			}
 		}else if(regularizerFunction == regularizerType::Gibbs){
-			for(int subIterNum=0; subIterNum < 3; ++subIterNum){
+			for(int subIterNum=0; subIterNum < 1; ++subIterNum){
 				//Calculate the regularization terms
 				std::array<Phantom,2> regTerms = reconstImage.calculateGibbsRegTerms(delta);
 				//regTerms[0].display("Reg numerator term");
