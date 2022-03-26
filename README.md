@@ -17,7 +17,7 @@ For building:
 
 ## CMAKE_CACHE entries
 -  `ENABLE_CUDA` bool
--  `ENABLE_SANITIZER_ADDRESS` bool; for line numbers set `ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer` environment variable
+-  `ENABLE_SANITIZER_ADDRESS` bool; for line numbers set `ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer` environment variable AND include debug symbols in the executable by adding `CMAKE_BUILD_TYPE=RelWithDebInfo` to the Cmake cache
 -  `ENABLE_SANITIZER_MEMORY` bool
 -  `Python3_ROOT_DIR = /home/szakal/anaconda3/` needed in case of Anaconda Python. In this case, add `PYTHONPATH=/home/szakal/anaconda3/` environment variable to the run configuration
 
