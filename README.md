@@ -8,12 +8,18 @@ TomoLearn depends on the following Ubuntu packages:
 - `cimg-dev`
 - `libfftw3-dev`
 - `imagemagick` (needed for png read, could switch to `libpng`)
-- `python3-dev`, `python3-numpy`, `python3-matplotlib` (for 1D plots)
+- `python3-dev`, `python3-numpy`, `python3-matplotlib` (needed for 1D plots; One can use anaconda instead but set corresponding cmake_cache entry)
 
 For building:
 - compiler: clang++
-- cmake >=3.20 (`sudo snap install cmake --classic`)
+- Build system generator: cmake >=3.20 (`sudo snap install cmake --classic`)
 - Build system: make  
+
+## CMAKE_CACHE entries
+-  `ENABLE_CUDA` bool
+-  `ENABLE_SANITIZER_ADDRESS` bool; for line numbers set `ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer` environment variable
+-  `ENABLE_SANITIZER_MEMORY` bool
+-  `Python3_ROOT_DIR` needed in case of Anaconda Python `/home/szakal/anaconda3/`
 
 ## Building and running: 
 0. Go to the root directory of the project 
