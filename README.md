@@ -19,7 +19,7 @@ For building:
 -  `ENABLE_CUDA` bool
 -  `ENABLE_SANITIZER_ADDRESS` bool; for line numbers set `ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer` environment variable
 -  `ENABLE_SANITIZER_MEMORY` bool
--  `Python3_ROOT_DIR` needed in case of Anaconda Python `/home/szakal/anaconda3/`
+-  `Python3_ROOT_DIR = /home/szakal/anaconda3/` needed in case of Anaconda Python. In this case, add `PYTHONPATH=/home/szakal/anaconda3/` environment variable to the run configuration
 
 ## Building and running: 
 0. Go to the root directory of the project 
