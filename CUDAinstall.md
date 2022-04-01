@@ -17,7 +17,10 @@ Installation on Ubuntu 20.04.4 LTS
 - Create symbolic links to gcc-7 and g++-7 in the directory of nvcc: `ln -s /usr/bin/gcc-7 /usr/local/cuda/bin/gcc`  `ln -s /usr/bin/g++-7 /usr/local/cuda/bin/g++`
 
 ## Setup of environment variables in CMAKE:
-- Set `CUDACXX' environment variable to `/usr/local/cuda-10.0/bin/nvcc'
+- Set `CUDACXX` environment variable to `/usr/local/cuda-10.0/bin/nvcc`
 
 ## Test
 - Test the install by compiling the nbody CUDA example
+
+## Visual profiler start
+Path to JAVA has to be defined: `nvvp -vm /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java`
