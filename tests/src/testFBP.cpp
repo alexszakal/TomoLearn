@@ -16,7 +16,7 @@
 
 #include <config.h>
 
-void testFBP(const std::string& phantomName, const std::string& projectAlgo, const std::string& backprojectAlgo);
+void testFBP(const std::string& phantomName, projectorType projectAlgo, backprojectorType backprojectAlgo);
 
 //TODO: A ct.compareRowPhantomAndReconst() Mukodjon. HA fajlbol olvasunk, akkor 1000-et ki kell vonni, mert akkor kapjuk meg HU unitban!
 
@@ -41,14 +41,23 @@ int main(){
 	std::cout << "\n \n CUDA disabled!!!" ;
 #endif
 
-	//Test the naive implementations with interpolations
-//	testFBP("modSL_symm", "withInterpolation", "backProject_interpol");
+	//Works: rayDriven Projector and pixelDriven BackProjector
+	testFBP("modSL_symm", projectorType::rayDriven, backprojectorType::pixelDriven);
 
-//	testFBP("modSL_symm", "haoGaoProject", "backProject_interpol");
+	//Works: rayDriven Projector and rayDriven BackProjector
+	//testFBP("modSL_symm", projectorType::rayDriven, backprojectorType::rayDriven);
 
-//	testFBP("modSL_symm", "withInterpolation", "backProject_HaoGao_CPU");
+	//Works: pixelDriven Projector and pixelDriven BackProjector
+	//testFBP("modSL_symm", projectorType::pixelDriven, backprojectorType::pixelDriven);
 
-	testFBP("modSL_symm", "haoGaoProject", "backProject_HaoGao_CPU");
+	//Works: pixelDriven Projector and rayDriven BackProjector
+	//testFBP("modSL_symm", projectorType::pixelDriven, backprojectorType::rayDriven);
+
+	//Works: Siddon Projector and pixelDriven BackProjector
+	//testFBP("modSL_symm", projectorType::Siddon, backprojectorType::pixelDriven);
+
+	//Works: Siddon Projector and rayDriven BackProjector
+	//testFBP("modSL_symm", projectorType::Siddon, backprojectorType::rayDriven);
 
 	std::cin.ignore();
 
@@ -56,48 +65,36 @@ int main(){
 }
 
 void testFBP(const std::string& phantomName,
-		     const std::string& projectAlgo,
-			 const std::string& backprojectAlgo){
+		     projectorType projectAlgo,
+			backprojectorType backprojectAlgo){
 	/**
 	 * Test the Filtered Backprojection algorithm with a Shepp-Logan phantom
 	 */
 
 	std::cout << "Parallel beam FBP simulation" << std::endl;
 
-	int detWidthInMM { 150 };
-	int detPixNum { 1024 };
+	double detWidthInMM { 145.3 };
+	int detPixNum { 1453 };
 	Gen1CT ct(detWidthInMM, detPixNum);
 
 	//Reading Shepp-Logan phantom
-	ct.addPhantom("SL", "Phantoms/SheppLogan_HU.png");
-	ct.addPhantom("SL_asym", "Phantoms/SheppLogan_asymmetric_HU.png");
-	ct.addPhantom("modSL_symm", "Phantoms/ModifiedSheppLogan_HU.png");
-	ct.addPhantom("modSL_asym", "Phantoms/ModifiedSheppLogan_asymmetric_HU.png"); //default pixSize: 0.1mm x 0.1mm
+	ct.addPhantom("SL", "Phantoms/SheppLogan_HU.png", {0.1, 0.1}, true);
+	ct.addPhantom("SL_asym", "Phantoms/SheppLogan_asymmetric_HU.png", {0.1, 0.1}, true);
+	ct.addPhantom("modSL_symm", "Phantoms/ModifiedSheppLogan_HU.png", {0.1, 0.1}, true);
+	ct.addPhantom("modSL_asym", "Phantoms/ModifiedSheppLogan_asymmetric_HU.png", {0.1, 0.1}, true); //default pixSize: 0.1mm x 0.1mm
 	ct.addPhantom("SD", "Phantoms/SingleDot.png"); //Single dot Phantom
 	ct.addPhantom("rectangle", "Phantoms/rectangle.png", {0.025,0.025}); //Single rectangle with 400HU CT number in  the center
 
 	ct.displayPhantom(phantomName);
 
-	const int numProjections{180};
+	const int numProjections{180*2};
 	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0.0/180.0 * M_PI,
 			(1.0 - 1.0/numProjections) * M_PI);
 
-	ct.setI0(8e4);
-	ct.setI0(0.0);
+	ct.setI0(1e2);
+	//ct.setI0(0.0);
 
-	if(projectAlgo == "Siddon"){
-		ct.measure_Siddon(phantomName, angles, "Sinogram");
-	}
-	else if(projectAlgo == "withInterpolation"){
-		ct.measure_withInterpolation(phantomName, angles, "Sinogram");
-	}
-	else if(projectAlgo == "haoGaoProject"){
-		ct.measure_HaoGao(phantomName, angles, "Sinogram");
-	} else{
-		std::cout << "\nalgoName parameter not recognized. Possible values: \"Siddon\", \"withInterpolation\" or \"haoGaoProject\" ";
-		std::cout << "\nAborting testRadonTransform function";
-		return;
-	}
+	ct.measure(phantomName, angles, "Sinogram", projectAlgo);
 
 	ct.displayMeasurement("Sinogram");
 

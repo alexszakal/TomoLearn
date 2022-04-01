@@ -3,13 +3,18 @@
 
 #include <iostream>
 
+CTScan::CTScan():Object2D(),scanID("Empty"),angles(),I0(0){
+}
+
 CTScan::CTScan(std::string scanID,
 		       Eigen::MatrixXd sinogram,
 			   double detWidth,
-			   const Eigen::VectorXd& angles):
+			   const Eigen::VectorXd& angles,
+			   double I0):
 				        	                 Object2D(sinogram, detWidth, angles),
 											 scanID{scanID},
-											 angles{angles}
+											 angles{angles},
+											 I0(I0)
 {
 
 }
@@ -21,11 +26,13 @@ CTScan::CTScan(std::string scanID,
 			const std::vector<double>& rhos,
 			const std::vector<double>& alphas,
 			const std::vector< std::array<double,2> >& centers,
-			const std::vector< std::array<double,2> >& axes ):Object2D(Eigen::MatrixXd::Zero(numDetPixels, angles.size()),
+			const std::vector< std::array<double,2> >& axes,
+			double I0):Object2D(Eigen::MatrixXd::Zero(numDetPixels, angles.size()),
 					                                                   detWidth,
 																	   angles),
 														      scanID{scanID},
-															  angles{angles}{
+															  angles{angles},
+															  I0(I0){
 
 	const Eigen::MatrixXd& objDataRef = getDataAsEigenMatrixRef();
 
@@ -51,14 +58,135 @@ CTScan::CTScan(std::string scanID,
 
 			}
 		}
-
-
 	}
-
 }
 
 const Eigen::VectorXd& CTScan::getAnglesConstRef() const{
 	return angles;
 }
+
+double CTScan::getDetWidth() const{
+	return getNumberOfPixels()[0] * getPixSizes()[0];
+}
+
+double CTScan::getI0() const{
+	return I0;
+}
+
+CTScan operator+(const CTScan& lhs, double rhs){
+	return CTScan( lhs.scanID,
+		       lhs.getDataAsEigenMatrixRef().array() + rhs,
+			   lhs.getDetWidth(),
+			   lhs.getAnglesConstRef(),
+			   lhs.I0);
+}
+
+CTScan operator/(const CTScan& lhs, const CTScan& rhs){
+	return CTScan( lhs.scanID,
+		       lhs.getDataAsEigenMatrixRef().array() / (rhs.getDataAsEigenMatrixRef().array()),
+			   lhs.getDetWidth(),
+			   lhs.getAnglesConstRef(),
+			   lhs.I0);
+}
+
+CTScan operator-(const CTScan& lhs, const CTScan& rhs){
+	return CTScan( lhs.scanID,
+		       lhs.getDataAsEigenMatrixRef().array() - (rhs.getDataAsEigenMatrixRef().array()),
+			   lhs.getDetWidth(),
+			   lhs.getAnglesConstRef(),
+			   lhs.I0);
+}
+
+/***
+ * Convert the CTScan from counts to line integral values.
+ *
+ * Calculates the (-1)*std::log(CTScan/I0) value
+ */
+void CTScan::convertToLineIntegrals(){
+
+	const Eigen::MatrixXd& objDataRef = getDataAsEigenMatrixRef();
+
+	//Calculate the line integrals from the measured counts
+	for(int i=0; i<objDataRef.rows(); i++){
+		for(int j=0; j<objDataRef.cols(); j++){
+			double lineIntegralValue = (-1)* std::log( objDataRef(i,j) / I0 );
+			if (lineIntegralValue<0.0){    //The line integral has to be non-negative. It can become neg. because of statistics
+				setData(i,j, 0);
+			} else{
+				setData(i,j, lineIntegralValue);
+			}
+		}
+	}
+}
+
+/***
+ * Elementwise multiply two CTScans
+ * @param lhs Left handside operand of multiply
+ * @param rhs Right handside operand of multiply
+ * @return Elementwise multiplied CTScan object
+ */
+CTScan operator*(const CTScan& lhs, const CTScan& rhs){
+	return CTScan( lhs.scanID,
+				   lhs.getDataAsEigenMatrixRef().array() * rhs.getDataAsEigenMatrixRef().array(),
+			       lhs.getDetWidth(),
+			       lhs.getAnglesConstRef(),
+			       lhs.I0);
+}
+
+/***
+ * Multiply a CTScan object with a double
+ * @param lhs multiplier
+ * @param rhs CTScan object to be multiplied
+ * @return Multiplied CTScan object
+ */
+CTScan operator*(double lhs, const CTScan& rhs){
+	return CTScan( rhs.scanID,
+			       rhs.getDataAsEigenMatrixRef().array()*lhs,
+				   rhs.getDetWidth(),
+				   rhs.getAnglesConstRef(),
+				   rhs.I0);
+}
+
+/***
+ * Calculate elementvise exp(CTScan)
+ * @return CTScan object with the exponentiated elements
+ */
+CTScan CTScan::exp(){
+	return CTScan(scanID,
+			      getDataAsEigenMatrixRef().array().exp(),
+				  getDetWidth(),
+				  angles,
+				  I0);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

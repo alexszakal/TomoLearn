@@ -18,7 +18,8 @@ class Phantom : public Object2D{
 public:
 	Phantom();
 	Phantom(const std::string& label, const std::string& imageFilePath,
-			const std::array<double, 2>& objPixSizes);
+			const std::array<double, 2>& objPixSizes,
+			bool convertFromHUtoLA=false);
 	Phantom(const std::string& label, const Eigen::MatrixXd inData,
 			const std::array<double, 2> objPixSizes = {0.1, 0.1});
 	Phantom(std::string label, const Object2D& dataPar);
@@ -36,10 +37,16 @@ public:
 
 	std::string getLabel() const;
 
+	std::array<Phantom,2> calculateQuadRegTerms() const;
+	std::array<Phantom,2> calculateHuberRegTerms(double delta) const;
+	std::array<Phantom,2> calculateGibbsRegTerms(double delta) const;
+
+	friend Phantom operator/(const Phantom& lhs, const Phantom& rhs);
+	friend Phantom operator*(const Phantom& lhs, const Phantom& rhs);
+	friend Phantom operator+(const Phantom& lhs, const Phantom& rhs);
+
 private:
 	std::string label;
-
-
 };
 
 

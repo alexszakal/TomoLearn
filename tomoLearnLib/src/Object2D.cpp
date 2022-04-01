@@ -15,7 +15,8 @@
 #include <thread>
 
 Object2D::Object2D(const std::string& imageFilePath,
-				   const std::array<double, 2>& objPixSizes):
+				   const std::array<double, 2>& objPixSizes,
+				   bool convertFromHUtoLA):
 															objPixSizes{objPixSizes} // @suppress("Symbol is not resolved")
 				   {
 	//Read the image file
@@ -26,6 +27,12 @@ Object2D::Object2D(const std::string& imageFilePath,
 		for(uint j=0; j<imageLoader._height; ++j){
 			objData(i,j) = imageLoader(i,j);
 		}
+	}
+
+	//Convert Hounsfield (HU) to linear attenuation (LA) units
+	if(convertFromHUtoLA){
+		double muWater = 0.02; //Linear attenuation coeff. of water [1/mm]!!!!
+		objData = (objData.array()-1000.0) * (muWater/1000) + muWater;   // HU -> LA transform
 	}
 
 	numberOfPixels = {static_cast<int>(objData.rows()), static_cast<int>(objData.cols())};
@@ -101,7 +108,7 @@ Object2D::Object2D(const Eigen::MatrixXd& inData, const std::array<double, 2>& o
 	}
 	yPixCentreCoords.resize(numberOfPixels[1]);
 	for(int i=0; i<numberOfPixels[1]; i++){
-		yPixCentreCoords[i]=-1*objWidthHeightInMM[1]/2+(i+0.5)*objPixSizes[1];
+		yPixCentreCoords[i]=1*objWidthHeightInMM[1]/2-(i+0.5)*objPixSizes[1];
 	}
 }
 

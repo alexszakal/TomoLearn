@@ -13,6 +13,22 @@
 
 #include <config.h>
 
+enum class projectorType{pixelDriven,
+                         Siddon,
+                         rayDriven,
+						 rayDrivenOptimized
+                         };
+
+enum class backprojectorType{pixelDriven,
+                             rayDriven
+                             };
+
+enum class regularizerType{none,
+						   quadratic,
+						   Huber,
+						   Gibbs
+						   };
+
 class Gen1CT{
 public:
 	Gen1CT();      //REGI
@@ -20,7 +36,8 @@ public:
 
 	void addPhantom(const std::string& label,
 			        const std::string& phantomImageSource,
-					std::array<double, 2> pixSizes={0.1, 0.1});
+					std::array<double, 2> pixSizes={0.1, 0.1},
+					bool convertFromHUtoLA = false);
 
 	void addPhantom(const Phantom& newPhantom);
 
@@ -28,11 +45,23 @@ public:
 
     void setI0(double newI0);
 
+    void measure(const std::string& label, const Eigen::VectorXd& angles, const std::string& scanLabel, projectorType projector);
+
+    Eigen::MatrixXd project(const Phantom& actualPhantom, const Eigen::VectorXd& angles, projectorType projector);
+
 	void measure_withInterpolation(const std::string& label, const Eigen::VectorXd& angles, const std::string& scanLabel);
+
+	Eigen::MatrixXd project_pixelDriven_CPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles);
 
 	void measure_Siddon(const std::string& label, const Eigen::VectorXd& angles, const std::string& scanLabel);
 
+	Eigen::MatrixXd project_Siddon_CPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles);
+
 	void measure_HaoGao(const std::string& phantomLabel, const Eigen::VectorXd& angles, const std::string& scanLabel);
+
+	Eigen::MatrixXd project_rayDriven_CPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles);
+
+	Eigen::MatrixXd project_rayDrivenOptimized_CPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles);
 
 	void displayMeasurement(const std::string& label);
 
@@ -43,14 +72,39 @@ public:
 							 const std::array<double,2>& resolution,
 							 FilterType filterType,
 							 double cutOffFreq,
-							 std::string backProjectAlgo,
+							 backprojectorType backProjectAlgo,
 							 const std::string& imageID);
 
+	void MLEMReconst(std::string sinogramID,
+				     const std::array<int,2>& numberOfRecPoints,
+					 const std::array<double,2>& resolution,
+					 projectorType projectAlgo,
+					 backprojectorType backProjectAlgo,
+					 const std::string& imageID,
+					 int numberOfIterations);
+
+	void SPSReconst(std::string sinogramID,
+				     const std::array<int,2>& numberOfRecPoints,
+					 const std::array<double,2>& resolution,
+					 projectorType projectAlgo,
+					 backprojectorType backProjectAlgo,
+					 const std::string& imageID,
+					 int numberOfIterations,
+					 regularizerType regularizerFunction,
+					 double beta=1000.0,
+					 double delta=0.004);
+
 	CTScan applyFilter(const std::string& sinogramID, Filter filter);
-	Eigen::MatrixXd backProject(const CTScan& sinogram, const std::array<int,2>& numberOfRecPoints,
+
+	Eigen::MatrixXd backProject(const CTScan& sinogram,
+										const std::array<int,2>& numberOfRecPoints,
+										const std::array<double,2>& resolution,
+										backprojectorType backProjector);
+
+	Eigen::MatrixXd backProject_pixelDriven_CPU(const CTScan& sinogram, const std::array<int,2>& numberOfRecPoints,
 			                                 const std::array<double,2>& resolution);
 
-	Eigen::MatrixXd backProject_HaoGao_CPU(const CTScan& sinogram, const std::array<int,2>& numberOfRecPoints,
+	Eigen::MatrixXd backProject_rayDriven_CPU(const CTScan& sinogram, const std::array<int,2>& numberOfRecPoints,
 				                                 const std::array<double,2>& resolution);
 
 	void displayReconstruction(const std::string& label);
@@ -66,7 +120,7 @@ public:
 private:
 	const double detWidth;
 	const size_t pixNum;
-	std::vector<double> pixPositions;
+	std::vector<double> pixPositions; ///Positon of the pixel centers
 
 	double I0 = 3.0;   //Intensity of the tube
 
