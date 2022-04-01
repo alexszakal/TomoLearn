@@ -63,6 +63,8 @@ public:
 
 	Eigen::MatrixXd project_rayDrivenOptimized_CPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles);
 
+	Eigen::MatrixXd project_rayDriven_GPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles);
+
 	void displayMeasurement(const std::string& label);
 
 	CTScan getMeasurement(const std::string& label);

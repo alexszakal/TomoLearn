@@ -1585,6 +1585,41 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 }
 
 
+/***
+ * Ray driven projection (Hao Gao method) implemented on the GPU
+ * @param actualPhantom The phantom which should be projected
+ * @param angles Vector of projection angles
+ * @return Returns the sinogram of the actualPhantom
+ */
+Eigen::MatrixXd Gen1CT::project_rayDriven_GPU(const Phantom& actualPhantom,
+		                    const Eigen::VectorXd& angles){
+	std::cout << std::endl << "Projection with ray-driven method started" << std::endl;
+	auto start = std::chrono::high_resolution_clock::now();
+
+	int numAngles = angles.size();
+
+	Eigen::MatrixXd sinogram = Eigen::MatrixXd::Zero(static_cast<long>(pixNum), static_cast<long>(numAngles));
+
+	auto pixSizes = actualPhantom.getPixSizes();
+	auto numberOfPixels = actualPhantom.getNumberOfPixels();
+
+	    ////////////////////////////////////////////////////////////////////////////////
+	    /// Projection with ray-driven method on GPU STARTS here !!
+	    ////////////////////////////////////////////////////////////////////////////////
+
+
+	    ////////////////////////////////////////////////////////////////////////////////
+	    /// Projection with ray-driven method on GPU ENDS here !!
+	    ////////////////////////////////////////////////////////////////////////////////
+
+	    auto stop = std::chrono::high_resolution_clock::now();
+	    auto duration = std::chrono::duration_cast<std::chrono::milliseconds >(stop - start);
+	    std::cout << "Projection with ray-driven method took " << duration.count() << " milliseconds" << std::endl;
+
+	    return sinogram;
+	}
+
+}
 
 
 

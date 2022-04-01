@@ -25,4 +25,6 @@ void Gen1CT::printGpuParameters(){
 	           2.0*prop.memoryClockRate*(prop.memoryBusWidth/8)/1.0e6);
 	}
 }
+
+
 #endif
