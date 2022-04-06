@@ -17,7 +17,7 @@
 
 #include <config.h>
 
-void testHaoGaoTransform_CPU( const std::string& phantomName );
+void testHaoGaoTransform_CPU( const std::string& phantomName, bool useGPU );
 
 //TODO: A ct.compareRowPhantomAndReconst() Mukodjon. HA fajlbol olvasunk, akkor 1000-et ki kell vonni, mert akkor kapjuk meg HU unitban!
 
@@ -36,18 +36,20 @@ void testHaoGaoTransform_CPU( const std::string& phantomName );
 int main(){
 
 	//testHaoGaoTransform_CPU( "SD" );
-	testHaoGaoTransform_CPU( "modSL" );
+	testHaoGaoTransform_CPU( "modSL", true );
 
 	std::cin.ignore();
 
 	return 0;
 }
 
-void testHaoGaoTransform_CPU(const std::string& phantomName){
-	/**
-	 * Compare the numerical and analytic X-ray transform of an ellipse
-	 * the HaoGao method is used for the projection operator
-	 */
+/***
+ * Compare the numerical and analytic X-ray transform of an ellipse
+ * the ray-driven method developed by Hao Gao is used
+ * @param phantomName "SL" Shepp-Logan or "modSL" modified Shepp-Logan phantoms are available
+ * @param useGPU Use the GPU acceleration
+ */
+void testHaoGaoTransform_CPU(const std::string& phantomName, bool useGPU){
 
 	std::cout << "Parallel beam projection simulation using the method proposed by Hao Gao" << std::endl;
 
@@ -136,7 +138,10 @@ void testHaoGaoTransform_CPU(const std::string& phantomName){
 
 	ct.displayPhantom(phantomName);
 
-	ct.measure(phantomName, angles, "HaoGaoSinogram", projectorType::rayDriven);
+	if(useGPU)
+		ct.measure(phantomName, angles, "HaoGaoSinogram", projectorType::rayDriven_GPU);
+	else
+		ct.measure(phantomName, angles, "HaoGaoSinogram", projectorType::rayDriven);
 
 	ct.displayMeasurement("HaoGaoSinogram");
 

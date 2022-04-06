@@ -6,7 +6,19 @@
 #if ENABLE_CUDA
 
 #include <cuda_runtime.h>
-#include <device_launch_parameters.h>
+//#include <device_launch_parameters.h>
+
+#define checkCudaErrors(val) check( (val), #val, __FILE__, __LINE__)
+
+template<typename T>
+void check(T err, const char* const func, const char* const file, const int line) {
+  if (err != cudaSuccess) {
+    std::cerr << "CUDA error at: " << file << ":" << line << std::endl;
+    std::cerr << cudaGetErrorString(err) << " " << func << std::endl;
+    exit(1);
+  }
+}
+
 
 void Gen1CT::printGpuParameters(){
 	int nDevices;
@@ -26,5 +38,45 @@ void Gen1CT::printGpuParameters(){
 	}
 }
 
+/***
+ * Ray driven projection (Hao Gao method) implemented on the GPU
+ * @param actualPhantom The phantom which should be projected
+ * @param angles Vector of projection angles
+ * @return Returns the sinogram of the actualPhantom
+ */
+Eigen::MatrixXd Gen1CT::project_rayDriven_GPU(const Phantom& actualPhantom,
+		                    const Eigen::VectorXd& angles){
+	std::cout << std::endl << "Projection with ray-driven method started" << std::endl;
+	auto start = std::chrono::high_resolution_clock::now();
+
+	int numAngles = angles.size();
+
+	Eigen::MatrixXd sinogram = Eigen::MatrixXd::Zero(static_cast<long>(pixNum), static_cast<long>(numAngles));
+
+	auto pixSizes = actualPhantom.getPixSizes();
+	auto numberOfPixels = actualPhantom.getNumberOfPixels();
+
+	////////////////////////////////////////////////////////////////////////////////
+	/// Projection with ray-driven method on GPU STARTS here !!
+	////////////////////////////////////////////////////////////////////////////////
+	double *d_phantom;
+	std::array<int, 2> numPixels = actualPhantom.getNumberOfPixels();
+	checkCudaErrors(cudaMalloc(&d_phantom, sizeof(double) * numPixels[0]*numPixels[1] ));
+	checkCudaErrors(cudaMemcpy(d_phantom, actualPhantom.getDataAsEigenMatrixRef().data(),
+			                   sizeof(double) * numPixels[0]*numPixels[1], cudaMemcpyHostToDevice));
+
+	std::cout << "Itt tartok";
+
+
+	////////////////////////////////////////////////////////////////////////////////
+	/// Projection with ray-driven method on GPU ENDS here !!
+	////////////////////////////////////////////////////////////////////////////////
+
+	auto stop = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds >(stop - start);
+	std::cout << "Projection with ray-driven method took " << duration.count() << " milliseconds" << std::endl;
+
+	return sinogram;
+}
 
 #endif
