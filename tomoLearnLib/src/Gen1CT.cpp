@@ -133,6 +133,7 @@ void Gen1CT::measure(const std::string& phantomLabel,
 	Eigen::MatrixXd Isinogram;   //TODO Isinogram -> sinogram
 	if(I0 !=0.0){ //Simulation of the effect of statistics on the line integrals has to be done
 		//Calculate the expected value
+
 		Isinogram = Eigen::exp( sinogram.array()* (-1.0) ) * I0 ;
 
 		//Randomize the matrix

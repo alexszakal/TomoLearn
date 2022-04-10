@@ -116,7 +116,8 @@ void testHaoGaoTransform_CPU(const std::string& phantomName, bool useGPU){
 	int detWidthInMM { 110 };
 	int detPixNum { 512 };
 	Gen1CT ct(detWidthInMM, detPixNum);
-	ct.setI0(0.0);
+	//ct.setI0(0.0);
+	ct.setI0(1e5);
 
 	const int numProjections{180};
 	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0.0/180.0 * M_PI,
@@ -153,6 +154,8 @@ void testHaoGaoTransform_CPU(const std::string& phantomName, bool useGPU){
 	ct.displayMeasurement("HaoGaoSinogram");
 
 	CTScan numericalSinogram = ct.getMeasurement("HaoGaoSinogram");
+
+
 
 	if( (phantomName == "SL") or (phantomName == "modSL")){
 
