@@ -16,7 +16,8 @@
 enum class projectorType{pixelDriven,
                          Siddon,
                          rayDriven,
-						 rayDrivenOptimized
+						 rayDrivenOptimized,
+						 rayDriven_GPU
                          };
 
 enum class backprojectorType{pixelDriven,

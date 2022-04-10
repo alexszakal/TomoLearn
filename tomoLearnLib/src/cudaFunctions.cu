@@ -65,7 +65,6 @@ Eigen::MatrixXd Gen1CT::project_rayDriven_GPU(const Phantom& actualPhantom,
 	checkCudaErrors(cudaMemcpy(d_phantom, actualPhantom.getDataAsEigenMatrixRef().data(),
 			                   sizeof(double) * numPixels[0]*numPixels[1], cudaMemcpyHostToDevice));
 
-	std::cout << "Itt tartok";
 
 
 	////////////////////////////////////////////////////////////////////////////////
