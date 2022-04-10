@@ -138,10 +138,17 @@ void testHaoGaoTransform_CPU(const std::string& phantomName, bool useGPU){
 
 	ct.displayPhantom(phantomName);
 
-	if(useGPU)
+	if(useGPU){
+#if ENABLE_CUDA
 		ct.measure(phantomName, angles, "HaoGaoSinogram", projectorType::rayDriven_GPU);
-	else
+#else
+		std::cout << "\nCUDA is not allowed, fallback to CPU projector!!";
 		ct.measure(phantomName, angles, "HaoGaoSinogram", projectorType::rayDriven);
+#endif
+	}
+	else{
+		ct.measure(phantomName, angles, "HaoGaoSinogram", projectorType::rayDriven);
+	}
 
 	ct.displayMeasurement("HaoGaoSinogram");
 

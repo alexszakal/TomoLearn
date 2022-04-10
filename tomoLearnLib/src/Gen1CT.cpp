@@ -21,7 +21,6 @@
 #include <random>
 #include <algorithm> //std::min and std::max and std::clamp
 
-
 #include <config.h>
 
 
@@ -171,9 +170,11 @@ Eigen::MatrixXd Gen1CT::project(const Phantom& actualPhantom, const Eigen::Vecto
 		case projectorType::rayDriven:
 			sinogram = project_rayDriven_CPU(actualPhantom, angles);
 			break;
+#if ENABLE_CUDA
 		case projectorType::rayDriven_GPU:
 			sinogram = project_rayDriven_GPU(actualPhantom, angles);
 			break;
+#endif
 		case projectorType::rayDrivenOptimized:
 			sinogram = project_rayDrivenOptimized_CPU(actualPhantom, angles);
 			break;
@@ -1190,14 +1191,13 @@ Eigen::MatrixXd Gen1CT::backProject_rayDriven_CPU(const CTScan& sinogram,
 	return backProjection;
 }
 
+/***
+ * Filtering using the Filter functor
+ * @param sinogramID
+ * @param filter Filter class object
+ * @return CTScan object with the filtered sinogram
+ */
 CTScan Gen1CT::applyFilter(const std::string& sinogramID, Filter filter){
-	/**
-	 * Filtering using Ram-Lak filter
-	 * Input:
-	 * 		-sinogramID
-	 * Output:
-	 * 		-CTScan object with the filtered sinogram
-	 */
 
 	//Timing
 	std::cout << "Filtering started" << std::endl;
@@ -1252,11 +1252,14 @@ void Gen1CT::filteredBackProject(std::string sinogramID,
 	}
 
 	//Convert the counts to line integrals
-	scans[sinogramID].convertToLineIntegrals();
+	CTScan tmpFBPSinogram = scans[sinogramID];
+	tmpFBPSinogram.convertToLineIntegrals();
+	scans.emplace("tmpSinogram", tmpFBPSinogram);
+	sinogramID="tmpSinogram";
 
 	//Apply filter on the sinogram
 	CTScan filteredScan = applyFilter(sinogramID, Filter(filterType, cutOffFreq) );
-	filteredScan.display(sinogramID + " filtered");
+	//filteredScan.display(sinogramID + " filtered");
 
 	//Backproject the image
 	Eigen::MatrixXd backprojectedImage;
@@ -1269,6 +1272,7 @@ void Gen1CT::filteredBackProject(std::string sinogramID,
 		reconsts.erase(it);
 	}
 	reconsts.emplace(imageID, Reconst(imageID, backprojectedImage, resolution));
+	scans.erase("tmpSinogram");
 }
 
 void Gen1CT::displayReconstruction(const std::string& label){
@@ -1491,10 +1495,21 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 	}
 	//normFactors.display("normFactors");
 
-	//initialize the image
+
+	filteredBackProject(sinogramID, numberOfRecPoints,
+			resolution, FilterType::RamLak, 0.5, backProjectAlgo,
+			"FBPrecImage");
+
 	Phantom reconstImage("reconstructedImage",
-			             Eigen::MatrixXd::Ones(numberOfRecPoints[0], numberOfRecPoints[1])*muWater,
+			             reconsts["FBPrecImage"].getDataAsEigenMatrixRef().cwiseMax(0.0),
 						 resolution);
+	reconsts.erase("FBPrecImage");
+	//reconstImage.display("InitialImage");
+	//std::cin.get();
+
+	//Phantom reconstImage("reconstructedImage",
+	//		             Eigen::MatrixXd::Ones(numberOfRecPoints[0], numberOfRecPoints[1])*muWater,
+	//					 resolution);
 
 	//START the ITERATION
 	for(int itNumber = 0; itNumber < numberOfIterations; ++itNumber){
