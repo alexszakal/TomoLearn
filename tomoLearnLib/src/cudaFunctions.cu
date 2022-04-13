@@ -81,23 +81,15 @@ void rayDrivenKernel(const double* phantom, int numberOfPixelsX, int numberOfPix
     	const double yi_plusIncrement = -1 * ky*pixSizeRatio01;
     	//go through the columns of the image
     	for(int colIdx=0; colIdx<numberOfPixelsX; ++colIdx){
-    		//double yi_minus = ( halfPhantomHeight - (ky*( colIdx   *pixSizesX - halfPhantomWidth - p1[0] ) + p1[1] ) ) * invPixSize1; //Always on the left side of the column
-    		//double yi_plus  = ( halfPhantomHeight - (ky*((colIdx+1)*pixSizes[0] - halfPhantomWidth - p1[0] ) + p1[1] ) ) / pixSizes[1]; //Always on the right side of the column      //Optimized code in next line
-    		//double yi_plus = yi_minus - ky*pixSizeRatio01;
     		yi_minus += yi_minusIncrement;
     		double yi_plus = yi_minus + yi_plusIncrement;
 
     		int Yi_minusIdx = floor(yi_minus);
 	    	int Yi_plusIdx = floor(yi_plus);
 
-	    	//int Yi_minusIdx = static_cast<int>(yi_minus) - ( yi_minus < static_cast<int>(yi_minus));  //Seemingly faster floor, but not
-	    	//int Yi_plusIdx = static_cast<int>(yi_plus) - ( yi_plus < static_cast<int>(yi_plus));
-
 	    	double l_minus, l_plus; //intersecting lengths when crossing two pixels
 	    	if( Yi_minusIdx == Yi_plusIdx ){ //intersecting only one pixel
 	    		if( (Yi_minusIdx < numberOfPixelsY) and (Yi_minusIdx >= 0 ) ){
-	    			//l=sqrt(1+ky*ky)*pixSizes[0]; //Optimized away with pathInSinglePixel
-
 	    			sinoPointValue += pathInSinglePixel * phantom[Yi_minusIdx*numberOfPixelsX + colIdx];
 	    		}
 	    	}
@@ -141,22 +133,15 @@ void rayDrivenKernel(const double* phantom, int numberOfPixelsX, int numberOfPix
 	   	const double xi_minusIncrement = -1*kx*invPixSize0*pixSizesY;
 	   	const double xi_plusIncrement = -1*kx*pixSizeRatio10;
 	    for(int rowIdx=0; rowIdx<numberOfPixelsY; ++rowIdx){
-	    	//double xi_plus  = (halfPhantomWidth + (kx*( halfPhantomHeight - (rowIdx+1) *pixSizes[1] - p1[1] ) + p1[0] ) ) / pixSizes[0];    //Optimized code in next line
-	    	//double xi_plus = xi_minus - kx*pixSizeRatio10;
 	    	xi_minus += xi_minusIncrement;
 	    	double xi_plus = xi_minus + xi_plusIncrement;
 
 	    	int Xi_minusIdx = floor(xi_minus);
 	        int Xi_plusIdx = floor(xi_plus);
 
-	        //int Xi_minusIdx = static_cast<int>(xi_minus) - ( xi_minus < static_cast<int>(xi_minus));  //seemingly faster floor, but NOT
-	        //int Xi_plusIdx = static_cast<int>(xi_plus) - ( xi_plus < static_cast<int>(xi_plus));
-
 	        double l_minus, l_plus; //intersecting lengths
 	        if( Xi_minusIdx == Xi_plusIdx ){
 	        	if( (Xi_minusIdx < numberOfPixelsX) and (Xi_minusIdx >= 0 ) ){
-	        		//l=sqrt(1+kx*kx)*pixSizes[1]; //Optimized away with pathInSinglePixel
-
 	        		sinoPointValue += pathInSinglePixel * phantom[rowIdx*numberOfPixelsX + Xi_minusIdx];
 	        	}
 	        }
