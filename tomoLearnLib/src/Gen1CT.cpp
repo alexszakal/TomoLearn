@@ -1636,7 +1636,7 @@ Eigen::MatrixXd Gen1CT::project_rayDriven_GPU(const Phantom& actualPhantom,
 
 	auto stop = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds >(stop - start);
-	std::cout << "Projection with ray-driven method took " << duration.count() << " milliseconds" << std::endl;
+	std::cout << "\nProjection with ray-driven method took " << duration.count() << " milliseconds\n";
 
 	return sinogram;
 }

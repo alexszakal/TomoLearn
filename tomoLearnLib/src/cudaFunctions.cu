@@ -49,17 +49,11 @@ void rayDrivenKernel(const double* phantom, int numberOfPixelsX, int numberOfPix
 
 	//trigonometric functions of the angles
 	double theta = angles [angIdx];
-	double sinTheta = sin(theta); //TODO: hasznaljuk a sincos fuggvenyt!!!!
-	double cosTheta = cos(theta);
+	double sinTheta, cosTheta;
+	sincos(theta, &sinTheta, &cosTheta);
 
 	//Distance of the detector plane from origin which is outside of the phantom
 	double detDist = 1.1 * sqrt(pow(pixSizesX*numberOfPixelsX, 2) + pow(pixSizesY*numberOfPixelsY, 2) ); //Distance between the detector plane and centre of rotation
-
-	const double invPixSize0 = 1 / pixSizesX;
-	const double invPixSize1 = 1 / pixSizesY;
-
-	const double pixSizeRatio01 = pixSizesX / pixSizesY;
-	const double pixSizeRatio10 = pixSizesY / pixSizesX;
 
 	double p1[2];
 	double p2[2];
@@ -68,6 +62,8 @@ void rayDrivenKernel(const double* phantom, int numberOfPixelsX, int numberOfPix
 
 	//beam intersects the columns at most two pixels
 	if( pixSizesY / pixSizesX >= std::abs(std::tan(M_PI/2-theta)) ){
+		const double invPixSize1 = 1 / pixSizesY;
+		const double pixSizeRatio01 = pixSizesX / pixSizesY;
 
 	    const double t = -1*numDetPixels*detPixSize/2+(detPixIdx+0.5)*detPixSize;
 
@@ -102,7 +98,7 @@ void rayDrivenKernel(const double* phantom, int numberOfPixelsX, int numberOfPix
 	    		if( (Yi_minusIdx < numberOfPixelsY) and (Yi_minusIdx >= 0 ) ){
 	    			//l=sqrt(1+ky*ky)*pixSizes[0]; //Optimized away with pathInSinglePixel
 
-	    			sinoPointValue += pathInSinglePixel * phantom[Yi_minusIdx*numberOfPixelsX + colIdx];  //TODO: sinogram helyett egy temp valtozoba gyujtogessuk!
+	    			sinoPointValue += pathInSinglePixel * phantom[Yi_minusIdx*numberOfPixelsX + colIdx];
 	    		}
 	    	}
 	    	else{
@@ -126,6 +122,8 @@ void rayDrivenKernel(const double* phantom, int numberOfPixelsX, int numberOfPix
 	    }
 	}
 	else{      //beam intersects the rows at most two pixels
+		const double invPixSize0 = 1 / pixSizesX;
+		const double pixSizeRatio10 = pixSizesY / pixSizesX;
 
 		const double t = -1*numDetPixels*detPixSize/2+(detPixIdx+0.5)*detPixSize;
 
@@ -219,7 +217,6 @@ void launchRayDrivenKernel(const double* phantomData, std::array<int, 2> numberO
 
 	double *d_sinogram;
 	checkCudaErrors(cudaMalloc(&d_sinogram, sizeof(double) * numAngles * pixNum ));
-	checkCudaErrors(cudaMemset(d_sinogram, 0, sizeof(double) * numAngles * pixNum )); //TODO: Lehet h jobb/gyorsabb ha a kernelben nullazzuk?
 
 	double *d_angles;
 	checkCudaErrors(cudaMalloc(&d_angles, sizeof(double) * numAngles ));
