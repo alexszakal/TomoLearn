@@ -1603,7 +1603,7 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 	reconsts.emplace(imageID, Reconst(imageID, reconstImage.getDataAsEigenMatrixRef(), resolution));
 }
 
-
+#if ENABLE_CUDA
 /***
  * Ray driven projection (Hao Gao method) implemented on the GPU
  * @param actualPhantom The phantom which should be projected
@@ -1640,7 +1640,7 @@ Eigen::MatrixXd Gen1CT::project_rayDriven_GPU(const Phantom& actualPhantom,
 
 	return sinogram;
 }
-
+#endif
 
 
 
