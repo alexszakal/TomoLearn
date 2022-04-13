@@ -7,6 +7,7 @@
 #include <Reconst.hpp>
 #include <CTScan.hpp>
 #include <Filter.hpp>
+#include <cudaFunctions.cuh>
 
 #include <matplotlibcpp.h>
 
@@ -153,7 +154,6 @@ void Gen1CT::measure(const std::string& phantomLabel,
 	else{
 		Isinogram = sinogram;
 	}
-
 	scans.emplace(scanLabel, CTScan(scanLabel,Isinogram, detWidth, angles, I0));
 }
 
@@ -215,7 +215,7 @@ Eigen::MatrixXd Gen1CT::project_rayDriven_CPU(const Phantom& actualPhantom,
     }
 
     //Distance of the detector plane from origin which is outside of the phantom
-    double detDist = 1.1 * sqrt(pow(pixSizes[0]*numberOfPixels[0], 2) + pow(pixSizes[1]*numberOfPixels[1], 2) ); //Distance between the detector plane and centre of rotation
+    double detDist = 1.1 * std::sqrt(std::pow(pixSizes[0]*numberOfPixels[0], 2) + pow(pixSizes[1]*numberOfPixels[1], 2) ); //Distance between the detector plane and centre of rotation
 
     const double* dataPtr=actualPhantom.getDataAsEigenMatrixRef().data();
 
@@ -518,7 +518,7 @@ Eigen::MatrixXd Gen1CT::project_rayDrivenOptimized_CPU(const Phantom& actualPhan
 									const double l_minus=(std::max(Yi_minusIdx, Yi_plusIdx)-yi_minus) / (yi_plus - yi_minus) * pathInSinglePixel;
 
 									sinogramPtr[sinogramPoint] += l_minus * dataPtr[Yi_minusIdx*numberOfPixels[0] + colIdx];
-									//We hale l_minus -> we can calculate l_plus with only a subtraction from pathInSinglePixel
+									//We have l_minus -> we can calculate l_plus with only a subtraction from pathInSinglePixel
 									if( (Yi_plusIdx <= rowIdxMax) and (Yi_plusIdx >= rowIdxMin ) ){
 										sinogramPtr[sinogramPoint] += (pathInSinglePixel- l_minus) * dataPtr[Yi_plusIdx*numberOfPixels[0] + colIdx];
 										continue;
@@ -600,7 +600,7 @@ Eigen::MatrixXd Gen1CT::project_rayDrivenOptimized_CPU(const Phantom& actualPhan
 									l_minus=(std::max(Xi_minusIdx, Xi_plusIdx)-xi_minus) / (xi_plus - xi_minus) * pathInSinglePixel;
 
 									sinogramPtr[sinogramPoint] += l_minus * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
-									//We hale l_minus -> we can calculate l_plus with only a subtraction from pathInSinglePixel
+									//We have l_minus -> we can calculate l_plus with only a subtraction from pathInSinglePixel
 									if ( (Xi_plusIdx <= colIdxMax) and (Xi_plusIdx >= colIdxMin ) ){   //Shortcut to avoid one more std::max call
 										sinogramPtr[sinogramPoint] += (pathInSinglePixel-l_minus) * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
 										continue;
@@ -1604,6 +1604,42 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 }
 
 
+/***
+ * Ray driven projection (Hao Gao method) implemented on the GPU
+ * @param actualPhantom The phantom which should be projected
+ * @param angles Vector of projection angles
+ * @return Returns the sinogram of the actualPhantom
+ */
+Eigen::MatrixXd Gen1CT::project_rayDriven_GPU(const Phantom& actualPhantom,
+		                    const Eigen::VectorXd& angles){
+	std::cout << std::endl << "Projection with ray-driven method started" << std::endl;
+	auto start = std::chrono::high_resolution_clock::now();
+
+	int numAngles = angles.size();
+
+	Eigen::MatrixXd sinogram = Eigen::MatrixXd::Zero(static_cast<long>(pixNum), static_cast<long>(numAngles));
+
+	auto pixSizes = actualPhantom.getPixSizes();
+	auto numberOfPixels = actualPhantom.getNumberOfPixels();
+
+	////////////////////////////////////////////////////////////////////////////////
+	/// Projection with ray-driven method on GPU STARTS here !!
+	////////////////////////////////////////////////////////////////////////////////
+
+	launchRayDrivenKernel(actualPhantom.getDataAsEigenMatrixRef().data(), numberOfPixels, pixSizes,
+			              numAngles, angles.data(), pixNum, detWidth,
+						  sinogram.data());
+
+	////////////////////////////////////////////////////////////////////////////////
+	/// Projection with ray-driven method on GPU ENDS here !!
+	////////////////////////////////////////////////////////////////////////////////
+
+	auto stop = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds >(stop - start);
+	std::cout << "Projection with ray-driven method took " << duration.count() << " milliseconds" << std::endl;
+
+	return sinogram;
+}
 
 
 

@@ -2,6 +2,7 @@
 
 #include <config.h>
 #include <cstdio>
+#include <chrono>
 
 #if ENABLE_CUDA
 
@@ -26,7 +27,7 @@ void check(T err, const char* const func, const char* const file, const int line
  * @return Returns void
  */
 __global__
-void rayDrivenKernel(double* phantom, int numberOfPixelsX, int numberOfPixelsY, double pixSizesX, double pixSizesY,
+void rayDrivenKernel(const double* phantom, int numberOfPixelsX, int numberOfPixelsY, double pixSizesX, double pixSizesY,
 		             double* sinogram, int numAngles, double* angles, int numDetPixels, double detPixSize ){
 
 	int detPixIdx = blockIdx.x*blockDim.x + threadIdx.x;
@@ -41,20 +42,10 @@ void rayDrivenKernel(double* phantom, int numberOfPixelsX, int numberOfPixelsY, 
 		return;
 	}
 
+	int sinogramDataIdx = angIdx*numDetPixels + detPixIdx; //Column-major order!
 
-	int numberOfPixels[2];
-	numberOfPixels[0]=numberOfPixelsX;
-	numberOfPixels[1]=numberOfPixelsY;
-
-	double pixSizes[2];
-	pixSizes[0]=pixSizesX;
-	pixSizes[1]=pixSizesY;
-
-	int sinogramDataIdx = detPixIdx*numAngles + angIdx; //Column-major order!
-	sinogramDataIdx =     angIdx*numDetPixels + detPixIdx;
-
-	double halfPhantomWidth = numberOfPixels[0]*pixSizes[0]/2;
-	double halfPhantomHeight = numberOfPixels[1]*pixSizes[1]/2;
+	double halfPhantomWidth = numberOfPixelsX*pixSizesX/2;
+	double halfPhantomHeight = numberOfPixelsY*pixSizesY/2;
 
 	//trigonometric functions of the angles
 	double theta = angles [angIdx];
@@ -62,24 +53,23 @@ void rayDrivenKernel(double* phantom, int numberOfPixelsX, int numberOfPixelsY, 
 	double cosTheta = cos(theta);
 
 	//Distance of the detector plane from origin which is outside of the phantom
-	double detDist = 1.1 * sqrt(pow(pixSizes[0]*numberOfPixels[0], 2) + pow(pixSizes[1]*numberOfPixels[1], 2) ); //Distance between the detector plane and centre of rotation
+	double detDist = 1.1 * sqrt(pow(pixSizesX*numberOfPixelsX, 2) + pow(pixSizesY*numberOfPixelsY, 2) ); //Distance between the detector plane and centre of rotation
 
-	const double* dataPtr=phantom;    //TODO: rename dataPtr -> phantom
+	const double invPixSize0 = 1 / pixSizesX;
+	const double invPixSize1 = 1 / pixSizesY;
 
-	const double invPixSize0 = 1 / pixSizes[0];
-	const double invPixSize1 = 1 / pixSizes[1];
-
-	const double pixSizeRatio01 = pixSizes[0] / pixSizes[1];
-	const double pixSizeRatio10 = pixSizes[1] / pixSizes[0];
+	const double pixSizeRatio01 = pixSizesX / pixSizesY;
+	const double pixSizeRatio10 = pixSizesY / pixSizesX;
 
 	double p1[2];
 	double p2[2];
 
+	double sinoPointValue=0.0;  //Temporary local variable to accumulate result
+
 	//beam intersects the columns at most two pixels
+	if( pixSizesY / pixSizesX >= std::abs(std::tan(M_PI/2-theta)) ){
 
-	if( pixSizes[1] / pixSizes[0] >= std::abs(std::tan(M_PI/2-theta)) ){
-
-	    double t = -1*numDetPixels*detPixSize/2+(detPixIdx+0.5)*detPixSize;
+	    const double t = -1*numDetPixels*detPixSize/2+(detPixIdx+0.5)*detPixSize;
 
 	    p1[0]=detDist * sinTheta + t * cosTheta;
 	    p1[1]=-1*detDist * cosTheta + t * sinTheta;
@@ -87,14 +77,19 @@ void rayDrivenKernel(double* phantom, int numberOfPixelsX, int numberOfPixelsY, 
 	    p2[0] = -1 * detDist * sinTheta + t * cosTheta;
 	    p2[1] = detDist * cosTheta + t * sinTheta;
 
-    	double ky = (p1[1]-p2[1])/(p1[0]-p2[0]);
-    	double pathInSinglePixel = sqrt(1+ky*ky)*pixSizes[0];
+    	const double ky = (p1[1]-p2[1])/(p1[0]-p2[0]);
+    	const double pathInSinglePixel = sqrt(1+ky*ky)*pixSizesX;
 
+    	double yi_minus = ( halfPhantomHeight - (ky*( (-1)   *pixSizesX - halfPhantomWidth - p1[0] ) + p1[1] ) ) * invPixSize1;
+    	const double yi_minusIncrement = -1*ky*invPixSize1*pixSizesX;
+    	const double yi_plusIncrement = -1 * ky*pixSizeRatio01;
     	//go through the columns of the image
-    	for(int colIdx=0; colIdx<numberOfPixels[0]; ++colIdx){
-    		double yi_minus = ( halfPhantomHeight - (ky*( colIdx   *pixSizes[0] - halfPhantomWidth - p1[0] ) + p1[1] ) ) * invPixSize1; //Always on the left side of the column
+    	for(int colIdx=0; colIdx<numberOfPixelsX; ++colIdx){
+    		//double yi_minus = ( halfPhantomHeight - (ky*( colIdx   *pixSizesX - halfPhantomWidth - p1[0] ) + p1[1] ) ) * invPixSize1; //Always on the left side of the column
     		//double yi_plus  = ( halfPhantomHeight - (ky*((colIdx+1)*pixSizes[0] - halfPhantomWidth - p1[0] ) + p1[1] ) ) / pixSizes[1]; //Always on the right side of the column      //Optimized code in next line
-    		double yi_plus = yi_minus - ky*pixSizeRatio01;
+    		//double yi_plus = yi_minus - ky*pixSizeRatio01;
+    		yi_minus += yi_minusIncrement;
+    		double yi_plus = yi_minus + yi_plusIncrement;
 
     		int Yi_minusIdx = floor(yi_minus);
 	    	int Yi_plusIdx = floor(yi_plus);
@@ -104,30 +99,35 @@ void rayDrivenKernel(double* phantom, int numberOfPixelsX, int numberOfPixelsY, 
 
 	    	double l_minus, l_plus; //intersecting lengths when crossing two pixels
 	    	if( Yi_minusIdx == Yi_plusIdx ){ //intersecting only one pixel
-	    		if( (Yi_minusIdx < numberOfPixels[1]) and (Yi_minusIdx >= 0 ) ){
+	    		if( (Yi_minusIdx < numberOfPixelsY) and (Yi_minusIdx >= 0 ) ){
 	    			//l=sqrt(1+ky*ky)*pixSizes[0]; //Optimized away with pathInSinglePixel
 
-	    			sinogram[sinogramDataIdx] += pathInSinglePixel * dataPtr[Yi_minusIdx*numberOfPixels[0] + colIdx];
+	    			sinoPointValue += pathInSinglePixel * phantom[Yi_minusIdx*numberOfPixelsX + colIdx];  //TODO: sinogram helyett egy temp valtozoba gyujtogessuk!
 	    		}
 	    	}
 	    	else{
-	    		if ( (Yi_minusIdx < numberOfPixels[1]) and (Yi_minusIdx >= 0) ){
+	    		if ( (Yi_minusIdx < numberOfPixelsY) and (Yi_minusIdx >= 0) ){
 	    			l_minus=(max(Yi_minusIdx, Yi_plusIdx)-yi_minus) / (yi_plus - yi_minus) * pathInSinglePixel;
 
-	    			sinogram[sinogramDataIdx] += l_minus * dataPtr[Yi_minusIdx*numberOfPixels[0] + colIdx];
+	    			sinoPointValue += l_minus * phantom[Yi_minusIdx*numberOfPixelsX + colIdx];
+	    			//We have l_minus -> we can calculate l_plus with only a subtraction from pathInSinglePixel
+	    			if( (Yi_plusIdx < numberOfPixelsY) and (Yi_plusIdx >= 0 ) ){
+	    				sinoPointValue += (pathInSinglePixel- l_minus) * phantom[Yi_plusIdx*numberOfPixelsX + colIdx];
+	    				continue;
 	    			}
+	    		}
 
-	    		if ( (Yi_plusIdx < numberOfPixels[1]) and (Yi_plusIdx >= 0 ) ){
+	    		if ( (Yi_plusIdx < numberOfPixelsY) and (Yi_plusIdx >= 0 ) ){
 	    			l_plus=(yi_plus - max(Yi_minusIdx, Yi_plusIdx)) / (yi_plus - yi_minus) * pathInSinglePixel;
 
-	    			sinogram[sinogramDataIdx] += l_plus * dataPtr[Yi_plusIdx*numberOfPixels[0] + colIdx];
+	    			sinoPointValue += l_plus * phantom[Yi_plusIdx*numberOfPixelsX + colIdx];
 	    		}
 	    	}
 	    }
 	}
 	else{      //beam intersects the rows at most two pixels
 
-		double t = -1*numDetPixels*detPixSize/2+(detPixIdx+0.5)*detPixSize;
+		const double t = -1*numDetPixels*detPixSize/2+(detPixIdx+0.5)*detPixSize;
 
 	    p1[0]=detDist * sinTheta + t * cosTheta;
 	    p1[1]=-1*detDist * cosTheta + t * sinTheta;
@@ -135,15 +135,18 @@ void rayDrivenKernel(double* phantom, int numberOfPixelsX, int numberOfPixelsY, 
 	    p2[0] = -1 * detDist * sinTheta + t * cosTheta;
 	    p2[1] = detDist * cosTheta + t * sinTheta;
 
-	   	double kx = (p1[0]-p2[0])/(p1[1]-p2[1]);
-	   	double pathInSinglePixel = sqrt(1+kx*kx)*pixSizes[1];
+	   	const double kx = (p1[0]-p2[0])/(p1[1]-p2[1]);
+	   	const double pathInSinglePixel = sqrt(1+kx*kx)*pixSizesY;
 
 	   	//go through the rows of the image
-	    for(int rowIdx=0; rowIdx<numberOfPixels[1]; ++rowIdx){
-
-	    	double xi_minus = (halfPhantomWidth + (kx*( halfPhantomHeight - rowIdx     *pixSizes[1] - p1[1] ) + p1[0] ) )  * invPixSize0;
+	   	double xi_minus = (halfPhantomWidth + (kx*( halfPhantomHeight - (-1)*pixSizesY - p1[1] ) + p1[0] ) )  * invPixSize0;
+	   	const double xi_minusIncrement = -1*kx*invPixSize0*pixSizesY;
+	   	const double xi_plusIncrement = -1*kx*pixSizeRatio10;
+	    for(int rowIdx=0; rowIdx<numberOfPixelsY; ++rowIdx){
 	    	//double xi_plus  = (halfPhantomWidth + (kx*( halfPhantomHeight - (rowIdx+1) *pixSizes[1] - p1[1] ) + p1[0] ) ) / pixSizes[0];    //Optimized code in next line
-	    	double xi_plus = xi_minus - kx*pixSizeRatio10;
+	    	//double xi_plus = xi_minus - kx*pixSizeRatio10;
+	    	xi_minus += xi_minusIncrement;
+	    	double xi_plus = xi_minus + xi_plusIncrement;
 
 	    	int Xi_minusIdx = floor(xi_minus);
 	        int Xi_plusIdx = floor(xi_plus);
@@ -153,30 +156,36 @@ void rayDrivenKernel(double* phantom, int numberOfPixelsX, int numberOfPixelsY, 
 
 	        double l_minus, l_plus; //intersecting lengths
 	        if( Xi_minusIdx == Xi_plusIdx ){
-	        	if( (Xi_minusIdx < numberOfPixels[0]) and (Xi_minusIdx >= 0 ) ){
+	        	if( (Xi_minusIdx < numberOfPixelsX) and (Xi_minusIdx >= 0 ) ){
 	        		//l=sqrt(1+kx*kx)*pixSizes[1]; //Optimized away with pathInSinglePixel
 
-	        		sinogram[sinogramDataIdx] += pathInSinglePixel * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
+	        		sinoPointValue += pathInSinglePixel * phantom[rowIdx*numberOfPixelsX + Xi_minusIdx];
 	        	}
 	        }
 	        else{
-	        	if ( (Xi_minusIdx < numberOfPixels[0]) and (Xi_minusIdx >= 0 ) ){
-	        		l_minus=((Xi_minusIdx, Xi_plusIdx)-xi_minus) / (xi_plus - xi_minus) * pathInSinglePixel;
+	        	if ( (Xi_minusIdx < numberOfPixelsX) and (Xi_minusIdx >= 0 ) ){
+	        		l_minus=(max(Xi_minusIdx, Xi_plusIdx)-xi_minus) / (xi_plus - xi_minus) * pathInSinglePixel;
 
-	        		sinogram[sinogramDataIdx] += l_minus * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
+	        		sinoPointValue += l_minus * phantom[rowIdx*numberOfPixelsX + Xi_minusIdx];
+	        		//We have l_minus -> we can calculate l_plus with only a subtraction from pathInSinglePixel
+	        		if ( (Xi_plusIdx <= numberOfPixelsX) and (Xi_plusIdx >= 0 ) ){   //Shortcut to avoid one more std::max call
+	        			sinoPointValue += (pathInSinglePixel-l_minus) * phantom[rowIdx*numberOfPixelsX + Xi_minusIdx];
+	        			continue;
+	        		}
 	        	}
 
-	    		if ( (Xi_plusIdx < numberOfPixels[0]) and (Xi_plusIdx >= 0) ){
+	    		if ( (Xi_plusIdx <= numberOfPixelsX) and (Xi_plusIdx >= 0) ){
 	    			l_plus=(xi_plus - max(Xi_minusIdx, Xi_plusIdx)) / (xi_plus - xi_minus) * pathInSinglePixel;
 
-	    			sinogram[sinogramDataIdx] += l_plus * dataPtr[rowIdx*numberOfPixels[0] + Xi_plusIdx];
+	    			sinoPointValue += l_plus * phantom[rowIdx*numberOfPixelsX + Xi_plusIdx];
 	        	}
 	        }
 	    }
 	}
 
-}
+	sinogram[sinogramDataIdx] = sinoPointValue; //Write the result to global memory
 
+}
 
 void Gen1CT::printGpuParameters(){
 	int nDevices;
@@ -196,32 +205,16 @@ void Gen1CT::printGpuParameters(){
 	}
 }
 
-/***
- * Ray driven projection (Hao Gao method) implemented on the GPU
- * @param actualPhantom The phantom which should be projected
- * @param angles Vector of projection angles
- * @return Returns the sinogram of the actualPhantom
- */
-Eigen::MatrixXd Gen1CT::project_rayDriven_GPU(const Phantom& actualPhantom,
-		                    const Eigen::VectorXd& angles){
-	std::cout << std::endl << "Projection with ray-driven method started" << std::endl;
+void launchRayDrivenKernel(const double* phantomData, std::array<int, 2> numberOfPixels, std::array<double, 2> pixSizes,
+		                   int numAngles, const double* anglesData, int pixNum, double detWidth,
+						   double* sinogramData){
+
 	auto start = std::chrono::high_resolution_clock::now();
 
-	int numAngles = angles.size();
-
-	Eigen::MatrixXd sinogram = Eigen::MatrixXd::Zero(static_cast<long>(pixNum), static_cast<long>(numAngles));
-
-	auto pixSizes = actualPhantom.getPixSizes();
-	auto numberOfPixels = actualPhantom.getNumberOfPixels();
-
-	////////////////////////////////////////////////////////////////////////////////
-	/// Projection with ray-driven method on GPU STARTS here !!
-	////////////////////////////////////////////////////////////////////////////////
-/*
 	//Allocate space and copy data
 	double *d_phantom;
 	checkCudaErrors(cudaMalloc(&d_phantom, sizeof(double) * numberOfPixels[0]*numberOfPixels[1] ));
-	checkCudaErrors(cudaMemcpy(d_phantom, actualPhantom.getDataAsEigenMatrixRef().data(),
+	checkCudaErrors(cudaMemcpy(d_phantom, phantomData,
 			                   sizeof(double) * numberOfPixels[0]*numberOfPixels[1], cudaMemcpyHostToDevice));
 
 	double *d_sinogram;
@@ -230,34 +223,37 @@ Eigen::MatrixXd Gen1CT::project_rayDriven_GPU(const Phantom& actualPhantom,
 
 	double *d_angles;
 	checkCudaErrors(cudaMalloc(&d_angles, sizeof(double) * numAngles ));
-	checkCudaErrors(cudaMemcpy(d_angles, angles.data(),
-				                   sizeof(double) * numAngles, cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy(d_angles, anglesData,
+					                   sizeof(double) * numAngles, cudaMemcpyHostToDevice));
+
+	auto phase1 = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds >(phase1 - start);
+	std::cout << "\nMemory allocation and data transfer to GPU took " << duration.count() << " milliseconds";
 
 	//CALL THE PROJECTION KERNEL!!!!
 	const dim3 blockSize(16,16);
 	const dim3 gridSize(pixNum/blockSize.x+1,numAngles/blockSize.y+1);
 	rayDrivenKernel<<<gridSize, blockSize>>>(d_phantom, numberOfPixels[0], numberOfPixels[1], pixSizes[0], pixSizes[1],
-			                                 d_sinogram, numAngles, d_angles, pixNum, detWidth/pixNum);
+				                                 d_sinogram, numAngles, d_angles, pixNum, detWidth/pixNum);
 	cudaDeviceSynchronize();
 	checkCudaErrors(cudaGetLastError());
 
+	auto phase2 = std::chrono::high_resolution_clock::now();
+	duration = std::chrono::duration_cast<std::chrono::milliseconds >(phase2 - phase1);
+	std::cout << "\n Running the rayDriven projection kernel on GPU took " << duration.count() << " milliseconds";
+
 	//Read back the result and free memory
-	checkCudaErrors(cudaMemcpy(sinogram.data(), d_sinogram,
+	checkCudaErrors(cudaMemcpy(sinogramData, d_sinogram,
 					                   sizeof(double) * numAngles*pixNum, cudaMemcpyDeviceToHost));
 
 	cudaFree(d_sinogram);
 	cudaFree(d_phantom);
 	cudaFree(d_angles);
-*/
-	////////////////////////////////////////////////////////////////////////////////
-	/// Projection with ray-driven method on GPU ENDS here !!
-	////////////////////////////////////////////////////////////////////////////////
 
-	auto stop = std::chrono::high_resolution_clock::now();
-	auto duration = std::chrono::duration_cast<std::chrono::milliseconds >(stop - start);
-	std::cout << "Projection with ray-driven method took " << duration.count() << " milliseconds" << std::endl;
+	auto phase3 = std::chrono::high_resolution_clock::now();
+	duration = std::chrono::duration_cast<std::chrono::milliseconds >(phase3 - phase2);
+	std::cout << "\nCopy back results and free GPU memory took " << duration.count() << " milliseconds";
 
-	return sinogram;
 }
 
 #endif
