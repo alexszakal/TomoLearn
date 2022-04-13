@@ -17,7 +17,7 @@
 
 #include <config.h>
 
-void testHaoGaoTransform_CPU( const std::string& phantomName );
+void testRayDrivenProj( const std::string& phantomName, bool useGPU );
 
 //TODO: A ct.compareRowPhantomAndReconst() Mukodjon. HA fajlbol olvasunk, akkor 1000-et ki kell vonni, mert akkor kapjuk meg HU unitban!
 
@@ -36,18 +36,20 @@ void testHaoGaoTransform_CPU( const std::string& phantomName );
 int main(){
 
 	//testHaoGaoTransform_CPU( "SD" );
-	testHaoGaoTransform_CPU( "modSL" );
+	testRayDrivenProj( "modSL", true );
 
 	std::cin.ignore();
 
 	return 0;
 }
 
-void testHaoGaoTransform_CPU(const std::string& phantomName){
-	/**
-	 * Compare the numerical and analytic X-ray transform of an ellipse
-	 * the HaoGao method is used for the projection operator
-	 */
+/***
+ * Compare the numerical and analytic X-ray transform of an ellipse
+ * the ray-driven method developed by Hao Gao is used
+ * @param phantomName "SL" Shepp-Logan or "modSL" modified Shepp-Logan phantoms are available
+ * @param useGPU Use the GPU acceleration
+ */
+void testRayDrivenProj(const std::string& phantomName, bool useGPU){
 
 	std::cout << "Parallel beam projection simulation using the method proposed by Hao Gao" << std::endl;
 
@@ -114,7 +116,7 @@ void testHaoGaoTransform_CPU(const std::string& phantomName){
 	int detWidthInMM { 110 };
 	int detPixNum { 512 };
 	Gen1CT ct(detWidthInMM, detPixNum);
-	ct.setI0(0.0);
+	ct.setI0(0.0);  //I0=0 is the only meaningful choice for testing
 
 	const int numProjections{180};
 	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0.0/180.0 * M_PI,
@@ -136,11 +138,23 @@ void testHaoGaoTransform_CPU(const std::string& phantomName){
 
 	ct.displayPhantom(phantomName);
 
-	ct.measure(phantomName, angles, "HaoGaoSinogram", projectorType::rayDriven);
+	if(useGPU){
+#if ENABLE_CUDA
+		ct.measure(phantomName, angles, "HaoGaoSinogram", projectorType::rayDriven_GPU);
+#else
+		std::cout << "\nCUDA is not allowed, fallback to CPU projector!!";
+		ct.measure(phantomName, angles, "HaoGaoSinogram", projectorType::rayDriven);
+#endif
+	}
+	else{
+		ct.measure(phantomName, angles, "HaoGaoSinogram", projectorType::rayDriven);
+	}
 
 	ct.displayMeasurement("HaoGaoSinogram");
 
 	CTScan numericalSinogram = ct.getMeasurement("HaoGaoSinogram");
+
+
 
 	if( (phantomName == "SL") or (phantomName == "modSL")){
 

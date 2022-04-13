@@ -11,8 +11,8 @@ target_link_libraries(testRadonTransform PRIVATE tomoLearnLib)
 add_executable(testCudaCompile src/testCudaCompile.cpp)
 target_link_libraries(testCudaCompile PRIVATE tomoLearnLib)
 
-add_executable(testHaoGaoCPU src/testHaoGaoCPU.cpp)
-target_link_libraries(testHaoGaoCPU PRIVATE tomoLearnLib)
+add_executable(testRayDrivenProj src/testRayDrivenProj.cpp)
+target_link_libraries(testRayDrivenProj PRIVATE tomoLearnLib)
 
 add_executable(testSPS src/testSPS.cpp)
 target_link_libraries(testSPS PRIVATE tomoLearnLib)

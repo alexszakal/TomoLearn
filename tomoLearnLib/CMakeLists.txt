@@ -17,7 +17,9 @@ if(ENABLE_CUDA)
     else()
 	message(WARNING "CUDA TOOLKIT WAS NOT FOUND)")
     endif()
-
+    
+    #target_compile_options(tomoLearnLib PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:"">) #Specific options for nvcc 
+	
     target_sources(tomoLearnLib PRIVATE src/cudaFunctions.cu)
 
     set_property(TARGET tomoLearnLib PROPERTY CUDA_ARCHITECTURES OFF)

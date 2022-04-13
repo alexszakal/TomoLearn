@@ -16,6 +16,9 @@
 enum class projectorType{pixelDriven,
                          Siddon,
                          rayDriven,
+#if ENABLE_CUDA
+						 rayDriven_GPU,
+#endif
 						 rayDrivenOptimized
                          };
 
@@ -62,6 +65,10 @@ public:
 	Eigen::MatrixXd project_rayDriven_CPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles);
 
 	Eigen::MatrixXd project_rayDrivenOptimized_CPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles);
+
+#if ENABLE_CUDA
+	Eigen::MatrixXd project_rayDriven_GPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles);
+#endif
 
 	void displayMeasurement(const std::string& label);
 

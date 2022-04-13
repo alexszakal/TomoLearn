@@ -18,18 +18,10 @@
 
 void testFBP(const std::string& phantomName, projectorType projectAlgo, backprojectorType backprojectAlgo);
 
-//TODO: A ct.compareRowPhantomAndReconst() Mukodjon. HA fajlbol olvasunk, akkor 1000-et ki kell vonni, mert akkor kapjuk meg HU unitban!
+//TODO: A ct.compareRowPhantomAndReconst() Mukodjon.
 
 //DEBUG: A szurt szinogram eltunik amikor a visszaallitas megjelenik
 //TODO: Valahogy a szurt szinogramokat is el kell menteni (lehetne egy map, ahol a key a filter osztaly?? )
-
-//TODO: Visszavetitest felgyorsitani
-//TODO: Gyorsabb elorevetites a cache jobb hasznalataval
-
-//TTOK sanitizers:
-//-Dokumentacioba Properties -> C/C++Build -> CMake4eclipse -> Symbols -> Cmake cache entries -> ENABLE_SANITIZER_ADDRESS:BOOL:ON
-//- Az address symbolizer is kell ahhoz hogy kodsorokat irjon ki: LAunch config. -> Environmentbe:
-                                                           // -> ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer
 
 //Parallel geometry
 int main(){
@@ -64,12 +56,17 @@ int main(){
 	return 0;
 }
 
+
+/***
+ * Test the filtered backprojection algorithm
+ *
+ * @param phantomName Name of the phantom
+ * @param projectAlgo Algorithm used for projection
+ * @param backprojectAlgo Algorithm used for backprojection
+ */
 void testFBP(const std::string& phantomName,
 		     projectorType projectAlgo,
 			backprojectorType backprojectAlgo){
-	/**
-	 * Test the Filtered Backprojection algorithm with a Shepp-Logan phantom
-	 */
 
 	std::cout << "Parallel beam FBP simulation" << std::endl;
 
