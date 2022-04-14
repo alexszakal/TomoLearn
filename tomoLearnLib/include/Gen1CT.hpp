@@ -23,6 +23,9 @@ enum class projectorType{pixelDriven,
                          };
 
 enum class backprojectorType{pixelDriven,
+#if ENABLE_CUDA
+							 rayDriven_GPU,
+#endif
                              rayDriven
                              };
 
@@ -113,6 +116,11 @@ public:
 
 	Eigen::MatrixXd backProject_rayDriven_CPU(const CTScan& sinogram, const std::array<int,2>& numberOfRecPoints,
 				                                 const std::array<double,2>& resolution);
+
+#if ENABLE_CUDA
+	Eigen::MatrixXd backProject_rayDriven_GPU(const CTScan& sinogram, const std::array<int,2>& numberOfRecPoints,
+					                                 const std::array<double,2>& resolution);
+#endif
 
 	void displayReconstruction(const std::string& label);
 

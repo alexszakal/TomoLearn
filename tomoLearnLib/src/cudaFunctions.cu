@@ -27,7 +27,7 @@ void check(T err, const char* const func, const char* const file, const int line
  * @return Returns void
  */
 __global__
-void rayDrivenKernel(const double* phantom, int numberOfPixelsX, int numberOfPixelsY, double pixSizesX, double pixSizesY,
+void rayDrivenProjectionKernel(const double* phantom, int numberOfPixelsX, int numberOfPixelsY, double pixSizesX, double pixSizesY,
 		             double* sinogram, int numAngles, double* angles, int numDetPixels, double detPixSize ){
 
 	int detPixIdx = blockIdx.x*blockDim.x + threadIdx.x;
@@ -188,7 +188,7 @@ void Gen1CT::printGpuParameters(){
 	}
 }
 
-void launchRayDrivenKernel(const double* phantomData, std::array<int, 2> numberOfPixels, std::array<double, 2> pixSizes,
+void launchRayDrivenProjectionKernel(const double* phantomData, std::array<int, 2> numberOfPixels, std::array<double, 2> pixSizes,
 		                   int numAngles, const double* anglesData, int pixNum, double detWidth,
 						   double* sinogramData){
 
@@ -215,7 +215,7 @@ void launchRayDrivenKernel(const double* phantomData, std::array<int, 2> numberO
 	//CALL THE PROJECTION KERNEL!!!!
 	const dim3 blockSize(16,16);
 	const dim3 gridSize(pixNum/blockSize.x+1,numAngles/blockSize.y+1);
-	rayDrivenKernel<<<gridSize, blockSize>>>(d_phantom, numberOfPixels[0], numberOfPixels[1], pixSizes[0], pixSizes[1],
+	rayDrivenProjectionKernel<<<gridSize, blockSize>>>(d_phantom, numberOfPixels[0], numberOfPixels[1], pixSizes[0], pixSizes[1],
 				                                 d_sinogram, numAngles, d_angles, pixNum, detWidth/pixNum);
 	cudaDeviceSynchronize();
 	checkCudaErrors(cudaGetLastError());
@@ -238,4 +238,163 @@ void launchRayDrivenKernel(const double* phantomData, std::array<int, 2> numberO
 
 }
 
+__global__
+void rayDrivenBackprojectionKernel(double* d_sinogram, int numAngles, double* d_angles, double* sinThetaVector, double* cosThetaVector, int pixNum, double detWidth,
+									double* d_backProjection, int numberOfPixelsX, int numberOfPixelsY, double resolutionX, double resolutionY){
+
+	int xIdx = blockIdx.x*blockDim.x + threadIdx.x;
+	int yIdx = blockIdx.y*blockDim.y + threadIdx.y;
+
+	if ( xIdx >= numberOfPixelsX){
+		return;
+	}
+	if ( yIdx >= numberOfPixelsY){
+		return;
+	}
+
+	int backProjectionDataIdx = yIdx*numberOfPixelsX + xIdx; //Column-major order!
+
+	const double pixelRadius = sqrt(pow(resolutionX/2,2) + pow(resolutionY/2,2)); //Radius of circle drawn around a pixel
+    const double halfDetWidth = detWidth / 2;
+    const double invDetPixSize= pixNum/detWidth;
+
+    double xValue= -1*numberOfPixelsX*resolutionX/2 + resolutionX/2 + xIdx*resolutionX;
+    double yValue=    numberOfPixelsY*resolutionY/2 - resolutionY/2 - yIdx*resolutionY;
+
+    const double pixelSize = detWidth/pixNum;
+
+    d_backProjection[backProjectionDataIdx] = 0.0;
+
+	//Calculate the value in pixel
+	//Go through the angles
+	for(int angIdx=0; angIdx<numAngles; ++angIdx){
+		//Determine the contributing detector pixels (i.e. rays)
+		double xr = xValue*cosThetaVector[static_cast<size_t>(angIdx)]+
+				       yValue*sinThetaVector[static_cast<size_t>(angIdx)];   //This corresponds to "t" of the image pixel center
+
+		double minPixIdx = (xr + halfDetWidth - pixelRadius )*invDetPixSize;
+		double maxPixIdx = (xr + halfDetWidth + pixelRadius )*invDetPixSize;
+
+		//Calculate the intersection length and add to the backprojected image
+		//Go through the possible pixels
+		double lSum=0;
+		double angleContrib = 0;
+		double a = cosThetaVector[static_cast<size_t>(angIdx)];
+		double b = sinThetaVector[static_cast<size_t>(angIdx)];
+		double absa = abs(a);
+		double absb = abs(b);
+
+		//Calculate the boundaries of pixel intersection types
+		double d_max = (std::abs(a*resolutionX) + std::abs(b*resolutionY))/2; //For definition see HaoGao's article
+		double d_min =  std::abs( std::abs(a*resolutionX) - std::abs(b*resolutionY) )/2;
+
+		for(int detPixIdx=max(0,static_cast<int>(minPixIdx));
+			    detPixIdx <= min(static_cast<int>(maxPixIdx)+0, static_cast<int>(pixNum-1) );
+			    ++detPixIdx){
+			double c = -1*halfDetWidth+(detPixIdx+0.5)*pixelSize;  // "t" of the detector pixel center
+
+			//Calculate the intersection length
+			double d_act=std::abs(a*xValue + b*yValue - c);
+			double l;
+
+			if(d_act < d_min){
+				if( absa < absb ){
+					l=resolutionX/absb;
+				}
+				else{
+					l=resolutionY/absa;
+				}
+			}
+			else if( (d_act >= d_min) and (d_act < d_max) ){
+				l=(d_max-d_act)/absa/absb;
+			}
+			else{
+				l=0;
+			}
+
+			lSum += l;
+			angleContrib += d_sinogram[angIdx*pixNum+detPixIdx]*l;
+		}
+		if(lSum != 0){
+			d_backProjection[backProjectionDataIdx] += angleContrib/lSum;
+		}
+	}
+
+	//Multiply with dTheta
+	d_backProjection[backProjectionDataIdx] = d_backProjection[backProjectionDataIdx]*M_PI/numAngles;
+}
+
+void launchRayDrivenBackprojectionKernel(const double* sinogram, int numAngles, const double* anglesData, int pixNum, double detWidth,
+										 double* backProjection, const std::array<int,2>& numberOfPixels, const std::array<double,2>& resolution){
+
+	auto start = std::chrono::high_resolution_clock::now();
+
+	double *d_sinogram;
+	checkCudaErrors(cudaMalloc(&d_sinogram, sizeof(double) * numAngles*pixNum ));
+	checkCudaErrors(cudaMemcpy(d_sinogram, sinogram,
+				                   sizeof(double) * numAngles*pixNum, cudaMemcpyHostToDevice));
+
+	double *d_angles;
+	checkCudaErrors(cudaMalloc(&d_angles, sizeof(double) * numAngles ));
+	checkCudaErrors(cudaMemcpy(d_angles, anglesData,
+					                   sizeof(double) * numAngles, cudaMemcpyHostToDevice));
+
+	double *d_backprojection;
+	checkCudaErrors(cudaMalloc(&d_backprojection, sizeof(double) * numberOfPixels[0]*numberOfPixels[1] ));
+
+	std::vector<double>	thetaVector,
+	                    sinThetaVector,
+						cosThetaVector;
+
+	//Vector of theta values and trigonometric functions
+	for(int i=0; i<numAngles; i++){
+	  	thetaVector.push_back( std::fmod(anglesData[i], 2*M_PI) );
+	   	sinThetaVector.push_back( sin(thetaVector[static_cast<size_t>(i)]) );
+	   	cosThetaVector.push_back( cos(thetaVector[static_cast<size_t>(i)]) );
+	}
+
+	double *d_sinThetaVector;
+	checkCudaErrors(cudaMalloc(&d_sinThetaVector, sizeof(double) * numAngles ));
+	checkCudaErrors(cudaMemcpy(d_sinThetaVector, sinThetaVector.data(),
+						                   sizeof(double) * numAngles, cudaMemcpyHostToDevice));
+
+	double *d_cosThetaVector;
+	checkCudaErrors(cudaMalloc(&d_cosThetaVector, sizeof(double) * numAngles ));
+	checkCudaErrors(cudaMemcpy(d_cosThetaVector, cosThetaVector.data(),
+						                   sizeof(double) * numAngles, cudaMemcpyHostToDevice));
+
+	auto stop1 = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop1 - start);
+	std::cout << "Phase1 took " << duration.count() << " milliseconds" << std::endl;
+
+	auto start2 = std::chrono::high_resolution_clock::now();
+	const dim3 blockSize(16,16);
+	const dim3 gridSize(numberOfPixels[0]/blockSize.x+1,numberOfPixels[1]/blockSize.y+1);
+	rayDrivenBackprojectionKernel<<<gridSize, blockSize>>>(d_sinogram, numAngles, d_angles, d_sinThetaVector, d_cosThetaVector, pixNum, detWidth,
+			d_backprojection, numberOfPixels[0], numberOfPixels[1], resolution[0], resolution[1]);
+	cudaDeviceSynchronize();
+	checkCudaErrors(cudaGetLastError());
+
+	auto stop2 = std::chrono::high_resolution_clock::now();
+	duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop2 - start2);
+	std::cout << "Running the kernel took " << duration.count() << " milliseconds" << std::endl;
+
+	auto start3 = std::chrono::high_resolution_clock::now();
+	//Read back the result and free memory
+	checkCudaErrors(cudaMemcpy(backProjection, d_backprojection,
+						         sizeof(double) * numberOfPixels[0]*numberOfPixels[1], cudaMemcpyDeviceToHost));
+
+	cudaFree(d_sinogram);
+	cudaFree(d_angles);
+	cudaFree(d_backprojection);
+
+	auto stop3 = std::chrono::high_resolution_clock::now();
+	duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop3 - start3);
+	std::cout << "Reading the results and free memory took " << duration.count() << " milliseconds" << std::endl;
+
+}
 #endif
+
+
+
+
