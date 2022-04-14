@@ -19,6 +19,12 @@ if(ENABLE_CUDA)
     endif()
     
     #target_compile_options(tomoLearnLib PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:"">) #Specific options for nvcc 
+    
+    IF(CMAKE_BUILD_TYPE)  #Check if CMAKE_BUILD_TYPE is defined
+    	IF(CMAKE_BUILD_TYPE MATCHES RelWithDebInfo)
+    		set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -G")   #Needed for the CUDA memcheck tool to show line numbers
+    	ENDIF()
+    ENDIF()
 	
     target_sources(tomoLearnLib PRIVATE src/cudaFunctions.cu)
 
