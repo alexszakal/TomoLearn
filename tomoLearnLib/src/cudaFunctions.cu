@@ -157,7 +157,7 @@ void rayDrivenProjectionKernel(const double* phantom, int numberOfPixelsX, int n
 	        		}
 	        	}
 
-	    		if ( (Xi_plusIdx <= numberOfPixelsX) and (Xi_plusIdx >= 0) ){
+	    		if ( (Xi_plusIdx < numberOfPixelsX) and (Xi_plusIdx >= 0) ){
 	    			l_plus=(xi_plus - max(Xi_minusIdx, Xi_plusIdx)) / (xi_plus - xi_minus) * pathInSinglePixel;
 
 	    			sinoPointValue += l_plus * phantom[rowIdx*numberOfPixelsX + Xi_plusIdx];
