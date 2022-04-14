@@ -242,6 +242,19 @@ __global__
 void rayDrivenBackprojectionKernel(double* d_sinogram, int numAngles, double* d_angles, double* sinThetaVector, double* cosThetaVector, int pixNum, double detWidth,
 									double* d_backProjection, int numberOfPixelsX, int numberOfPixelsY, double resolutionX, double resolutionY){
 
+	extern __shared__ double s_sMemField[];
+	double *s_a = s_sMemField;
+	double *s_b = &s_sMemField[numAngles];
+
+	int threadID=threadIdx.x + threadIdx.y * blockDim.x;
+	while(threadID < numAngles){
+		s_a[threadID] = cosThetaVector[threadID];
+		s_b[threadID] = sinThetaVector[threadID];
+
+		threadID += blockDim.x*blockDim.y;
+	}
+	__syncthreads();
+
 	int xIdx = blockIdx.x*blockDim.x + threadIdx.x;
 	int yIdx = blockIdx.y*blockDim.y + threadIdx.y;
 
@@ -256,6 +269,7 @@ void rayDrivenBackprojectionKernel(double* d_sinogram, int numAngles, double* d_
 
 	const double pixelRadius = sqrt(pow(resolutionX/2,2) + pow(resolutionY/2,2)); //Radius of circle drawn around a pixel
     const double halfDetWidth = detWidth / 2;
+    const double halfDetWidthNeg = -1*halfDetWidth;
     const double invDetPixSize= pixNum/detWidth;
 
     double xValue= -1*numberOfPixelsX*resolutionX/2 + resolutionX/2 + xIdx*resolutionX;
@@ -263,65 +277,68 @@ void rayDrivenBackprojectionKernel(double* d_sinogram, int numAngles, double* d_
 
     const double pixelSize = detWidth/pixNum;
 
-    d_backProjection[backProjectionDataIdx] = 0.0;
+    double backprojectedValue = 0.0;
 
 	//Calculate the value in pixel
 	//Go through the angles
 	for(int angIdx=0; angIdx<numAngles; ++angIdx){
 		//Determine the contributing detector pixels (i.e. rays)
-		double xr = xValue*cosThetaVector[static_cast<size_t>(angIdx)]+
-				       yValue*sinThetaVector[static_cast<size_t>(angIdx)];   //This corresponds to "t" of the image pixel center
+		//double a = s_cosThetaVector[static_cast<size_t>(angIdx)];
+		//double b = s_sinThetaVector[static_cast<size_t>(angIdx)];
+		double xr = xValue*s_a[angIdx] + yValue*s_b[angIdx];   //This corresponds to "t" of the image pixel center   //TODO: Taroljuk egy tablazatban a shared memoryban
 
-		double minPixIdx = (xr + halfDetWidth - pixelRadius )*invDetPixSize;
-		double maxPixIdx = (xr + halfDetWidth + pixelRadius )*invDetPixSize;
+		double minPixIdx = (xr + halfDetWidth - pixelRadius )*invDetPixSize;  //TODO taroljuk egy tablazatban a shared memoryban
+		double maxPixIdx = (xr + halfDetWidth + pixelRadius )*invDetPixSize;  //TODO taroljuk egy tablazatban a shared memoryban
 
 		//Calculate the intersection length and add to the backprojected image
 		//Go through the possible pixels
 		double lSum=0;
 		double angleContrib = 0;
-		double a = cosThetaVector[static_cast<size_t>(angIdx)];
-		double b = sinThetaVector[static_cast<size_t>(angIdx)];
-		double absa = abs(a);
-		double absb = abs(b);
+		double absa = abs(s_a[angIdx]);
+		double absb = abs(s_b[angIdx]);
+		double invabsa = 1/absa;
+		double invabsb = 1/absb;
 
 		//Calculate the boundaries of pixel intersection types
-		double d_max = (std::abs(a*resolutionX) + std::abs(b*resolutionY))/2; //For definition see HaoGao's article
-		double d_min =  std::abs( std::abs(a*resolutionX) - std::abs(b*resolutionY) )/2;
+		double d_max = (abs(s_a[angIdx]*resolutionX) + abs(s_b[angIdx]*resolutionY))/2; //For definition see HaoGao's article   //TODO: Taroljuk egy tablazatban a shared memoryban
+		double d_min =  abs( std::abs(s_a[angIdx]*resolutionX) - abs(s_b[angIdx]*resolutionY) )/2;  //TODO: Taroljuk egy tablazatban a shared memoryban
+
+		int sinogramIdxBase=angIdx*pixNum;
 
 		for(int detPixIdx=max(0,static_cast<int>(minPixIdx));
 			    detPixIdx <= min(static_cast<int>(maxPixIdx)+0, static_cast<int>(pixNum-1) );
 			    ++detPixIdx){
-			double c = -1*halfDetWidth+(detPixIdx+0.5)*pixelSize;  // "t" of the detector pixel center
+			double c = halfDetWidthNeg + (detPixIdx+0.5)*pixelSize;  // "t" of the detector pixel center
 
 			//Calculate the intersection length
-			double d_act=std::abs(a*xValue + b*yValue - c);
+			double d_act = abs(xr - c);
 			double l;
 
 			if(d_act < d_min){
 				if( absa < absb ){
-					l=resolutionX/absb;
+					l=resolutionX*invabsb;
 				}
 				else{
-					l=resolutionY/absa;
+					l=resolutionY*invabsa;
 				}
 			}
-			else if( (d_act >= d_min) and (d_act < d_max) ){
-				l=(d_max-d_act)/absa/absb;
+			else if( (d_act < d_max) ){       // (d_act >= d_min) condition not needed because it is true for sure!
+				l=(d_max-d_act)*invabsa*invabsb;
 			}
 			else{
 				l=0;
 			}
 
 			lSum += l;
-			angleContrib += d_sinogram[angIdx*pixNum+detPixIdx]*l;
+			angleContrib += d_sinogram[sinogramIdxBase+detPixIdx]*l;
 		}
 		if(lSum != 0){
-			d_backProjection[backProjectionDataIdx] += angleContrib/lSum;
+			backprojectedValue += angleContrib/lSum;
 		}
 	}
 
 	//Multiply with dTheta
-	d_backProjection[backProjectionDataIdx] = d_backProjection[backProjectionDataIdx]*M_PI/numAngles;
+	d_backProjection[backProjectionDataIdx] = backprojectedValue*M_PI/numAngles;
 }
 
 void launchRayDrivenBackprojectionKernel(const double* sinogram, int numAngles, const double* anglesData, int pixNum, double detWidth,
@@ -370,7 +387,7 @@ void launchRayDrivenBackprojectionKernel(const double* sinogram, int numAngles, 
 	auto start2 = std::chrono::high_resolution_clock::now();
 	const dim3 blockSize(16,16);
 	const dim3 gridSize(numberOfPixels[0]/blockSize.x+1,numberOfPixels[1]/blockSize.y+1);
-	rayDrivenBackprojectionKernel<<<gridSize, blockSize>>>(d_sinogram, numAngles, d_angles, d_sinThetaVector, d_cosThetaVector, pixNum, detWidth,
+	rayDrivenBackprojectionKernel<<<gridSize, blockSize, 2*numAngles*sizeof(double)>>>(d_sinogram, numAngles, d_angles, d_sinThetaVector, d_cosThetaVector, pixNum, detWidth,
 			d_backprojection, numberOfPixels[0], numberOfPixels[1], resolution[0], resolution[1]);
 	cudaDeviceSynchronize();
 	checkCudaErrors(cudaGetLastError());
