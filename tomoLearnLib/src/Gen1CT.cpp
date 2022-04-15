@@ -25,12 +25,23 @@
 #include <config.h>
 
 
-    //REGI  pixPositionst le kell gyartani!!
+/***
+ * Default constructor; width of detector: 100mm, number of pixels: 100
+ */
 Gen1CT::Gen1CT():detWidth{100},pixNum{100}{
-	};
+	pixPositions.resize( static_cast<size_t>(pixNum) );
+	double pixelSize{detWidth/pixNum};
+	for (int i=0; i<pixNum; i++){
+		pixPositions[ static_cast<size_t>(i) ]=-1*detWidth/2+(i+0.5)*pixelSize;
+	}
+};
 
-
-Gen1CT::Gen1CT(double detWidth, size_t pixNum):detWidth{detWidth},pixNum{pixNum}{
+/***
+ *Gen1CT constructor
+ * @param detWidth Width of the detector [mm]
+ * @param pixNum Number of detector pixels
+ */
+Gen1CT::Gen1CT(double detWidth, int pixNum):detWidth{detWidth},pixNum{pixNum}{
 	pixPositions.resize( static_cast<size_t>(pixNum) );
 	double pixelSize{detWidth/pixNum};
 	for (int i=0; i<pixNum; i++){
@@ -43,6 +54,7 @@ Gen1CT::Gen1CT(double detWidth, size_t pixNum):detWidth{detWidth},pixNum{pixNum}
  * @param label The label of the phantom in the library
  * @param phantomImageSource Location of the image file
  * @param pixSizes Pixel size in [mm]
+ * @param convertFromHUtoLA The values in phantomImagesource are in Hounsfield units, conversion is needed to linear attenuation units.
  */
 void Gen1CT::addPhantom(const std::string &label,
 		const std::string &phantomImageSource,
@@ -73,6 +85,10 @@ void Gen1CT::addPhantom(const Phantom &newPhantom) {
 	phantoms.emplace(phantomLabel, Phantom(newPhantom));
 }
 
+/***
+ * Interactive display of the Phantom with 'label' from the Phantoms library
+ * @param label Label of the Phantom to be displayed
+ */
 void Gen1CT::displayPhantom(const std::string& label){
 	if(phantoms.find(label) != phantoms.end()){
 		phantoms[label].display(label);
@@ -81,32 +97,13 @@ void Gen1CT::displayPhantom(const std::string& label){
 		std::cout << std::endl << "ERROR!! Label: \"" << label << "\" could not be found!! Skipping the display.";
 }
 
+/***
+ * Setter function for the I0 variable which sets the number of photons starting from the tube at a measurement point
+ * @param newI0 The new value of I0
+ */
 void Gen1CT::setI0(double newI0){
 	I0=newI0;
 }
-
-//void Gen1CT::measure_HaoGao(const std::string& phantomLabel,
-//		                    const Eigen::VectorXd& angles,
-//							const std::string& scanLabel){
-//
-//	if(phantoms.find(phantomLabel) == phantoms.end()){
-//			std::cout << std::endl << "ERROR!! phantomLabel: \"" << phantomLabel << "\" could not be found!! Abort mission";
-//			return;
-//	}
-//	Phantom& actualPhantom = phantoms[phantomLabel];
-//
-//	Eigen::MatrixXd sinogram = project_HaoGao_CPU(actualPhantom, angles);
-//
-//   	//Move the sinogram to CTScans map
-//   	auto it = scans.find(scanLabel);
-//   	if(it != scans.end()){
-//   		std::cout << std::endl << "WARNING! A scan with label \"" << scanLabel << "\" already exists!!! Overwriting!!!";
-//   		scans.erase(it);
-//   	}
-//   	scans.emplace(scanLabel, CTScan(scanLabel,sinogram, detWidth, angles));
-//
-//}
-
 
 void Gen1CT::measure(const std::string& phantomLabel,
 		     const Eigen::VectorXd& angles,
@@ -228,20 +225,20 @@ Eigen::MatrixXd Gen1CT::project_rayDriven_CPU(const Phantom& actualPhantom,
     double p1[2];
     double p2[2];
     //Go through the angles
-    for(size_t angI=0; angI < static_cast<size_t>(numAngles); ++angI){
+    for(int angI=0; angI < numAngles; ++angI){
 
     	//beam intersects the columns at most two pixels
-    	if( pixSizes[1] / pixSizes[0] >= std::abs(std::tan(M_PI/2-thetaVector[angI])) ){
+    	if( pixSizes[1] / pixSizes[0] >= std::abs(std::tan(M_PI/2-thetaVector[static_cast<size_t>(angI)])) ){
     		//go through the different t values
-    		for(size_t pixIdx=0; pixIdx<pixNum; ++pixIdx){
+    		for(int pixIdx=0; pixIdx<pixNum; ++pixIdx){
 
-    			double t = pixPositions[pixIdx];
+    			double t = pixPositions[static_cast<size_t>(pixIdx)];
 
-    			p1[0]=detDist * sinThetaVector[angI] + t * cosThetaVector[angI];
-    			p1[1]=-1*detDist * cosThetaVector[angI] + t * sinThetaVector[angI];
+    			p1[0]=detDist * sinThetaVector[static_cast<size_t>(angI)] + t * cosThetaVector[static_cast<size_t>(angI)];
+    			p1[1]=-1*detDist * cosThetaVector[static_cast<size_t>(angI)] + t * sinThetaVector[static_cast<size_t>(angI)];
 
-    			p2[0] = -1 * detDist * sinThetaVector[angI] + t * cosThetaVector[angI];
-    			p2[1] = detDist * cosThetaVector[angI] + t * sinThetaVector[angI];
+    			p2[0] = -1 * detDist * sinThetaVector[static_cast<size_t>(angI)] + t * cosThetaVector[static_cast<size_t>(angI)];
+    			p2[1] = detDist * cosThetaVector[static_cast<size_t>(angI)] + t * sinThetaVector[static_cast<size_t>(angI)];
 
 
     			double ky = (p1[1]-p2[1])/(p1[0]-p2[0]);
@@ -285,14 +282,14 @@ Eigen::MatrixXd Gen1CT::project_rayDriven_CPU(const Phantom& actualPhantom,
     	}
     	else{      //beam intersects the rows at most two pixels
     	    //go through the different t values
-    	    for(size_t pixIdx=0; pixIdx<pixNum; ++pixIdx){
-    	    	double t = pixPositions[pixIdx];
+    	    for(int pixIdx=0; pixIdx<pixNum; ++pixIdx){
+    	    	double t = pixPositions[static_cast<size_t>(pixIdx)];
 
-    	    	p1[0]=detDist * sinThetaVector[angI] + t * cosThetaVector[angI];
-    	    	p1[1]=-1*detDist * cosThetaVector[angI] + t * sinThetaVector[angI];
+    	    	p1[0]=detDist * sinThetaVector[static_cast<size_t>(angI)] + t * cosThetaVector[static_cast<size_t>(angI)];
+    	    	p1[1]=-1*detDist * cosThetaVector[static_cast<size_t>(angI)] + t * sinThetaVector[static_cast<size_t>(angI)];
 
-    	    	p2[0] = -1 * detDist * sinThetaVector[angI] + t * cosThetaVector[angI];
-    	    	p2[1] = detDist * cosThetaVector[angI] + t * sinThetaVector[angI];
+    	    	p2[0] = -1 * detDist * sinThetaVector[static_cast<size_t>(angI)] + t * cosThetaVector[static_cast<size_t>(angI)];
+    	    	p2[1] = detDist * cosThetaVector[static_cast<size_t>(angI)] + t * sinThetaVector[static_cast<size_t>(angI)];
 
     			double kx = (p1[0]-p2[0])/(p1[1]-p2[1]);
     			double pathInSinglePixel = sqrt(1+kx*kx)*pixSizes[1];
