@@ -1655,7 +1655,7 @@ Eigen::MatrixXd Gen1CT::backProject_rayDriven_GPU(const CTScan& sinogram,
 	/// Backrojection with ray-driven method on GPU STARTS here !!
 	////////////////////////////////////////////////////////////////////////////////
 
-	launchRayDrivenBackprojectionKernel(sinoData.data(), numAngles, angles.data(), pixNum, detWidth,
+	launchRayDrivenBackprojectionKernel(sinoData.data(), numAngles, angles.data(), pixNum, detWidth, pixPositions.data(),
     										 backProjection.data(), numberOfRecPoints, resolution);
 
 	////////////////////////////////////////////////////////////////////////////////

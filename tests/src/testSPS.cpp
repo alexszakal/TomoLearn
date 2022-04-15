@@ -107,7 +107,7 @@ void testMLEM(const std::string& phantomName,
 
 	std::cout<<"\nStart SPS reconstruction";
 	ct.SPSReconst("Sinogram", std::array<int, 2> { 512, 512}, // 1024 x 1024 pixel, 0.1mm felbontas
-			std::array<double, 2> { 0.199, 0.199}, projectAlgo, backprojectAlgo, "RecImage", 30,
+			std::array<double, 2> { 0.199, 0.199}, projectAlgo, backprojectAlgo, "RecImage", 100,
 			regularizerType::Huber, 3000, 0.004);
 
 	ct.Gen1CT::displayReconstruction("RecImage");
