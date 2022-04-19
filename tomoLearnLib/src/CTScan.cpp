@@ -37,9 +37,9 @@ CTScan::CTScan(std::string scanID,
  * @param numDetPixels Number of pixels of the detector array
  * @param angles Eigen::Vector holding the projection angle [rad] values
  * @param rhos Attenuation coeff. of the ellipses [1/mm]
- * @param alphas Inclination angle of ellipses
+ * @param alphas Inclination angle of ellipses [rad]
  * @param centers Centers of ellipses [mm]
- * @param axes Lengths of the ellipses axes
+ * @param axes Lengths of the ellipses axes [mm]
  * @param I0 The source strength used for the scan
  */
 CTScan::CTScan(std::string scanID,
@@ -85,18 +85,36 @@ CTScan::CTScan(std::string scanID,
 	}
 }
 
+/**
+ * Returns a const reference to the vector holding the projection angle values
+ * @return Const reference holding the projection angle values
+ */
 const Eigen::VectorXd& CTScan::getAnglesConstRef() const{
 	return angles;
 }
 
+/**
+ * Getter function of the detector width
+ * @return Detector width in [mm]
+ */
 double CTScan::getDetWidth() const{
 	return getNumberOfPixels()[0] * getPixSizes()[0];
 }
 
+/**
+ * Getter function of the source strength used for the scan
+ * @return Source strength [1]
+ */
 double CTScan::getI0() const{
 	return I0;
 }
 
+/**
+ * Elementwise add two CTScan objects
+ * @param lhs CTScan object on the left handside
+ * @param rhs CTScan object on the right handside
+ * @return CTSCAN object holding the sum
+ */
 CTScan operator+(const CTScan& lhs, double rhs){
 	return CTScan( lhs.scanID,
 		       lhs.getDataAsEigenMatrixRef().array() + rhs,
@@ -105,6 +123,12 @@ CTScan operator+(const CTScan& lhs, double rhs){
 			   lhs.I0);
 }
 
+/**
+ * Elementwise division of two CTScan objects
+ * @param lhs CTScan object on the left handside
+ * @param rhs CTScan object on the right handside
+ * @return CTSCAN object holding the result of division
+ */
 CTScan operator/(const CTScan& lhs, const CTScan& rhs){
 	return CTScan( lhs.scanID,
 		       lhs.getDataAsEigenMatrixRef().array() / (rhs.getDataAsEigenMatrixRef().array()),
@@ -113,6 +137,12 @@ CTScan operator/(const CTScan& lhs, const CTScan& rhs){
 			   lhs.I0);
 }
 
+/**
+ * Elementwise subtract two CTScan objects
+ * @param lhs CTScan object on the left handside
+ * @param rhs CTScan object on the right handside
+ * @return CTSCAN object holding the difference object
+ */
 CTScan operator-(const CTScan& lhs, const CTScan& rhs){
 	return CTScan( lhs.scanID,
 		       lhs.getDataAsEigenMatrixRef().array() - (rhs.getDataAsEigenMatrixRef().array()),
@@ -122,9 +152,10 @@ CTScan operator-(const CTScan& lhs, const CTScan& rhs){
 }
 
 /**
- * Convert the CTScan from counts to line integral values.
+ * Convert the data held in CTScan from counts to line integral values.
  *
- * Calculates the (-1)*std::log(CTScan/I0) value
+ * Converts the values IN PLACE!!!!!
+ * Calculates the (-1)*std::log(CTScan(i,j)/I0) value
  */
 void CTScan::convertToLineIntegrals(){
 
