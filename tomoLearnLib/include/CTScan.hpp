@@ -41,7 +41,7 @@ public:
 	CTScan exp();
 
 private:
-	std::string scanID;
-	Eigen::VectorXd angles;
-	double I0;
+	std::string scanID;   /** Unique ID of the CTScan */
+	Eigen::VectorXd angles;  /** Projection angles of the CTScan [rad] */
+	double I0;  /** Source strength used for the CTScan */
 };
