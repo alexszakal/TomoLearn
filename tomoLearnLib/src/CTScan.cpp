@@ -3,9 +3,20 @@
 
 #include <iostream>
 
+/**
+ * Default CTScan constructor.
+ */
 CTScan::CTScan():Object2D(),scanID("Empty"),angles(),I0(0){
 }
 
+/**
+ * CTScan constructor to initialize a CTScan object from an Eigen matrix data source holding the sinogram data
+ * @param scanID  Identifier ID of the scan
+ * @param sinogram Sinogram data
+ * @param detWidth Width of the detector array [mm]
+ * @param angles Eigen::Vector holding the projection angle [rad] values
+ * @param I0 The source strength used for the scan
+ */
 CTScan::CTScan(std::string scanID,
 		       Eigen::MatrixXd sinogram,
 			   double detWidth,
@@ -19,6 +30,18 @@ CTScan::CTScan(std::string scanID,
 
 }
 
+/**
+ * CTScan constructor which calculates the sum of analytical sinograms of ellises.
+ * @param scanID Identifier ID of the scan
+ * @param detWidth Width of the detector array [mm]
+ * @param numDetPixels Number of pixels of the detector array
+ * @param angles Eigen::Vector holding the projection angle [rad] values
+ * @param rhos Attenuation coeff. of the ellipses [1/mm]
+ * @param alphas Inclination angle of ellipses
+ * @param centers Centers of ellipses [mm]
+ * @param axes Lengths of the ellipses axes
+ * @param I0 The source strength used for the scan
+ */
 CTScan::CTScan(std::string scanID,
 			double detWidth,
 			int numDetPixels,
@@ -45,15 +68,16 @@ CTScan::CTScan(std::string scanID,
 		double s = std::sqrt( std::pow(x0,2) + std::pow(y0,2) );
 		double gamma{0.0};
 		if( (x0 != 0.0) || (y0 != 0.0) )
-			gamma = std::atan2(y0, x0);
+			gamma = std:: atan2(y0, x0);
 
 		for(int angI=0; angI<angles.size(); ++angI){
-			double aSquaredTheta = std::pow(A*std::cos(angles[angI]), 2) + std::pow(B*std::sin(angles[angI]), 2) ;
+			double thetaMinusAlpha = angles[static_cast<long>(angI)] - alphas[static_cast<size_t>(ellipseIdx)];
+			double aSquaredTheta = std::pow(A*std::cos(thetaMinusAlpha), 2) + std::pow(B*std::sin(thetaMinusAlpha), 2) ;
 			for(int pixI=0; pixI<numDetPixels; ++pixI){
 				double t=getXValueAtPix(pixI) - s* std::cos(gamma - getYValueAtPix(angI));
 
 				if(t*t <= aSquaredTheta){
-					setData(pixI, angI, objDataRef(pixI, angI) + 2*rhos[ellipseIdx]*A*B/aSquaredTheta*std::sqrt(aSquaredTheta - std::pow(t,2)) );
+					setData(pixI, angI, objDataRef(pixI, angI) + 2*rhos[static_cast<size_t>(ellipseIdx)]*A*B/aSquaredTheta*std::sqrt(aSquaredTheta - std::pow(t,2)) );
 				}
 
 			}
@@ -97,7 +121,7 @@ CTScan operator-(const CTScan& lhs, const CTScan& rhs){
 			   lhs.I0);
 }
 
-/***
+/**
  * Convert the CTScan from counts to line integral values.
  *
  * Calculates the (-1)*std::log(CTScan/I0) value
@@ -119,7 +143,7 @@ void CTScan::convertToLineIntegrals(){
 	}
 }
 
-/***
+/**
  * Elementwise multiply two CTScans
  * @param lhs Left handside operand of multiply
  * @param rhs Right handside operand of multiply
@@ -133,7 +157,7 @@ CTScan operator*(const CTScan& lhs, const CTScan& rhs){
 			       lhs.I0);
 }
 
-/***
+/**
  * Multiply a CTScan object with a double
  * @param lhs multiplier
  * @param rhs CTScan object to be multiplied
@@ -147,7 +171,7 @@ CTScan operator*(double lhs, const CTScan& rhs){
 				   rhs.I0);
 }
 
-/***
+/**
  * Calculate elementvise exp(CTScan)
  * @return CTScan object with the exponentiated elements
  */
