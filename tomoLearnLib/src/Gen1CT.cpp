@@ -962,6 +962,10 @@ Eigen::MatrixXd Gen1CT::backProject(const CTScan& sinogram,
 		return backProject_pixelDriven_CPU(sinogram, numberOfRecPoints, resolution);
 	case backprojectorType::rayDriven:
 		return backProject_rayDriven_CPU(sinogram, numberOfRecPoints, resolution);
+#if ENABLE_CUDA
+	case backprojectorType::rayDriven_GPU:
+		return backProject_rayDriven_GPU(sinogram, numberOfRecPoints, resolution);
+#endif
 	}
 
 }
@@ -1078,15 +1082,6 @@ Eigen::MatrixXd Gen1CT::backProject_rayDriven_CPU(const CTScan& sinogram,
 	assert(resolution.size()==2);
 
 	Eigen::MatrixXd backProjection = Eigen::MatrixXd::Zero(numberOfRecPoints[0], numberOfRecPoints[1]);
-
-	//Vectors with coordinates of the grid in real space     //OLD AND BUGGY!!!!!
-//	double xMax=numberOfRecPoints[0]*resolution[0]/2;
-//	double xMin=-1*xMax;
-//	Eigen::VectorXd xValues{Eigen::VectorXd::LinSpaced(numberOfRecPoints[0], xMin, xMax)};
-//
-//	double yMax=numberOfRecPoints[1]*resolution[1]/2;
-//	double yMin=-1*yMax;
-//	Eigen::VectorXd yValues{Eigen::VectorXd::LinSpaced(numberOfRecPoints[1], yMax, yMin)};
 
 	//Vectors with coordinates of the grid in real space
 	double xMax=numberOfRecPoints[0]*resolution[0]/2;
@@ -1501,6 +1496,7 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 	Phantom reconstImage("reconstructedImage",
 			             reconsts["FBPrecImage"].getDataAsEigenMatrixRef().cwiseMax(0.0),
 						 resolution);
+
 	reconsts.erase("FBPrecImage");
 	//reconstImage.display("InitialImage");
 	//std::cin.get();
@@ -1623,7 +1619,7 @@ Eigen::MatrixXd Gen1CT::project_rayDriven_GPU(const Phantom& actualPhantom,
 	/// Projection with ray-driven method on GPU STARTS here !!
 	////////////////////////////////////////////////////////////////////////////////
 
-	launchRayDrivenKernel(actualPhantom.getDataAsEigenMatrixRef().data(), numberOfPixels, pixSizes,
+	launchRayDrivenProjectionKernel(actualPhantom.getDataAsEigenMatrixRef().data(), numberOfPixels, pixSizes,
 			              numAngles, angles.data(), pixNum, detWidth,
 						  sinogram.data());
 
@@ -1637,6 +1633,40 @@ Eigen::MatrixXd Gen1CT::project_rayDriven_GPU(const Phantom& actualPhantom,
 
 	return sinogram;
 }
+
+Eigen::MatrixXd Gen1CT::backProject_rayDriven_GPU(const CTScan& sinogram,
+						 const std::array<int,2>& numberOfRecPoints,
+		                 const std::array<double,2>& resolution){
+
+	std::cout << "Backprojection using ray-driven method  on GPU started" << std::endl;
+	auto start = std::chrono::high_resolution_clock::now();
+
+	Eigen::MatrixXd backProjection = Eigen::MatrixXd::Zero(numberOfRecPoints[0], numberOfRecPoints[1]);
+
+	const Eigen::VectorXd& angles=sinogram.getAnglesConstRef();
+	int numAngles = angles.size();
+	const Eigen::MatrixXd& sinoData=sinogram.getDataAsEigenMatrixRef();
+
+
+	////////////////////////////////////////////////////////////////////////////////
+	/// Backrojection with ray-driven method on GPU STARTS here !!
+	////////////////////////////////////////////////////////////////////////////////
+
+	launchRayDrivenBackprojectionKernel(sinoData.data(), numAngles, angles.data(), pixNum, detWidth, pixPositions.data(),
+    										 backProjection.data(), numberOfRecPoints, resolution);
+
+	////////////////////////////////////////////////////////////////////////////////
+	/// Backrojection with ray-driven method on GPU ENDS here !!
+	////////////////////////////////////////////////////////////////////////////////
+
+
+	auto stop = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+	std::cout << "Backprojection using ray-driven method took " << duration.count() << " milliseconds" << std::endl;
+
+	return backProjection;
+}
+
 #endif
 
 

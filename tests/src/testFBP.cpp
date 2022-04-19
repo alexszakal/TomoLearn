@@ -18,8 +18,6 @@
 
 void testFBP(const std::string& phantomName, projectorType projectAlgo, backprojectorType backprojectAlgo);
 
-//TODO: A ct.compareRowPhantomAndReconst() Mukodjon.
-
 //DEBUG: A szurt szinogram eltunik amikor a visszaallitas megjelenik
 //TODO: Valahogy a szurt szinogramokat is el kell menteni (lehetne egy map, ahol a key a filter osztaly?? )
 
@@ -34,7 +32,10 @@ int main(){
 #endif
 
 	//Works: rayDriven Projector and pixelDriven BackProjector
-	testFBP("modSL_symm", projectorType::rayDriven, backprojectorType::pixelDriven);
+	//testFBP("modSL_symm", projectorType::rayDriven, backprojectorType::pixelDriven);
+
+	//Works: rayDriven Projector and pixelDriven BackProjector
+	testFBP("modSL_symm", projectorType::rayDriven_GPU, backprojectorType::rayDriven_GPU);
 
 	//Works: rayDriven Projector and rayDriven BackProjector
 	//testFBP("modSL_symm", projectorType::rayDriven, backprojectorType::rayDriven);
@@ -88,7 +89,7 @@ void testFBP(const std::string& phantomName,
 	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0.0/180.0 * M_PI,
 			(1.0 - 1.0/numProjections) * M_PI);
 
-	ct.setI0(1e2);
+	ct.setI0(1e3);
 	//ct.setI0(0.0);
 
 	ct.measure(phantomName, angles, "Sinogram", projectAlgo);
