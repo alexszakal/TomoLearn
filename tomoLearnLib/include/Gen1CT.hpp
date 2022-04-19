@@ -38,7 +38,7 @@ enum class regularizerType{none,
 class Gen1CT{
 public:
 	Gen1CT();      //REGI
-	Gen1CT(double detWidth, size_t pixNum);
+	Gen1CT(double detWidth, int pixNum);
 
 	void addPhantom(const std::string& label,
 			        const std::string& phantomImageSource,
@@ -62,8 +62,6 @@ public:
 	void measure_Siddon(const std::string& label, const Eigen::VectorXd& angles, const std::string& scanLabel);
 
 	Eigen::MatrixXd project_Siddon_CPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles);
-
-	void measure_HaoGao(const std::string& phantomLabel, const Eigen::VectorXd& angles, const std::string& scanLabel);
 
 	Eigen::MatrixXd project_rayDriven_CPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles);
 
@@ -134,7 +132,7 @@ public:
 
 private:
 	const double detWidth;
-	const size_t pixNum;
+	const int pixNum;
 	std::vector<double> pixPositions; ///Positon of the pixel centers
 
 	double I0 = 3.0;   //Intensity of the tube

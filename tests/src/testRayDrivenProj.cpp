@@ -36,7 +36,7 @@ void testRayDrivenProj( const std::string& phantomName, bool useGPU );
 int main(){
 
 	//testHaoGaoTransform_CPU( "SD" );
-	testRayDrivenProj( "modSL", true );
+	testRayDrivenProj( "modSL", false );
 
 	std::cin.ignore();
 

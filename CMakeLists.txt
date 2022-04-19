@@ -18,6 +18,10 @@ set_project_warnings(project_warnings)
 include(cmake/Sanitizers.cmake)
 enable_sanitizers(project_options)
 
+# enable doxygen
+include(cmake/Doxygen.cmake)
+enable_doxygen()
+
 add_subdirectory(external) #This contains the nontrivial external dependencies
 add_subdirectory(tomoLearnLib)
 add_subdirectory(tests)

@@ -9,6 +9,7 @@ TomoLearn depends on the following Ubuntu packages:
 - `libfftw3-dev`
 - `imagemagick` (needed for png read, could switch to `libpng`)
 - `python3-dev`, `python3-numpy`, `python3-matplotlib` (needed for 1D plots; One can use anaconda instead but set corresponding cmake_cache entry)
+- `doxygen` Needed for the automatic documentation generation
 
 For building:
 - compiler: clang++
@@ -21,6 +22,7 @@ For building:
 -  Set `CMAKE_BUILD_TYPE=RelWithDebInfo` to show line numbers in the log of CUDA memory sanitizer. Command to start the memory sanitizer: `compute-sanitizer --tool memcheck --report-api-errors all path_to_executable`
 -  `ENABLE_SANITIZER_MEMORY` bool
 -  `Python3_ROOT_DIR = /home/szakal/anaconda3/` needed in case of Anaconda Python. In this case, add `PYTHONPATH=/home/szakal/anaconda3/` environment variable to the run configuration
+- `ENABLE_DOXYGEN` Enable the automatic documentation generation. After buildsystem generation, run `make doxygen-docs`
 
 ## Building and running: 
 0. Go to the root directory of the project 

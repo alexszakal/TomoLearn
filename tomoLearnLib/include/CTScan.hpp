@@ -8,7 +8,7 @@
 #include <iostream>
 
 /**
- * @brief CTScan class holds the integrated attenuation coefficients
+ * @brief CTScan class holds the integrated attenuation coefficients or simulated counts
  *
  * If CTScan.I0 == 0 it holds the numerically integrated values of the line integrals
  * If CTScan.I0 != 0 the value of the line integrals is computed by applying Poisson
@@ -18,7 +18,6 @@ class CTScan : public Object2D{
 public:
 	CTScan();
 	CTScan(std::string scanID, Eigen::MatrixXd sinogram, double detWidth, const Eigen::VectorXd& angles, double I0);
-	//CTScan(const std::string& scanID, const Eigen::VectorXd& angles, const Object2D& dataPar);
 	CTScan(std::string scanID,
 			double detWidth,
 			int numDetPixels,
