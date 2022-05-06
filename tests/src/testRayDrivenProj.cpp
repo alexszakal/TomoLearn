@@ -147,14 +147,12 @@ void testRayDrivenProj(const std::string& phantomName, bool useGPU){
 #endif
 	}
 	else{
-		ct.measure(phantomName, angles, "HaoGaoSinogram", projectorType::rayDriven);
+		ct.measure(phantomName, angles, "HaoGaoSinogram", projectorType::rayDrivenOptimizedFiniteBeam);
 	}
 
 	ct.displayMeasurement("HaoGaoSinogram");
 
 	CTScan numericalSinogram = ct.getMeasurement("HaoGaoSinogram");
-
-
 
 	if( (phantomName == "SL") or (phantomName == "modSL")){
 

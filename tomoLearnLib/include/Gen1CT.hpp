@@ -19,7 +19,8 @@ enum class projectorType{pixelDriven,
 #if ENABLE_CUDA
 						 rayDriven_GPU,
 #endif
-						 rayDrivenOptimized
+						 rayDrivenOptimized,
+						 rayDrivenOptimizedFiniteBeam
                          };
 
 enum class backprojectorType{pixelDriven,
@@ -66,6 +67,8 @@ public:
 	Eigen::MatrixXd project_rayDriven_CPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles);
 
 	Eigen::MatrixXd project_rayDrivenOptimized_CPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles);
+
+	Eigen::MatrixXd project_rayDrivenOptimized_finiteBeam_CPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles);
 
 #if ENABLE_CUDA
 	Eigen::MatrixXd project_rayDriven_GPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles);
