@@ -161,14 +161,16 @@ void CTScan::convertToLineIntegrals(){
 
 	const Eigen::MatrixXd& objDataRef = getDataAsEigenMatrixRef();
 
-	//Calculate the line integrals from the measured counts
-	for(int i=0; i<objDataRef.rows(); i++){
-		for(int j=0; j<objDataRef.cols(); j++){
-			double lineIntegralValue = (-1)* std::log( objDataRef(i,j) / I0 );
-			if (lineIntegralValue<0.0){    //The line integral has to be non-negative. It can become neg. because of statistics
-				setData(i,j, 0);
-			} else{
-				setData(i,j, lineIntegralValue);
+	if(I0 != 0.0){  //If I0==0 then the line integrals are stored
+		//Calculate the line integrals from the measured counts
+		for(int i=0; i<objDataRef.rows(); i++){
+			for(int j=0; j<objDataRef.cols(); j++){
+				double lineIntegralValue = (-1)* std::log( objDataRef(i,j) / I0 );
+				if (lineIntegralValue<0.0){    //The line integral has to be non-negative. It can become neg. because of statistics
+					setData(i,j, 0);
+				} else{
+					setData(i,j, lineIntegralValue);
+				}
 			}
 		}
 	}

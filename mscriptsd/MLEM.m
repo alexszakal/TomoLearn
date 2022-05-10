@@ -19,7 +19,7 @@ rec = ones(size(true_object));
 sinogram_ones = ones(size(meas_data));
 sens = iradon(sinogram_ones,  angles, 'none', phantomSize);
 
-for it = 1:10 
+for it = 1:110 
     
     forProject = radon(rec, angles);
     ratio = meas_data ./ ( forProject + 1e-5 );
