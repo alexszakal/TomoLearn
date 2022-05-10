@@ -53,6 +53,8 @@ public:
 
 	void display(const std::string& label="");
 
+	double compareNorm(Object2D compData) const;
+
 private:
 	//Raw Data
 	//1st index (row number) -> X direction

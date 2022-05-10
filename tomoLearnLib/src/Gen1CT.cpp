@@ -1347,6 +1347,8 @@ void Gen1CT::MLEMReconst(std::string sinogramID,
 		}
 
 		reconstImage = reconstImage / normFactors * corrImage;
+
+
 	}
 
 	//Move the backprojected image to reconsts map
@@ -1666,8 +1668,23 @@ Eigen::MatrixXd Gen1CT::backProject_rayDriven_GPU(const CTScan& sinogram,
 
 	return backProjection;
 }
-
 #endif
+
+double Gen1CT::compareReconToPhantom(std::string reconLabel, std::string phantomLabel) const{
+
+	if(reconsts.find(reconLabel) == reconsts.end()){
+						std::cout << std::endl << "ERROR!! reconLabel: \"" << reconLabel << "\" could not be found!! Abort mission";
+						return 0.0;
+	}
+
+	if(phantoms.find(phantomLabel) == phantoms.end()){
+						std::cout << std::endl << "ERROR!! phantomLabel: \"" << phantomLabel << "\" could not be found!! Abort mission";
+						return 0.0;
+	}
+
+	return reconsts.at(reconLabel).compareNorm(phantoms.at(phantomLabel));
+
+}
 
 
 

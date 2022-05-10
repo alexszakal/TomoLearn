@@ -100,7 +100,9 @@ void testMLEM(const std::string& phantomName,
 	ct.displayMeasurement("Sinogram");
 
 	ct.MLEMReconst("Sinogram", std::array<int, 2> { 512, 512}, // 1024 x 1024 pixel, 0.1mm felbontas
-			std::array<double, 2> { 0.2, 0.2}, projectAlgo, backprojectAlgo, "RecImage", 110);  //optimalis iteracio: ~60
+			std::array<double, 2> { 0.2, 0.2}, projectAlgo, backprojectAlgo, "RecImage", 2);  //optimalis iteracio: ~60
+
+	std::cout << "\n L2 norm: " << ct.compareReconToPhantom("RecImage", phantomName) <<'\n';
 
 	ct.Gen1CT::displayReconstruction("RecImage");
 

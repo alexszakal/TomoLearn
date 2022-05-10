@@ -245,3 +245,35 @@ const Eigen::MatrixXd& Object2D::getDataAsEigenMatrixRef() const{
 	 */
 	return objData;
 }
+
+/***
+ * Compares the data with the reference data. Returns the L2 norm.
+ * Performs bilinear interpolation on the compData data to match the coordinates
+ * @param compData Data that is used for compare
+ * @return The calculated L2 norm.
+ */
+double Object2D::compareNorm(Object2D compData) const{
+
+	double L2norm=0;
+
+	for(int xIdx=0; xIdx < numberOfPixels[0]; ++xIdx){
+		for(int yIdx=0; yIdx < numberOfPixels[1]; ++yIdx){
+			//Calculate the coordinates of the current pixel in the other image
+			double xCoord = (xPixCentreCoords[xIdx] + compData.objWidthHeightInMM[0]/2)/compData.objPixSizes[0];
+			double yCoord = (objWidthHeightInMM[0]/2 - compData.yPixCentreCoords[yIdx] )/compData.objPixSizes[1];
+
+			//Interpolate from the other image
+			if( xCoord>=-0.5 && xCoord <= numberOfPixels[0]+0.5 && yCoord >=-0.5 && yCoord <= numberOfPixels[1]+0.5){
+				double x1 = compData.xPixCentreCoords[floor(xCoord)];
+				double x2 = compData.xPixCentreCoords[ceil(xCoord)];
+
+			}
+
+
+
+
+			//Calculate the L2 norm
+		}
+	}
+	return 123.3;
+}

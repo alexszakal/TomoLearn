@@ -130,6 +130,8 @@ public:
 	void printGpuParameters();
 #endif
 
+	double compareReconToPhantom(std::string reconLabel, std::string phantomLabel) const;
+
 private:
 	const double detWidth;
 	const int pixNum;
