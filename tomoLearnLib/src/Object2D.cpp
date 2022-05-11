@@ -161,7 +161,7 @@ Object2D& Object2D::operator=(Object2D&& objToMove) noexcept{
 	numberOfPixels = std::move(objToMove.numberOfPixels);
 	objPixSizes = std::move(objToMove.objPixSizes);
 	objWidthHeightInMM = std::move(objToMove.objWidthHeightInMM);
-	xPixCentreCoords =std::move(objToMove.xPixCentreCoords);
+	xPixCentreCoords = std::move(objToMove.xPixCentreCoords);
 	yPixCentreCoords = std::move(objToMove.yPixCentreCoords);
 
 	return *this;
@@ -246,6 +246,14 @@ const Eigen::MatrixXd& Object2D::getDataAsEigenMatrixRef() const{
 	return objData;
 }
 
+std::vector<double> Object2D::getXPixCentreCoords() const{
+	return xPixCentreCoords;
+}
+
+std::vector<double> Object2D::getYPixCentreCoords() const{
+	return yPixCentreCoords;
+}
+
 /***
  * Compares the data with the reference data. Returns the L2 norm.
  * Performs bilinear interpolation on the compData data to match the coordinates
@@ -259,21 +267,35 @@ double Object2D::compareNorm(Object2D compData) const{
 	for(int xIdx=0; xIdx < numberOfPixels[0]; ++xIdx){
 		for(int yIdx=0; yIdx < numberOfPixels[1]; ++yIdx){
 			//Calculate the coordinates of the current pixel in the other image
-			double xCoord = (xPixCentreCoords[xIdx] + compData.objWidthHeightInMM[0]/2)/compData.objPixSizes[0];
-			double yCoord = (objWidthHeightInMM[0]/2 - compData.yPixCentreCoords[yIdx] )/compData.objPixSizes[1];
+			const double x = xPixCentreCoords[xIdx];
+			const double y = yPixCentreCoords[yIdx];
+			double xCoord = ( x + compData.objWidthHeightInMM[0]/2)/compData.objPixSizes[0]; // [pixel] in compData
+			double yCoord = (compData.objWidthHeightInMM[1]/2 - y )/compData.objPixSizes[1]; // [pixel] in compData
 
 			//Interpolate from the other image
-			if( xCoord>=-0.5 && xCoord <= numberOfPixels[0]+0.5 && yCoord >=-0.5 && yCoord <= numberOfPixels[1]+0.5){
-				double x1 = compData.xPixCentreCoords[floor(xCoord)];
-				double x2 = compData.xPixCentreCoords[ceil(xCoord)];
+			if( xCoord>=0.5 && xCoord <= numberOfPixels[0]-0.5 && yCoord >=0.5 && yCoord <= numberOfPixels[1]-0.5){
+				double x1 = compData.xPixCentreCoords[floor(xCoord-0.5)];
+				double x2 = compData.xPixCentreCoords[ceil(xCoord-0.5)];
+				double y1 = compData.yPixCentreCoords[ceil(yCoord-0.5)];
+				double y2 = compData.yPixCentreCoords[floor(yCoord-0.5)];
 
+				double Q11=compData.objData(floor(xCoord), ceil(yCoord));
+				double Q21=compData.objData(ceil(xCoord), ceil(yCoord));
+				double Q12=compData.objData(floor(xCoord), floor(yCoord));
+				double Q22=compData.objData(ceil(xCoord), floor(yCoord));
+
+				double interpVal=1/compData.objPixSizes[0]/compData.objPixSizes[1]*
+						                 (Q11*(x2-x)*(y2-y)+
+										  Q21*(x-x1)*(y2-y)+
+										  Q12*(x2-x)*(y-y1)+
+										  Q22*(x-x1)*(y-y1));
+				//Calculate the L2 norm
+				L2norm+=std::pow(interpVal-objData(xIdx,yIdx),2);
 			}
-
-
-
-
-			//Calculate the L2 norm
 		}
 	}
-	return 123.3;
+
+	//Normlalize the L2 norm
+	L2norm /= numberOfPixels[0]*numberOfPixels[1];
+	return L2norm;
 }

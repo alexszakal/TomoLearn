@@ -1237,7 +1237,8 @@ void Gen1CT::filteredBackProject(std::string sinogramID,
 								FilterType filterType,
 								double cutOffFreq,
 								backprojectorType backProjectAlgo,
-								const std::string& imageID){
+								const std::string& imageID,
+								std::string referenceImage){
 
 	if(scans.find(sinogramID) == scans.end()){
 			std::cout << std::endl << "ERROR!! sinogramID: \"" << sinogramID << "\" could not be found!! Abort mission";
@@ -1266,6 +1267,14 @@ void Gen1CT::filteredBackProject(std::string sinogramID,
 	}
 	reconsts.emplace(imageID, Reconst(imageID, backprojectedImage, resolution));
 	scans.erase("tmpSinogram");
+
+	if(referenceImage != ""){
+		if(phantoms.find(referenceImage) == phantoms.end()){
+			std::cout << std::endl << "ERROR!! referenceImage: \"" << referenceImage << "\" could not be found!! L2norm could not be calculated!";
+		} else{
+			std::cout << "L2 normalized error: " << reconsts[imageID].compareNorm(phantoms[referenceImage]);
+		}
+	}
 }
 
 void Gen1CT::displayReconstruction(const std::string& label){
@@ -1284,7 +1293,8 @@ void Gen1CT::MLEMReconst(std::string sinogramID,
 						 projectorType projectAlgo,
 						 backprojectorType backprojectAlgo,
 						 const std::string& imageID,
-						 int numberOfIterations){
+						 int numberOfIterations,
+						 std::string referenceImage){
 
 	if(scans.find(sinogramID) == scans.end()){
 				std::cout << std::endl << "ERROR!! sinogramID: \"" << sinogramID << "\" could not be found!! Abort mission";
@@ -1317,6 +1327,7 @@ void Gen1CT::MLEMReconst(std::string sinogramID,
 			             Eigen::MatrixXd::Ones(numberOfRecPoints[0], numberOfRecPoints[1])*muWater,
 						 resolution);
 
+	std::vector<double> differenceNorms(0);
 	for(int itNumber = 0; itNumber < numberOfIterations; ++itNumber){
 
 		std::cout << "\nIteration:" << itNumber+1 << " / " << numberOfIterations;
@@ -1348,7 +1359,21 @@ void Gen1CT::MLEMReconst(std::string sinogramID,
 
 		reconstImage = reconstImage / normFactors * corrImage;
 
+		if(referenceImage != ""){
+			if(phantoms.find(referenceImage) == phantoms.end()){
+				std::cout << std::endl << "ERROR!! referenceImage: \"" << referenceImage << "\" could not be found!! L2norm could not be calculated!";
+				differenceNorms.push_back(0.0);
+			} else{
+				differenceNorms.push_back(reconstImage.compareNorm(phantoms[referenceImage]));
+			}
+		}
+	}
 
+	//Show the convergence
+	if(referenceImage != ""){
+		matplotlibcpp::figure();
+		matplotlibcpp::plot( differenceNorms );
+		matplotlibcpp::show();
 	}
 
 	//Move the backprojected image to reconsts map
@@ -1467,7 +1492,8 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 						int numberOfIterations,
 						regularizerType regularizerFunction,
 						double beta,
-						double delta){
+						double delta,
+						std::string referenceImage){
 	if(scans.find(sinogramID) == scans.end()){
 					std::cout << std::endl << "ERROR!! sinogramID: \"" << sinogramID << "\" could not be found!! Abort mission";
 					return;
@@ -1506,6 +1532,8 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 	//Phantom reconstImage("reconstructedImage",
 	//		             Eigen::MatrixXd::Ones(numberOfRecPoints[0], numberOfRecPoints[1])*muWater,
 	//					 resolution);
+
+	std::vector<double> differenceNorms;
 
 	//START the ITERATION
 	for(int itNumber = 0; itNumber < numberOfIterations; ++itNumber){
@@ -1583,10 +1611,27 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 		else{
 			std::cout << "\nERROR!! regularizer function not recognized";
 		}
+
+		if(referenceImage != ""){
+			if(phantoms.find(referenceImage) == phantoms.end()){
+				std::cout << std::endl << "ERROR!! referenceImage: \"" << referenceImage << "\" could not be found!! L2norm could not be calculated!";
+				differenceNorms.push_back(0.0);
+			} else{
+				differenceNorms.push_back(reconstImage.compareNorm(phantoms[referenceImage]));
+			}
+		}
+
 		//reconstImage.display();
 
 		//std::cin.get();
 
+	}
+
+	//Show the convergence
+	if(referenceImage != ""){
+		matplotlibcpp::figure();
+		matplotlibcpp::plot( differenceNorms );
+		matplotlibcpp::show();
 	}
 
 	//Move the backprojected image to reconsts map

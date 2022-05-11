@@ -42,6 +42,8 @@ public:
 
 	std::array<double, 2> getPixSizes() const;
 	std::array<int, 2> getNumberOfPixels() const;
+	std::vector<double> getXPixCentreCoords() const;
+	std::vector<double> getYPixCentreCoords() const;
 
 	const Eigen::MatrixXd& getDataAsEigenMatrixRef() const;
 

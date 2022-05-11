@@ -32,10 +32,10 @@ int main(){
 #endif
 
 	//Works: rayDriven Projector and pixelDriven BackProjector
-	//testFBP("modSL_symm", projectorType::rayDriven, backprojectorType::pixelDriven);
+	testFBP("modSL_symm", projectorType::rayDriven, backprojectorType::pixelDriven);
 
 	//Works: rayDriven Projector and pixelDriven BackProjector
-	testFBP("modSL_symm", projectorType::rayDriven_GPU, backprojectorType::rayDriven_GPU);
+	//testFBP("modSL_symm", projectorType::rayDriven_GPU, backprojectorType::rayDriven_GPU);
 
 	//Works: rayDriven Projector and rayDriven BackProjector
 	//testFBP("modSL_symm", projectorType::rayDriven, backprojectorType::rayDriven);
@@ -89,7 +89,7 @@ void testFBP(const std::string& phantomName,
 	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0.0/180.0 * M_PI,
 			(1.0 - 1.0/numProjections) * M_PI);
 
-	ct.setI0(1e3);
+	ct.setI0(5e2);
 	//ct.setI0(0.0);
 
 	ct.measure(phantomName, angles, "Sinogram", projectAlgo);
@@ -98,7 +98,7 @@ void testFBP(const std::string& phantomName,
 
 	ct.filteredBackProject("Sinogram", std::array<int, 2> { 512, 512}, //jo 256 x 256 pixel, 0.4 felbontas
 			std::array<double, 2> { 0.2, 0.2 }, FilterType::Hann, 0.5, backprojectAlgo,
-			"RecImage");
+			"RecImage", phantomName);
 
 	ct.Gen1CT::displayReconstruction("RecImage");
 

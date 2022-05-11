@@ -81,7 +81,8 @@ public:
 							 FilterType filterType,
 							 double cutOffFreq,
 							 backprojectorType backProjectAlgo,
-							 const std::string& imageID);
+							 const std::string& imageID,
+							 std::string referenceImage="");
 
 	void MLEMReconst(std::string sinogramID,
 				     const std::array<int,2>& numberOfRecPoints,
@@ -89,7 +90,8 @@ public:
 					 projectorType projectAlgo,
 					 backprojectorType backProjectAlgo,
 					 const std::string& imageID,
-					 int numberOfIterations);
+					 int numberOfIterations,
+					 std::string referenceImage="");
 
 	void SPSReconst(std::string sinogramID,
 				     const std::array<int,2>& numberOfRecPoints,
@@ -100,7 +102,8 @@ public:
 					 int numberOfIterations,
 					 regularizerType regularizerFunction,
 					 double beta=1000.0,
-					 double delta=0.004);
+					 double delta=0.004,
+					 std::string referenceImage="");
 
 	CTScan applyFilter(const std::string& sinogramID, Filter filter);
 
