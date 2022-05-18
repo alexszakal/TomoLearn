@@ -135,6 +135,8 @@ public:
 
 	double compareReconToPhantom(std::string reconLabel, std::string phantomLabel) const;
 
+	std::vector<double> getConvergenceCurve(std::string label);
+
 private:
 	const double detWidth;
 	const int pixNum;

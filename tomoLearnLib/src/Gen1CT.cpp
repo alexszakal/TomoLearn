@@ -1252,12 +1252,21 @@ void Gen1CT::filteredBackProject(std::string sinogramID,
 	sinogramID="tmpSinogram";
 
 	//Apply filter on the sinogram
-	CTScan filteredScan = applyFilter(sinogramID, Filter(filterType, cutOffFreq) );
+	CTScan filteredScan = applyFilter(sinogramID, Filter(filterType, cutOffFreq) );    //Ha az applyFilter nem helyben dolgozik akkor nem kell a "tmpSinogram"
 	//filteredScan.display(sinogramID + " filtered");
 
 	//Backproject the image
-	Eigen::MatrixXd backprojectedImage;
-	backprojectedImage = backProject(filteredScan, numberOfRecPoints,resolution, backProjectAlgo);
+	Reconst recImage(imageID, backProject(filteredScan, numberOfRecPoints,resolution, backProjectAlgo), resolution);
+
+	double normError=0.0;
+	if(referenceImage != ""){
+		if(phantoms.find(referenceImage) == phantoms.end()){
+			std::cout << std::endl << "ERROR!! referenceImage: \"" << referenceImage << "\" could not be found!! L2norm could not be calculated!";
+		} else{
+			normError = recImage.compareNorm(phantoms[referenceImage]);
+			std::cout << "L2 normalized error: " << normError;
+		}
+	}
 
 	//Move the backprojected image to reconsts map
 	auto it = reconsts.find(imageID);
@@ -1265,16 +1274,9 @@ void Gen1CT::filteredBackProject(std::string sinogramID,
 		std::cout << std::endl << "WARNING! A reconstructed image with label \"" << imageID << "\" already exists!!! Overwriting!!!";
 		reconsts.erase(it);
 	}
-	reconsts.emplace(imageID, Reconst(imageID, backprojectedImage, resolution));
-	scans.erase("tmpSinogram");
 
-	if(referenceImage != ""){
-		if(phantoms.find(referenceImage) == phantoms.end()){
-			std::cout << std::endl << "ERROR!! referenceImage: \"" << referenceImage << "\" could not be found!! L2norm could not be calculated!";
-		} else{
-			std::cout << "L2 normalized error: " << reconsts[imageID].compareNorm(phantoms[referenceImage]);
-		}
-	}
+	reconsts.emplace(imageID, Reconst(imageID, recImage.getDataAsEigenMatrixRef(), resolution, std::vector<double>{normError}));
+	scans.erase("tmpSinogram");
 }
 
 void Gen1CT::displayReconstruction(const std::string& label){
@@ -1370,11 +1372,11 @@ void Gen1CT::MLEMReconst(std::string sinogramID,
 	}
 
 	//Show the convergence
-	if(referenceImage != ""){
+	/*if(referenceImage != ""){
 		auto h=matplot::figure();
 		matplot::plot( differenceNorms );
 		h->show();
-	}
+	}*/
 
 	//Move the backprojected image to reconsts map
 	auto it = reconsts.find(imageID);
@@ -1382,7 +1384,7 @@ void Gen1CT::MLEMReconst(std::string sinogramID,
 		std::cout << std::endl << "WARNING! A reconstructed image with label \"" << imageID << "\" already exists!!! Overwriting!!!";
 		reconsts.erase(it);
 	}
-	reconsts.emplace(imageID, Reconst(imageID, reconstImage.getDataAsEigenMatrixRef(), resolution));
+	reconsts.emplace(imageID, Reconst(imageID, reconstImage.getDataAsEigenMatrixRef(), resolution, differenceNorms));
 }
 
 /***
@@ -1630,11 +1632,11 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 	}
 
 	//Show the convergence
-	if(referenceImage != ""){
+	/*if(referenceImage != ""){
 		auto h=matplot::figure();
 		matplot::plot( differenceNorms );
 		h->show();
-	}
+	}*/
 
 	//Move the backprojected image to reconsts map
 	auto it = reconsts.find(imageID);
@@ -1642,7 +1644,7 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 		std::cout << std::endl << "WARNING! A reconstructed image with label \"" << imageID << "\" already exists!!! Overwriting!!!";
 		reconsts.erase(it);
 	}
-	reconsts.emplace(imageID, Reconst(imageID, reconstImage.getDataAsEigenMatrixRef(), resolution));
+	reconsts.emplace(imageID, Reconst(imageID, reconstImage.getDataAsEigenMatrixRef(), resolution, differenceNorms));
 }
 
 #if ENABLE_CUDA
@@ -1730,10 +1732,19 @@ double Gen1CT::compareReconToPhantom(std::string reconLabel, std::string phantom
 	}
 
 	return reconsts.at(reconLabel).compareNorm(phantoms.at(phantomLabel));
-
 }
 
+std::vector<double> Gen1CT::getConvergenceCurve(std::string label){
+	std::vector<double> convergenceCurve(0);
+	if(reconsts.find(label) == reconsts.end()){
+		std::cout << std::endl << "ERROR!! Label: \"" << label << "\" could not be found!! Can not return the convergence curve!";
+	}else{
+		convergenceCurve = reconsts[label].getConvergenceCurve();
+	}
 
+	return convergenceCurve;
+
+}
 
 
 

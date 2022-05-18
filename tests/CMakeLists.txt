@@ -16,3 +16,6 @@ target_link_libraries(testRayDrivenProj PRIVATE tomoLearnLib)
 
 add_executable(testSPS src/testSPS.cpp)
 target_link_libraries(testSPS PRIVATE tomoLearnLib)
+
+add_executable(testReconstructions src/testReconstructions.cpp)
+target_link_libraries(testReconstructions PRIVATE tomoLearnLib)

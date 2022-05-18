@@ -4,7 +4,8 @@ add_library(tomoLearnLib SHARED src/CTScan.cpp
                                 src/Filter.cpp 
                                 src/Gen1CT.cpp 
                                 src/Object2D.cpp 
-                                src/Phantom.cpp)
+                                src/Phantom.cpp
+                                src/Reconst.cpp)
               
 option(ENABLE_CUDA "Turn on CUDA reconstructions" OFF)
 
