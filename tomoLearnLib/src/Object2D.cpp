@@ -6,8 +6,6 @@
   #undef Success
 #endif
 
-#include <matplotlibcpp.h>
-
 #include <iomanip>
 #include <iostream>
 #include <vector>

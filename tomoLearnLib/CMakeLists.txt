@@ -5,7 +5,7 @@ add_library(tomoLearnLib SHARED src/CTScan.cpp
                                 src/Gen1CT.cpp 
                                 src/Object2D.cpp 
                                 src/Phantom.cpp)
-
+              
 option(ENABLE_CUDA "Turn on CUDA reconstructions" OFF)
 
 if(ENABLE_CUDA)
@@ -46,7 +46,7 @@ target_include_directories(tomoLearnLib PUBLIC include)
 target_include_directories(tomoLearnLib PRIVATE src)
 
 target_link_libraries(tomoLearnLib PUBLIC Eigen3::Eigen)
-target_link_libraries(tomoLearnLib PUBLIC matplotlib_cpp)
+target_link_libraries(tomoLearnLib PUBLIC matplot)
 
 target_link_libraries(tomoLearnLib PUBLIC pthread)
 target_link_libraries(tomoLearnLib PUBLIC fftw3)

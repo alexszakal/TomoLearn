@@ -12,8 +12,6 @@
 #include <Object2D.hpp>
 #include <Gen1CT.hpp>
 
-#include <matplotlibcpp.h>
-
 #include <config.h>
 
 void testCudaCompile();

@@ -13,8 +13,6 @@
 #include <Gen1CT.hpp>
 #include <Phantom.hpp>
 
-#include <matplotlibcpp.h>
-
 #include <config.h>
 
 
@@ -109,7 +107,7 @@ void testMLEM(const std::string& phantomName,
 
 	ct.Gen1CT::displayReconstruction("RecImage");
 
-	//ct.compareRowPhantomAndReconst('Y', -31.0, phantomName, "RecImage");
+	ct.compareRowPhantomAndReconst('Y', -31.0, phantomName, "RecImage");
 
 	std::cout<<"\n Press ENTER to continue";
 	std::cin.get();

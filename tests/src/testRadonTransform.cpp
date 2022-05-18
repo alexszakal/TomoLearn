@@ -12,8 +12,6 @@
 #include <Object2D.hpp>
 #include <Gen1CT.hpp>
 
-#include <matplotlibcpp.h>
-
 #include <config.h>
 
 void testRadonTransform(const std::string& phantomName, projectorType projectAlgo);

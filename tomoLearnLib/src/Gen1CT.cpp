@@ -9,7 +9,7 @@
 #include <Filter.hpp>
 #include <cudaFunctions.cuh>
 
-#include <matplotlibcpp.h>
+#include <matplot/matplot.h>
 
 #include <utility>   //std::swap
 #include <iostream>
@@ -1371,9 +1371,9 @@ void Gen1CT::MLEMReconst(std::string sinogramID,
 
 	//Show the convergence
 	if(referenceImage != ""){
-		matplotlibcpp::figure();
-		matplotlibcpp::plot( differenceNorms );
-		matplotlibcpp::show();
+		auto h=matplot::figure();
+		matplot::plot( differenceNorms );
+		h->show();
 	}
 
 	//Move the backprojected image to reconsts map
@@ -1436,10 +1436,11 @@ void Gen1CT::compareRowPhantomAndReconst(char direction, double position, const 
 			phantomXvals[idx] = -1*phantomPixSizes[1]*phantomPixNum[1]/2 + (idx+0.5)*phantomPixSizes[1];
 		}
 
-		matplotlibcpp::figure(27);
-		matplotlibcpp::plot(recXvals, std::vector<float> (&BPSlice[0], BPSlice.data()+BPSlice.cols()*BPSlice.rows()) );
-		matplotlibcpp::plot(phantomXvals, std::vector<float> (&ObjSlice[0], ObjSlice.data()+ObjSlice.cols()*ObjSlice.rows()) );
-		matplotlibcpp::show();
+		auto h=matplot::figure();
+		matplot::plot(recXvals, std::vector<float> (&BPSlice[0], BPSlice.data()+BPSlice.cols()*BPSlice.rows()) );
+		matplot::hold(true);
+		matplot::plot(phantomXvals, std::vector<float> (&ObjSlice[0], ObjSlice.data()+ObjSlice.cols()*ObjSlice.rows()) );
+		h->show();
 	}
 	else if (direction == 'X'){
 		int recColNum = std::round( (position + recPixSizes[0]*recPixNum[0]/2)/recPixSizes[0] );
@@ -1464,10 +1465,11 @@ void Gen1CT::compareRowPhantomAndReconst(char direction, double position, const 
 			phantomYvals[idx] = phantomPixSizes[0]*phantomPixNum[0]/2 - (idx+0.5)*phantomPixSizes[0];
 		}
 
-		matplotlibcpp::figure(27);
-		matplotlibcpp::plot(recYvals, std::vector<float> (&BPSlice[0], BPSlice.data()+BPSlice.cols()*BPSlice.rows()) );
-		matplotlibcpp::plot(phantomYvals, std::vector<float> (&ObjSlice[0], ObjSlice.data()+ObjSlice.cols()*ObjSlice.rows()) );
-		matplotlibcpp::show();
+		auto h=matplot::figure();
+		matplot::plot(recYvals, std::vector<float> (&BPSlice[0], BPSlice.data()+BPSlice.cols()*BPSlice.rows()) );
+		matplot::hold(true);
+		matplot::plot(phantomYvals, std::vector<float> (&ObjSlice[0], ObjSlice.data()+ObjSlice.cols()*ObjSlice.rows()) );
+		h->show();
 	}
 	else{
 		std::cout << "Unable to determine the slicing direction in compareRowPhantomAndReconst function."
@@ -1629,9 +1631,9 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 
 	//Show the convergence
 	if(referenceImage != ""){
-		matplotlibcpp::figure();
-		matplotlibcpp::plot( differenceNorms );
-		matplotlibcpp::show();
+		auto h=matplot::figure();
+		matplot::plot( differenceNorms );
+		h->show();
 	}
 
 	//Move the backprojected image to reconsts map

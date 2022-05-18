@@ -13,8 +13,6 @@
 #include <Object2D.hpp>
 #include <Gen1CT.hpp>
 
-#include <matplotlibcpp.h>
-
 #include <config.h>
 
 void testRayDrivenProj( const std::string& phantomName, bool useGPU );

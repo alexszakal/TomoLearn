@@ -13,9 +13,9 @@
 #include <Gen1CT.hpp>
 #include <Phantom.hpp>
 
-#include <matplotlibcpp.h>
-
 #include <config.h>
+
+#include <matplot/matplot.h>
 
 
 void testMLEM(const std::string& phantomName, projectorType measureAlgo, projectorType projectAlgo,
@@ -30,10 +30,10 @@ int main(){
 #endif
 
 	//Works: rayDriven Projector and pixelDriven BackProjector Standard config.
-	testMLEM("modSL_symm", projectorType::rayDriven, projectorType::rayDriven, backprojectorType::pixelDriven);
+	//testMLEM("modSL_symm", projectorType::rayDriven, projectorType::rayDriven, backprojectorType::pixelDriven);
 
 	//rayDriven Projector on GPU and pixelDriven BackProjector Standard config.
-	//testMLEM("modSL_symm", projectorType::rayDriven, projectorType::rayDriven_GPU, backprojectorType::pixelDriven);
+	testMLEM("modSL_symm", projectorType::rayDriven, projectorType::rayDriven_GPU, backprojectorType::pixelDriven);
 
 	//rayDriven Projector and Backprojector on GPU
 	//testMLEM("modSL_symm", projectorType::rayDriven, projectorType::rayDriven_GPU, backprojectorType::rayDriven_GPU);
@@ -107,7 +107,7 @@ void testMLEM(const std::string& phantomName,
 
 	std::cout<<"\nStart SPS reconstruction";
 	ct.SPSReconst("Sinogram", std::array<int, 2> { 512, 512}, // 1024 x 1024 pixel, 0.1mm felbontas
-			std::array<double, 2> { 0.199, 0.199}, projectAlgo, backprojectAlgo, "RecImage", 100,
+			std::array<double, 2> { 0.199, 0.199}, projectAlgo, backprojectAlgo, "RecImage", 10,
 			regularizerType::Huber, 3000, 0.004, phantomName);
 
 	ct.Gen1CT::displayReconstruction("RecImage");

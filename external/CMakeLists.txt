@@ -1,3 +1,2 @@
-
 add_subdirectory(eigen3)
-add_subdirectory(matplotlibcpp)
+add_subdirectory(matplot++)
