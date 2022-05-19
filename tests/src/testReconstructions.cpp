@@ -28,8 +28,8 @@ int main(){
 	//Test configuration
 	std::string phantomFileName = "Phantoms/ModifiedSheppLogan_HU.png";
 	projectorType measureAlgo = projectorType::pixelDriven;
-	projectorType projectAlgo = projectorType::rayDriven_GPU;
-	backprojectorType backprojectAlgo = backprojectorType::rayDriven_GPU;
+	projectorType projectAlgo = projectorType::rayDriven;
+	backprojectorType backprojectAlgo = backprojectorType::rayDriven;
 	double I0 = 3e2;
 
 	int MLEM_numIterations=100;

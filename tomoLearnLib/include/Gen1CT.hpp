@@ -55,11 +55,7 @@ public:
 
     Eigen::MatrixXd project(const Phantom& actualPhantom, const Eigen::VectorXd& angles, projectorType projector);
 
-	void measure_withInterpolation(const std::string& label, const Eigen::VectorXd& angles, const std::string& scanLabel);
-
 	Eigen::MatrixXd project_pixelDriven_CPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles);
-
-	void measure_Siddon(const std::string& label, const Eigen::VectorXd& angles, const std::string& scanLabel);
 
 	Eigen::MatrixXd project_Siddon_CPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles);
 
@@ -101,7 +97,7 @@ public:
 					 const std::string& imageID,
 					 int numberOfIterations,
 					 regularizerType regularizerFunction,
-					 double beta=1000.0,
+					 double beta=2000.0,
 					 double delta=0.004,
 					 std::string referenceImage="");
 

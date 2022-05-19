@@ -30,10 +30,10 @@ int main(){
 #endif
 
 	//Works: rayDriven Projector and pixelDriven BackProjector Standard config.
-	//testMLEM("modSL_symm", projectorType::rayDriven, projectorType::rayDriven, backprojectorType::pixelDriven);
+	testMLEM("modSL_symm", projectorType::rayDriven, projectorType::rayDriven, backprojectorType::pixelDriven);
 
 	//rayDriven Projector on GPU and pixelDriven BackProjector Standard config.
-	testMLEM("modSL_symm", projectorType::rayDriven, projectorType::rayDriven_GPU, backprojectorType::pixelDriven);
+	//testMLEM("modSL_symm", projectorType::rayDriven, projectorType::rayDriven_GPU, backprojectorType::pixelDriven);
 
 	//rayDriven Projector and Backprojector on GPU
 	//testMLEM("modSL_symm", projectorType::rayDriven, projectorType::rayDriven_GPU, backprojectorType::rayDriven_GPU);

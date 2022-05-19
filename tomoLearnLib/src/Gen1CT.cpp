@@ -105,6 +105,13 @@ void Gen1CT::setI0(double newI0){
 	I0=newI0;
 }
 
+/***
+ * Simulate the measurement of a Phantom
+ * @param phantomLabel Label of the Phantom in the Phantom library
+ * @param angles Angles of the measurement [rad]
+ * @param scanLabel Label of the result in the library for the scans
+ * @param projector Type of the applied projector
+ */
 void Gen1CT::measure(const std::string& phantomLabel,
 		     const Eigen::VectorXd& angles,
 			 const std::string& scanLabel,
@@ -116,47 +123,45 @@ void Gen1CT::measure(const std::string& phantomLabel,
 	}
 
 	Phantom& actualPhantom = phantoms[phantomLabel];
-	int numAngles = angles.size();
-	Eigen::MatrixXd sinogram = Eigen::MatrixXd::Zero(pixNum, numAngles);
 
-	sinogram = project(actualPhantom, angles, projector);
+	Eigen::MatrixXd sinogram = project(actualPhantom, angles, projector);
 
-	//Move the sinogram to CTScans map
+	//Check if scanLabel can be found in CTScans map
 	auto it = scans.find(scanLabel);
 	if(it != scans.end()){
 		std::cout << std::endl << "WARNING! A scan with label \"" << scanLabel << "\" already exists!!! Overwriting!!!";
 		scans.erase(it);
 	}
 
-	Eigen::MatrixXd Isinogram;   //TODO Isinogram -> sinogram
 	if(I0 !=0.0){ //Simulation of the effect of statistics on the line integrals has to be done
 		//Calculate the expected value
-
-		Isinogram = Eigen::exp( sinogram.array()* (-1.0) ) * I0 ;
+		sinogram = Eigen::exp( sinogram.array()* (-1.0) ) * I0 ;
 
 		//Randomize the matrix
 		unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
 		std::mt19937_64 generator(seed1);    //Seed the generator
-		for(int i=0; i<Isinogram.rows(); i++){
-			for(int j=0; j<Isinogram.cols(); j++){
-				std::poisson_distribution<int> poissonDist( Isinogram(i,j) );
-				Isinogram(i,j) = poissonDist(generator);
-				//Isinogram(i,j) = (-1)* std::log( poissonDist(generator) / I0 );        //Removed and placed in the reconstruction algorithm
-				if (Isinogram(i,j)<0.0){    //The line integral has to be non-negative. It can become neg. because of statistics
-					Isinogram(i,j) = 0.0;
-				}
+
+		for(int i=0; i<sinogram.rows(); i++){
+			for(int j=0; j<sinogram.cols(); j++){
+				std::poisson_distribution<int> poissonDist( sinogram(i,j) );
+				sinogram(i,j) = poissonDist(generator);
 			}
 		}
 	}
-	else{
-		Isinogram = sinogram;
-	}
-	scans.emplace(scanLabel, CTScan(scanLabel,Isinogram, detWidth, angles, I0));
+
+	//Save the scan in the library
+	scans.emplace(scanLabel, CTScan(scanLabel,sinogram, detWidth, angles, I0));
 }
 
+/***
+ * Calculate the projection of a Phantom object
+ * @param actualPhantom The Phantom object of which the projetion is calculated
+ * @param angles Projection angles [rad]
+ * @param projector Type of the used projector
+ * @return The sinogram matrix of the actualPhantom
+ */
 Eigen::MatrixXd Gen1CT::project(const Phantom& actualPhantom, const Eigen::VectorXd& angles, projectorType projector){
-	int numAngles = angles.size();
-	Eigen::MatrixXd sinogram = Eigen::MatrixXd::Zero(pixNum, numAngles);
+	Eigen::MatrixXd sinogram;
 
 	switch (projector){
 		case projectorType::pixelDriven:
@@ -177,18 +182,24 @@ Eigen::MatrixXd Gen1CT::project(const Phantom& actualPhantom, const Eigen::Vecto
 			sinogram = project_rayDrivenOptimized_CPU(actualPhantom, angles);
 			break;
 	}
+
 	return sinogram;
 }
 
+/***
+ * Ray-driven projection calculated on the CPU
+ * @param actualPhantom The Phantom object which has to be projected
+ * @param angles Projection angles [rad]
+ * @return The sinogram matrix of the actualPhantom
+ */
 Eigen::MatrixXd Gen1CT::project_rayDriven_CPU(const Phantom& actualPhantom,
 		                    const Eigen::VectorXd& angles){
-	std::cout << std::endl << "Projection with ray-driven method started" << std::endl;
+	std::cout <<  "\nProjection with ray-driven method started";
 	auto start = std::chrono::high_resolution_clock::now();
 
 	int numAngles = angles.size();
 
 	Eigen::MatrixXd sinogram = Eigen::MatrixXd::Zero(static_cast<long>(pixNum), static_cast<long>(numAngles));
-
 
 	auto pixSizes = actualPhantom.getPixSizes();
     auto numberOfPixels = actualPhantom.getNumberOfPixels();
@@ -226,12 +237,10 @@ Eigen::MatrixXd Gen1CT::project_rayDriven_CPU(const Phantom& actualPhantom,
     double p2[2];
     //Go through the angles
     for(int angI=0; angI < numAngles; ++angI){
-
     	//beam intersects the columns at most two pixels
     	if( pixSizes[1] / pixSizes[0] >= std::abs(std::tan(M_PI/2-thetaVector[static_cast<size_t>(angI)])) ){
     		//go through the different t values
     		for(int pixIdx=0; pixIdx<pixNum; ++pixIdx){
-
     			double t = pixPositions[static_cast<size_t>(pixIdx)];
 
     			p1[0]=detDist * sinThetaVector[static_cast<size_t>(angI)] + t * cosThetaVector[static_cast<size_t>(angI)];
@@ -239,7 +248,6 @@ Eigen::MatrixXd Gen1CT::project_rayDriven_CPU(const Phantom& actualPhantom,
 
     			p2[0] = -1 * detDist * sinThetaVector[static_cast<size_t>(angI)] + t * cosThetaVector[static_cast<size_t>(angI)];
     			p2[1] = detDist * cosThetaVector[static_cast<size_t>(angI)] + t * sinThetaVector[static_cast<size_t>(angI)];
-
 
     			double ky = (p1[1]-p2[1])/(p1[0]-p2[0]);
     			double pathInSinglePixel = sqrt(1+ky*ky)*pixSizes[0];
@@ -260,23 +268,19 @@ Eigen::MatrixXd Gen1CT::project_rayDriven_CPU(const Phantom& actualPhantom,
     				if( Yi_minusIdx == Yi_plusIdx ){ //intersecting only one pixel
     					if( (Yi_minusIdx < numberOfPixels[1]) and (Yi_minusIdx >= 0 ) ){
     						//l=sqrt(1+ky*ky)*pixSizes[0]; //Optimized away with pathInSinglePixel
-
     						sinogram(static_cast<long>(pixIdx), static_cast<long>(angI)) += pathInSinglePixel * dataPtr[Yi_minusIdx*numberOfPixels[0] + colIdx];
     					}
     				} else{
     					if ( (Yi_minusIdx < numberOfPixels[1]) and (Yi_minusIdx >= 0) ){
     						l_minus=(std::max(Yi_minusIdx, Yi_plusIdx)-yi_minus) / (yi_plus - yi_minus) * pathInSinglePixel;
-
     						sinogram(static_cast<long>(pixIdx), static_cast<long>(angI)) += l_minus * dataPtr[Yi_minusIdx*numberOfPixels[0] + colIdx];
     						}
 
     					if ( (Yi_plusIdx < numberOfPixels[1]) and (Yi_plusIdx >= 0 ) ){
     						l_plus=(yi_plus - std::max(Yi_minusIdx, Yi_plusIdx)) / (yi_plus - yi_minus) * pathInSinglePixel;
-
     						sinogram(static_cast<long>(pixIdx), static_cast<long>(angI)) += l_plus * dataPtr[Yi_plusIdx*numberOfPixels[0] + colIdx];
     					}
     				}
-
     			}
     		}
     	}
@@ -296,7 +300,6 @@ Eigen::MatrixXd Gen1CT::project_rayDriven_CPU(const Phantom& actualPhantom,
 
     			//go through the rows of the image
     	    	for(int rowIdx=0; rowIdx<numberOfPixels[1]; ++rowIdx){
-
     	    		double xi_minus = (halfPhantomWidth + (kx*( halfPhantomHeight - rowIdx     *pixSizes[1] - p1[1] ) + p1[0] ) )  * invPixSize0;
     	    		//double xi_plus  = (halfPhantomWidth + (kx*( halfPhantomHeight - (rowIdx+1) *pixSizes[1] - p1[1] ) + p1[0] ) ) / pixSizes[0];    //Optimized code in next line
     	    		double xi_plus = xi_minus - kx*pixSizeRatio10;
@@ -311,20 +314,17 @@ Eigen::MatrixXd Gen1CT::project_rayDriven_CPU(const Phantom& actualPhantom,
     	    		if( Xi_minusIdx == Xi_plusIdx ){
     	    			if( (Xi_minusIdx < numberOfPixels[0]) and (Xi_minusIdx >= 0 ) ){
     	    				//l=sqrt(1+kx*kx)*pixSizes[1]; //Optimized away with pathInSinglePixel
-
     	    				sinogram(static_cast<long>(pixIdx), static_cast<long>(angI)) += pathInSinglePixel * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
     	    			}
     	    		}
     	    		else{
     	    			if ( (Xi_minusIdx < numberOfPixels[0]) and (Xi_minusIdx >= 0 ) ){
     	    				l_minus=(std::max(Xi_minusIdx, Xi_plusIdx)-xi_minus) / (xi_plus - xi_minus) * pathInSinglePixel;
-
     	    				sinogram(static_cast<long>(pixIdx), static_cast<long>(angI)) += l_minus * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
     	    			}
 
     					if ( (Xi_plusIdx < numberOfPixels[0]) and (Xi_plusIdx >= 0) ){
     						l_plus=(xi_plus - std::max(Xi_minusIdx, Xi_plusIdx)) / (xi_plus - xi_minus) * pathInSinglePixel;
-
     						sinogram(static_cast<long>(pixIdx), static_cast<long>(angI)) += l_plus * dataPtr[rowIdx*numberOfPixels[0] + Xi_plusIdx];
     	    			}
     	    		}
@@ -337,15 +337,21 @@ Eigen::MatrixXd Gen1CT::project_rayDriven_CPU(const Phantom& actualPhantom,
     ////////////////////////////////////////////////////////////////////////////////
 
     auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds >(stop - start);
-    std::cout << "Projection with ray-driven method took " << duration.count() << " milliseconds" << std::endl;
+    std::chrono::duration<double, std::milli> elapsedTime = stop - start;
+    std::cout << "\nProjection with ray-driven method took " << elapsedTime.count() << " milliseconds\n";
 
     return sinogram;
 }
 
+/***
+ * Ray-driven projection optimized for compute time calculated on the CPU
+ * @param actualPhantom The Phantom object which has to be projected
+ * @param angles Projection angles [rad]
+ * @return The sinogram matrix of the actualPhantom
+ */
 Eigen::MatrixXd Gen1CT::project_rayDrivenOptimized_CPU(const Phantom& actualPhantom,
 		                    const Eigen::VectorXd& angles){
-	std::cout << std::endl << "Projection with ray-driven method (optimized) started" << std::endl;
+	std::cout << "\nProjection with ray-driven method (optimized) started";
 	auto start = std::chrono::high_resolution_clock::now();
 
 	int numAngles = angles.size();
@@ -381,8 +387,9 @@ Eigen::MatrixXd Gen1CT::project_rayDrivenOptimized_CPU(const Phantom& actualPhan
     	minusTanThetaVector.push_back( -1*tan(thetaVector[static_cast<size_t>(i)]));
     	minusCotanThetaVector.push_back(-1*1/tan(thetaVector[static_cast<size_t>(i)]));
 
-    	pathInSinglePixelX.push_back(sqrt(1+minusCotanThetaVector[i]*minusCotanThetaVector[i])*pixSizes[0]);
-    	pathInSinglePixelY.push_back(sqrt(1+minusTanThetaVector[i]*minusTanThetaVector[i])*pixSizes[1]);
+    	pathInSinglePixelX.push_back(sqrt(1+minusCotanThetaVector[static_cast<size_t>(i)]*minusCotanThetaVector[static_cast<size_t>(i)])*pixSizes[0]);
+    	pathInSinglePixelY.push_back(sqrt(1+minusTanThetaVector[static_cast<size_t>(i)]*minusTanThetaVector[static_cast<size_t>(i)])*pixSizes[1]);
+
 
     	intersectColumns.push_back( pixSizes[1] / pixSizes[0] >= std::abs(std::tan(M_PI/2-thetaVector[static_cast<size_t>(i)])) );
     }
@@ -401,24 +408,24 @@ Eigen::MatrixXd Gen1CT::project_rayDrivenOptimized_CPU(const Phantom& actualPhan
     double p1[2];
     //double p2[2]; //Not needed for the optimized calculation
 
-    size_t subImageSize=128;  //This has to be tuned for the processor. 128 or 256 is ideal for the old ThinkPad
+    int subImageSize=128;  //This has to be tuned for the processor. 128 or 256 is ideal for the old ThinkPad
     double subImageRadius = std::sqrt( std::pow(subImageSize*pixSizes[0],2) + std::pow(subImageSize*pixSizes[1],2) );
-    size_t subImageDimX=numberOfPixels[0]/subImageSize +1;
-    size_t subImageDimY=numberOfPixels[1]/subImageSize +1;
+    int subImageDimX=numberOfPixels[0]/subImageSize +1;
+    int subImageDimY=numberOfPixels[1]/subImageSize +1;
 
     double leftmostPixCenter=(numberOfPixels[0]/2-0.5)*pixSizes[0];
     double bottomPixCenter=(numberOfPixels[1]/2-0.5)*pixSizes[1];
     //Go through the SubImages
-    for(size_t subImageXIdx=0; subImageXIdx<subImageDimX; ++subImageXIdx){
-    	for(size_t subImageYIdx=0; subImageYIdx<subImageDimY; ++subImageYIdx){
+    for(size_t subImageXIdx=0; subImageXIdx<static_cast<size_t>(subImageDimX); ++subImageXIdx){
+    	for(size_t subImageYIdx=0; subImageYIdx<static_cast<size_t>(subImageDimY); ++subImageYIdx){
 
-    		int colIdxMin=subImageXIdx*subImageSize;
+    		int colIdxMin=static_cast<int>(subImageXIdx)*subImageSize;
     		if(colIdxMin >= numberOfPixels[0])
     		    colIdxMin = numberOfPixels[0]-1;
     		int colIdxMax=colIdxMin+subImageSize-1;
     		if(colIdxMax >= numberOfPixels[0])
     			colIdxMax = numberOfPixels[0]-1;
-    		int rowIdxMin=subImageYIdx*subImageSize;
+    		int rowIdxMin=static_cast<int>(subImageYIdx)*subImageSize;
     		if(rowIdxMin >= numberOfPixels[1])
     		    rowIdxMin = numberOfPixels[1]-1;
     		int rowIdxMax=rowIdxMin+subImageSize-1;
@@ -454,10 +461,10 @@ Eigen::MatrixXd Gen1CT::project_rayDrivenOptimized_CPU(const Phantom& actualPhan
 				//beam intersects the columns at most two pixels
 				if( intersectColumns[angI] ){
 					//go through the different t values
-					for(size_t pixIdx=minPixIdx; pixIdx<=maxPixIdx; ++pixIdx){
+					for(size_t pixIdx=static_cast<size_t>(minPixIdx); pixIdx<=static_cast<size_t>(maxPixIdx); ++pixIdx){
 						const double t = pixPositions[pixIdx];
 
-						size_t sinogramPoint = pixIdx + angI*pixNum;       //Index of the point in sinogram array
+						size_t sinogramPoint = pixIdx + angI*static_cast<size_t>(pixNum);       //Index of the point in sinogram array
 
 						p1[0]=detDist * sinThetaVector[angI] + t * cosThetaVector[angI];
 						p1[1]=-1*detDist * cosThetaVector[angI] + t * sinThetaVector[angI];
@@ -487,7 +494,7 @@ Eigen::MatrixXd Gen1CT::project_rayDrivenOptimized_CPU(const Phantom& actualPhan
 							if( (yi_minus > rowIdxMax+2) or (yi_plus > rowIdxMax+2) )
 								continue;
 
-							//Early exit criterion for performance; This is the correct but the one above is faster
+							//Early exit criterion for performance; This is more strict but the one above is faster
 							/*if( (yi_minus <= rowIdxMin-1) and (yi_plus <= rowIdxMin-1) )
 								continue;
 							if( (yi_minus >= rowIdxMax+1) and (yi_plus >= rowIdxMax+1) )
@@ -495,7 +502,7 @@ Eigen::MatrixXd Gen1CT::project_rayDrivenOptimized_CPU(const Phantom& actualPhan
 
 							int Yi_minusIdx, Yi_plusIdx;
 							if( (yi_minus >= rowIdxMin) or (yi_plus >= rowIdxMin)){
-								Yi_minusIdx = static_cast<int>(yi_minus+1)-1;     //This floor() has to be correct is yi_minus>-1 otherwise we don't care because it is out of bounds
+								Yi_minusIdx = static_cast<int>(yi_minus+1)-1;     //This floor() is correct is yi_minus>-1 otherwise we don't care because it is out of bounds
 								Yi_plusIdx = static_cast<int>(yi_plus+1)-1;
 							}
 							else{
@@ -506,15 +513,14 @@ Eigen::MatrixXd Gen1CT::project_rayDrivenOptimized_CPU(const Phantom& actualPhan
 							if( Yi_minusIdx == Yi_plusIdx ){ //intersecting only one pixel
 								if( (Yi_minusIdx <= rowIdxMax) ){ // and (Yi_minusIdx >= rowIdxMin ) ){
 									//l=sqrt(1+ky*ky)*pixSizes[0]; //Optimized away with pathInSinglePixel
-
 									//sinogram(static_cast<long>(pixIdx), static_cast<long>(angI)) += pathInSinglePixel * dataPtr[Yi_minusIdx*numberOfPixels[0] + colIdx];
 									sinogramPtr[sinogramPoint] += pathInSinglePixel * dataPtr[Yi_minusIdx*numberOfPixels[0] + colIdx];
 								}
 							} else{
 								if ( (Yi_minusIdx <= rowIdxMax) and (Yi_minusIdx >= rowIdxMin) ){
 									const double l_minus=(std::max(Yi_minusIdx, Yi_plusIdx)-yi_minus) / (yi_plus - yi_minus) * pathInSinglePixel;
-
 									sinogramPtr[sinogramPoint] += l_minus * dataPtr[Yi_minusIdx*numberOfPixels[0] + colIdx];
+
 									//We have l_minus -> we can calculate l_plus with only a subtraction from pathInSinglePixel
 									if( (Yi_plusIdx <= rowIdxMax) and (Yi_plusIdx >= rowIdxMin ) ){
 										sinogramPtr[sinogramPoint] += (pathInSinglePixel- l_minus) * dataPtr[Yi_plusIdx*numberOfPixels[0] + colIdx];
@@ -524,7 +530,6 @@ Eigen::MatrixXd Gen1CT::project_rayDrivenOptimized_CPU(const Phantom& actualPhan
 
 								if ( (Yi_plusIdx <= rowIdxMax) and (Yi_plusIdx >= rowIdxMin ) ){
 									const double l_plus=(yi_plus - std::max(Yi_minusIdx, Yi_plusIdx)) / (yi_plus - yi_minus) * pathInSinglePixel;
-
 									sinogramPtr[sinogramPoint] += l_plus * dataPtr[Yi_plusIdx*numberOfPixels[0] + colIdx];
 								}
 							}
@@ -534,20 +539,20 @@ Eigen::MatrixXd Gen1CT::project_rayDrivenOptimized_CPU(const Phantom& actualPhan
 				}
 				else{      //beam intersects the rows at most two pixels
 					//go through the different t values
-					for(size_t pixIdx=minPixIdx; pixIdx<=maxPixIdx; ++pixIdx){
+					for(size_t pixIdx=static_cast<size_t>(minPixIdx); pixIdx<=static_cast<size_t>(maxPixIdx); ++pixIdx){
 						const double t = pixPositions[pixIdx];
 
-						size_t sinogramPoint = pixIdx + angI*pixNum;       //Index of the point in sinogram array
+						size_t sinogramPoint = pixIdx + angI*static_cast<size_t>(pixNum);       //Index of the point in sinogram array
 
 						p1[0]=detDist * sinThetaVector[angI] + t * cosThetaVector[angI];
 						p1[1]=-1*detDist * cosThetaVector[angI] + t * sinThetaVector[angI];
 
-						//p2[0] = -1 * detDist * sinThetaVector[angI] + t * cosThetaVector[angI];
+						//p2[0] = -1 * detDist * sinThetaVector[angI] + t * cosThetaVector[angI]; //Not needed for the optimized code
 						//p2[1] = detDist * cosThetaVector[angI] + t * sinThetaVector[angI];
 
-						//double kx = (p1[0]-p2[0])/(p1[1]-p2[1]);
+						//double kx = (p1[0]-p2[0])/(p1[1]-p2[1]);   //Optimized away using lookup table
 						double kx = minusTanThetaVector[angI];
-						//double pathInSinglePixel = sqrt(1+kx*kx)*pixSizes[1];
+						//double pathInSinglePixel = sqrt(1+kx*kx)*pixSizes[1];   //Optimized away using lookup table
 						double pathInSinglePixel = pathInSinglePixelY[angI];
 
 						//go through the rows of the image
@@ -558,8 +563,6 @@ Eigen::MatrixXd Gen1CT::project_rayDrivenOptimized_CPU(const Phantom& actualPhan
 							//double xi_minusReal = (halfPhantomWidth + kx*( halfPhantomHeight - rowIdx     *pixSizes[1] - p1[1] ) + p1[0]  )  * invPixSize0;
 							//double xi_plus  = (halfPhantomWidth + (kx*( halfPhantomHeight - (rowIdx+1) *pixSizes[1] - p1[1] ) + p1[0] ) ) / pixSizes[0];    //Optimized code in next line
 							xi_minus += xi_minusIncrement;
-							//if(xi_minus != xi_minusReal)
-							//	std::cout << "\nHoppacska";
 							//double xi_plus = xi_minus - kx*pixSizeRatio10;
 							double xi_plus = xi_minus + xi_plusIncrement;
 
@@ -569,7 +572,7 @@ Eigen::MatrixXd Gen1CT::project_rayDrivenOptimized_CPU(const Phantom& actualPhan
 							if( (xi_plus > colIdxMax+2) or (xi_plus > colIdxMax+2) )
 								continue;
 
-							//Early exit criterion for performance; This is the correct but the one above is faster
+							//Early exit criterion for performance; This is more strict but the one above is faster
 							/*if( (xi_minus <= colIdxMin-1) and (xi_plus <= colIdxMin-1) )
 								continue;
 							if( (xi_minus >= colIdxMax+1) and (xi_plus >= colIdxMax+1) )
@@ -588,15 +591,14 @@ Eigen::MatrixXd Gen1CT::project_rayDrivenOptimized_CPU(const Phantom& actualPhan
 							if( Xi_minusIdx == Xi_plusIdx ){
 								if( (Xi_minusIdx <= colIdxMax) and (Xi_minusIdx >= colIdxMin ) ){
 									//l=sqrt(1+kx*kx)*pixSizes[1]; //Optimized away with pathInSinglePixel
-
 									sinogramPtr[sinogramPoint] += pathInSinglePixel * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
 								}
 							}
 							else{
 								if ( (Xi_minusIdx <= colIdxMax) and (Xi_minusIdx >= colIdxMin ) ){
 									l_minus=(std::max(Xi_minusIdx, Xi_plusIdx)-xi_minus) / (xi_plus - xi_minus) * pathInSinglePixel;
-
 									sinogramPtr[sinogramPoint] += l_minus * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
+
 									//We have l_minus -> we can calculate l_plus with only a subtraction from pathInSinglePixel
 									if ( (Xi_plusIdx <= colIdxMax) and (Xi_plusIdx >= colIdxMin ) ){   //Shortcut to avoid one more std::max call
 										sinogramPtr[sinogramPoint] += (pathInSinglePixel-l_minus) * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
@@ -606,7 +608,6 @@ Eigen::MatrixXd Gen1CT::project_rayDrivenOptimized_CPU(const Phantom& actualPhan
 
 								if ( (Xi_plusIdx <= colIdxMax) and (Xi_plusIdx >= colIdxMin ) ){
 									l_plus=(xi_plus - std::max(Xi_minusIdx, Xi_plusIdx)) / (xi_plus - xi_minus) * pathInSinglePixel;
-
 									sinogramPtr[sinogramPoint] += l_plus * dataPtr[rowIdx*numberOfPixels[0] + Xi_minusIdx];
 								}
 							}
@@ -622,16 +623,20 @@ Eigen::MatrixXd Gen1CT::project_rayDrivenOptimized_CPU(const Phantom& actualPhan
     ////////////////////////////////////////////////////////////////////////////////
 
     auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds >(stop - start);
-    std::cout << "Projection with ray-driven method (optimized) took " << duration.count() << " milliseconds" << std::endl;
-
+    std::chrono::duration<double, std::milli> elapsedTime = stop - start;
+    std::cout << "\nProjection with ray-driven method (optimized) took " << elapsedTime.count() << " milliseconds\n";
     return sinogram;
 }
 
-
+/***
+ * Simple pixel-driven projector running on the CPU
+ * @param actualPhantom The Phantom object which has to be projected
+ * @param angles Projection angles [rad]
+ * @return The sinogram matrix of the actualPhantom
+ */
 Eigen::MatrixXd Gen1CT::project_pixelDriven_CPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles){
 
-	std::cout << std::endl << "Projecting with pixel-driven method (interpolation) started" << std::endl;
+	std::cout << "\nProjecting with pixel-driven method (interpolation) started";
 	auto start = std::chrono::high_resolution_clock::now();
 
 	int numAngles = angles.size();
@@ -640,12 +645,6 @@ Eigen::MatrixXd Gen1CT::project_pixelDriven_CPU(const Phantom& actualPhantom, co
 
 	auto pixSizes = actualPhantom.getPixSizes();
 	auto numberOfPixels = actualPhantom.getNumberOfPixels();
-
-	//Convert Hounsfield to linear attenuation (LA) units
-	Phantom actualPhantomLA = actualPhantom;                 //TODO: Torolni kell ha muxik randommal
-//	if( I0 != 0.0){
-//	  	actualPhantomLA = (actualPhantom-1000.0) * (muWater/1000) + muWater;   // HU -> LA transform
-//	}
 
 	double t;
 	const double piPer4 = M_PI/4;
@@ -669,32 +668,38 @@ Eigen::MatrixXd Gen1CT::project_pixelDriven_CPU(const Phantom& actualPhantom, co
 				                 ( (thetaVector[static_cast<size_t>(i)] > 5*piPer4 ) && (thetaVector[static_cast<size_t>(i)] < 7*piPer4) ) );
 	}
 
-
 	for(size_t pixI=0; pixI<static_cast<size_t>(pixNum); ++pixI){
 		t=pixPositions[pixI];
 		for(size_t angI=0; angI < static_cast<size_t>(numAngles); ++angI){
 			if( interpIsInY[angI] ){
 				for(int objectXIndex=0; objectXIndex < numberOfPixels[0]; ++objectXIndex){
-					double objectYinMM = t*sinThetaVector[angI]+ (t*cosThetaVector[angI] - actualPhantomLA.getXValueAtPix(objectXIndex))*cotThetaVector[angI];
-					sinogram(static_cast<long>(pixI), static_cast<long>(angI) ) += actualPhantomLA.linear_atY(objectXIndex, objectYinMM) * absSinThetaInvVector[angI]*pixSizes[0];
+					double objectYinMM = t*sinThetaVector[angI]+ (t*cosThetaVector[angI] - actualPhantom.getXValueAtPix(objectXIndex))*cotThetaVector[angI];
+					sinogram(static_cast<long>(pixI), static_cast<long>(angI) ) += actualPhantom.linear_atY(objectXIndex, objectYinMM) * absSinThetaInvVector[angI]*pixSizes[0];
 				}
 			} else{
 				for(int objectYIndex=0; objectYIndex < numberOfPixels[1]; ++objectYIndex){
-					double objectXinMM = t*cosThetaVector[angI] - (actualPhantomLA.getYValueAtPix(objectYIndex)-t*sinThetaVector[angI])*tanThetaVector[angI];
-					sinogram(static_cast<long>(pixI), static_cast<long>(angI) ) += actualPhantomLA.linear_atX(objectYIndex, objectXinMM) * absCosThetaInvVector[angI]*pixSizes[1];
+					double objectXinMM = t*cosThetaVector[angI] - (actualPhantom.getYValueAtPix(objectYIndex)-t*sinThetaVector[angI])*tanThetaVector[angI];
+					sinogram(static_cast<long>(pixI), static_cast<long>(angI) ) += actualPhantom.linear_atX(objectYIndex, objectXinMM) * absCosThetaInvVector[angI]*pixSizes[1];
 				}
 			}
 		}
 	}
 
-	auto stop = std::chrono::high_resolution_clock::now();
-	auto duration = std::chrono::duration_cast<std::chrono::milliseconds >(stop - start);
-	std::cout << "Projecting with pixel-driven method (interpolation) took " << duration.count() << " milliseconds" << std::endl;
+    auto stop = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsedTime = stop - start;
+	std::cout << "\nProjecting with pixel-driven method (interpolation) took " << elapsedTime.count() << " milliseconds" << std::endl;
 
 	return sinogram;
-
 }
 
+/***
+ * Projection with the improved Siddon method described in [1]
+ * [1] Jacobs F et al. "A fast algorithm to calculate the exact radiological path through a pixel or voxel space
+ * J. Comp. and Inf. Tech. - CIT 6, 1998, 1, p89-94
+ * @param actualPhantom The Phantom object which has to be projected
+ * @param angles Projection angles [rad]
+ * @return The sinogram matrix of the actualPhantom
+ */
 Eigen::MatrixXd Gen1CT::project_Siddon_CPU(const Phantom& actualPhantom, const Eigen::VectorXd& angles){
 
 	std::cout << std::endl << "Projection with improved Siddon's algo started";
@@ -706,12 +711,6 @@ Eigen::MatrixXd Gen1CT::project_Siddon_CPU(const Phantom& actualPhantom, const E
 	auto pixSizes = actualPhantom.getPixSizes();
 	auto numberOfPixels = actualPhantom.getNumberOfPixels();
 
-	//Convert Hounsfield to linear attenuation (LA) units
-	Phantom actualPhantomLA = actualPhantom;                      //TODO: Torolni kell ha muxik randommal
-//	if( I0 != 0.0){
-//		actualPhantomLA = (actualPhantom-1000.0) * (muWater/1000) + muWater;   // HU -> LA transform
-//	}
-
 	std::vector<double>	thetaVector,
 						sinThetaVector, cosThetaVector;
 
@@ -721,24 +720,24 @@ Eigen::MatrixXd Gen1CT::project_Siddon_CPU(const Phantom& actualPhantom, const E
 		cosThetaVector.push_back( cos(thetaVector[static_cast<size_t>(i)]) );
 	}
 
-	const double* dataPtr=actualPhantomLA.getDataAsEigenMatrixRef().data();
+	const double* dataPtr=actualPhantom.getDataAsEigenMatrixRef().data();
 
 	double detDist = 1.1 * sqrt(pow(pixSizes[0]*numberOfPixels[0], 2) + pow(pixSizes[1]*numberOfPixels[1], 2) ); //Distance between the detector plane and centre of rotation
 
-	double dX =actualPhantomLA.getPixSizes()[0];
-	double dY =-1*actualPhantomLA.getPixSizes()[1];
+	double dX =actualPhantom.getPixSizes()[0];
+	double dY =-1*actualPhantom.getPixSizes()[1];
 
-	double bX = actualPhantomLA.getXValueAtPix(0) - dX/2;
-	double bY = actualPhantomLA.getYValueAtPix(0) - dY/2;
+	double bX = actualPhantom.getXValueAtPix(0) - dX/2;
+	double bY = actualPhantom.getYValueAtPix(0) - dY/2;
 
-	int Nx = actualPhantomLA.getNumberOfPixels()[0]+1;
-	int Ny = actualPhantomLA.getNumberOfPixels()[1]+1;
+	int Nx = actualPhantom.getNumberOfPixels()[0]+1;
+	int Ny = actualPhantom.getNumberOfPixels()[1]+1;
 
 	int iMin, iMax, jMin, jMax;
 
 	//Improved Siddon's Algo:
-	for(size_t angI=0; angI<numAngles; ++angI){
-		for(size_t pixI=0; pixI<pixNum; ++pixI){
+	for(size_t angI=0; angI < static_cast<size_t>(numAngles); ++angI){
+		for(size_t pixI=0; pixI < static_cast<size_t>(pixNum); ++pixI){
 			double t=pixPositions[pixI];
 			std::array<double,2> p1{ detDist * sinThetaVector[angI] + t * cosThetaVector[angI],
 									 -1*detDist * cosThetaVector[angI] + t * sinThetaVector[angI]};
@@ -752,7 +751,7 @@ Eigen::MatrixXd Gen1CT::project_Siddon_CPU(const Phantom& actualPhantom, const E
 
 			double d12 = 0; //Accumulator for the raySum
 
-			if((angles[angI] == 0) || angles[angI] == M_PI){ //Edge case when ray is vertical
+			if((angles[static_cast<long>(angI)] == 0) || angles[static_cast<long>(angI)] == M_PI){ //Edge case when ray is vertical
 				int colIndex=std::floor( (p1[0]-bX)/dX );
 				if (colIndex >=0 && colIndex < Nx-1){
 					//Sum the matrix in vertical direction
@@ -762,7 +761,7 @@ Eigen::MatrixXd Gen1CT::project_Siddon_CPU(const Phantom& actualPhantom, const E
 				}
 				d12 *= -1*dY;
 			}
-			else if ((angles[angI] == M_PI/2) || angles[angI] == 3*M_PI/2){ //Edge case when ray is horizontal
+			else if ((angles[static_cast<long>(angI)] == M_PI/2) || angles[static_cast<long>(angI)] == 3*M_PI/2){ //Edge case when ray is horizontal
 				int rowIndex=std::floor( (p1[1]-bY)/dY );
 				if (rowIndex >=0 && rowIndex < Ny-1){
 					//Sum the matrix in vertical direction
@@ -883,15 +882,11 @@ Eigen::MatrixXd Gen1CT::project_Siddon_CPU(const Phantom& actualPhantom, const E
 
 				for(int counter =0; counter<Np; counter++){
 					if(alpX < alpY){
-						//double l_ij=(alpX-alp_c)*d_conv;
-						//d12 += (alpX-alp_c) * dataPtr[ i + j*(Ny-1)];  Regi
 						d12 += (alpX-alp_c) * dataPtr[ j*(Nx-1) + i];
 						i += i_u;
 						alp_c=alpX;
 						alpX += alp_xu;
 					} else{
-						//double l_ij=(alpY-alp_c)*d_conv;
-						//d12 += (alpY-alp_c) * dataPtr[ i + j*(Ny-1)];  Regi
 						d12 += (alpY-alp_c) * dataPtr[ j*(Nx-1) + i];
 						j += j_u;
 						alp_c=alpY;
@@ -902,38 +897,22 @@ Eigen::MatrixXd Gen1CT::project_Siddon_CPU(const Phantom& actualPhantom, const E
 			}
 
 			//Update the sinogram
-			sinogram(pixI, angI) += d12;
+			sinogram(static_cast<long>(pixI), static_cast<long>(angI)) += d12;
 		}
 	}
 
-	auto stop = std::chrono::high_resolution_clock::now();
-	auto duration = std::chrono::duration_cast<std::chrono::milliseconds >(stop - start);
-	std::cout << "\nProjection with Siddon's algorithm took " << duration.count() << " milliseconds" << std::endl;
-
-
-//	Eigen::MatrixXd Isinogram;
-//	//Simulate the counts with Poison statistics
-//	if(I0 != 0.0){
-//		//Calculate the expected value
-//		Isinogram = Eigen::exp( sinogram.array()* (-1.0) ) * I0 ;
-//
-//		//Randomize the matrix
-//		unsigned seed1 = std::chrono::system_clock::now().time_since_epoch().count();
-//		std::mt19937_64 generator(seed1);    //Seed the generator
-//		for(int i=0; i<Isinogram.rows(); i++){
-//			for(int j=0; j<Isinogram.cols(); j++){
-//				std::poisson_distribution<int> poissonDist( Isinogram(i,j) );
-//				Isinogram(i,j) = (-1)* std::log( poissonDist(generator) / I0 );
-//			}
-//		}
-//	}
-//	else{
-//		Isinogram = sinogram;
-//	}
+    auto stop = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsedTime = stop - start;
+	std::cout << "\nProjection with Siddon's algorithm took " << elapsedTime.count() << " milliseconds" << std::endl;
 
 	return sinogram;
 }
 
+/***
+ * Get a copy of a measured sinogram from the stored library
+ * @param label Label string of the sinogram
+ * @return Copy of the sinogram if the label found, othervise an empty CTScan object with "EMPTY_SCAN" label
+ */
 CTScan Gen1CT::getMeasurement(const std::string& label){
 	if(scans.find(label) != scans.end()){
 			return scans.at(label);
@@ -944,30 +923,46 @@ CTScan Gen1CT::getMeasurement(const std::string& label){
 	}
 }
 
+/***
+ * Display the required sinogram from the library in a separate window
+ * @param label  Label string of the sinogram
+ */
 void Gen1CT::displayMeasurement(const std::string& label){
 	if(scans.find(label) != scans.end()){
 			scans.at(label).display(label);
-		}
-		else
-			std::cout << std::endl << "ERROR!! Label: \"" << label << "\" could not be found!! Skipping the display.";
+	}
+	else
+		std::cout << std::endl << "ERROR!! Label: \"" << label << "\" could not be found!! Skipping the display.";
 }
 
+/***
+ * Backproject a CTScan object using a selected backprojector
+ * @param sinogram Sinogram which needs to be backprojected
+ * @param numberOfRecPoints Number or backprojection points along the X and Y axis
+ * @param resolution Distance between the reconstruction points
+ * @param backProjector Type of backprojector
+ * @return Matrix with the backprojected values
+ */
 Eigen::MatrixXd Gen1CT::backProject(const CTScan& sinogram,
 									const std::array<int,2>& numberOfRecPoints,
 									const std::array<double,2>& resolution,
 									backprojectorType backProjector){
+	Eigen::MatrixXd backProjection;
 
 	switch(backProjector){
-	case backprojectorType::pixelDriven:
-		return backProject_pixelDriven_CPU(sinogram, numberOfRecPoints, resolution);
-	case backprojectorType::rayDriven:
-		return backProject_rayDriven_CPU(sinogram, numberOfRecPoints, resolution);
+		case backprojectorType::pixelDriven:
+			backProjection = backProject_pixelDriven_CPU(sinogram, numberOfRecPoints, resolution);
+			break;
+		case backprojectorType::rayDriven:
+			backProjection = backProject_rayDriven_CPU(sinogram, numberOfRecPoints, resolution);
+			break;
 #if ENABLE_CUDA
-	case backprojectorType::rayDriven_GPU:
-		return backProject_rayDriven_GPU(sinogram, numberOfRecPoints, resolution);
+		case backprojectorType::rayDriven_GPU:
+			backProjection = backProject_rayDriven_GPU(sinogram, numberOfRecPoints, resolution);
+			break;
 #endif
 	}
-
+	return backProjection;
 }
 
 /**
@@ -976,7 +971,7 @@ Eigen::MatrixXd Gen1CT::backProject(const CTScan& sinogram,
  * @param sinogram CTScan object which has to be backprojected
  * @param numberOfRecPoints Number of points in the backprojection
  * @param resolution Pixel size of the backprojected image
- * @return
+ * @return Matrix with the backprojected values
  */
 Eigen::MatrixXd Gen1CT::backProject_pixelDriven_CPU(const CTScan& sinogram,
 						 const std::array<int,2>& numberOfRecPoints,
@@ -1002,8 +997,8 @@ Eigen::MatrixXd Gen1CT::backProject_pixelDriven_CPU(const CTScan& sinogram,
 	const Eigen::VectorXd& angs=sinogram.getAnglesConstRef();
 	const Eigen::MatrixXd& sinoData=sinogram.getDataAsEigenMatrixRef();
 
-	std::vector<double> sinTheta(angs.size());
-	std::vector<double> cosTheta(angs.size());
+	std::vector<double> sinTheta(static_cast<size_t>(angs.size()));
+	std::vector<double> cosTheta(static_cast<size_t>(angs.size()));
 	for(unsigned int i=0; i<angs.size(); ++i){
 		sinTheta[i]=sin(angs[i]);
 		cosTheta[i]=cos(angs[i]);
@@ -1028,24 +1023,14 @@ Eigen::MatrixXd Gen1CT::backProject_pixelDriven_CPU(const CTScan& sinogram,
 
 				double valueInLowerPixel, valueInHigherPixel;
 				if(pixIdxInt > pixIdxDouble ){
-					if(pixIdxInt==0){
-						valueInLowerPixel=0;
-						std::cout<< "\n Ide soha nem kellene eljutni";
-					}
-					else
-						valueInLowerPixel  = sinoData(pixIdxInt-1, thIdx);
+					valueInLowerPixel  = sinoData(pixIdxInt-1, thIdx);
 					valueInHigherPixel = sinoData(pixIdxInt, thIdx);
 					backprojection(xIdx, yIdx) += valueInLowerPixel + (valueInHigherPixel - valueInLowerPixel) *
 							                                           (1-(pixIdxInt-pixIdxDouble));
 				}
 				else{
 					valueInLowerPixel  = sinoData(pixIdxInt, thIdx);
-					if(pixIdxInt==pixNum-1){
-						valueInHigherPixel = 0;
-						std::cout << "\n Ide sem soha nem kellene eljutni";
-					}
-					else
-						valueInHigherPixel = sinoData(pixIdxInt+1, thIdx);
+					valueInHigherPixel = sinoData(pixIdxInt+1, thIdx);
 					backprojection(xIdx, yIdx) += valueInLowerPixel + (valueInHigherPixel - valueInLowerPixel) *
 							                                           (pixIdxDouble-pixIdxInt);
 				}
@@ -1055,9 +1040,9 @@ Eigen::MatrixXd Gen1CT::backProject_pixelDriven_CPU(const CTScan& sinogram,
 	//Multiply with dTheta
 	backprojection = backprojection*M_PI/angs.size();
 
-	auto stop = std::chrono::high_resolution_clock::now();
-	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-	std::cout << "Backprojection with pixel-driven method took " << duration.count() << " milliseconds" << std::endl;
+    auto stop = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsedTime = stop - start;
+	std::cout << "Backprojection with pixel-driven method took " << elapsedTime.count() << " milliseconds" << std::endl;
 
 	return backprojection;
 }
@@ -1172,23 +1157,22 @@ Eigen::MatrixXd Gen1CT::backProject_rayDriven_CPU(const CTScan& sinogram,
 	//Multiply with dTheta
 	backProjection = backProjection*M_PI/numAngles;
 
-
 	////////////////////////////////////////////////////////
 	/// END of the method of Hao Gao
 	////////////////////////////////////////////////////////
 
-	auto stop = std::chrono::high_resolution_clock::now();
-	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-	std::cout << "Backprojection using ray-driven method took " << duration.count() << " milliseconds" << std::endl;
+    auto stop = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsedTime = stop - start;
+	std::cout << "Backprojection using ray-driven method took " << elapsedTime.count() << " milliseconds" << std::endl;
 
 	return backProjection;
 }
 
 /***
  * Filtering using the Filter functor
- * @param sinogramID
+ * @param sinogramID Label of the sinogram to be filtered
  * @param filter Filter class object
- * @return CTScan object with the filtered sinogram
+ * @return CTScan object with the filtered sinogram or an empty CTScan if sinogramID was not found
  */
 CTScan Gen1CT::applyFilter(const std::string& sinogramID, Filter filter){
 
@@ -1197,6 +1181,10 @@ CTScan Gen1CT::applyFilter(const std::string& sinogramID, Filter filter){
 	auto start = std::chrono::high_resolution_clock::now();
 
 	//Getting the reference to the sinogram to be filtered
+	if(scans.find(sinogramID) == scans.end()){
+				std::cout << "\n Sinogram was not found, exiting from filtering function";
+				return CTScan();
+	}
 	CTScan& sinogram = scans.at(sinogramID);
 	int numAngles = sinogram.getAnglesConstRef().rows();
 
@@ -1224,13 +1212,24 @@ CTScan Gen1CT::applyFilter(const std::string& sinogramID, Filter filter){
 	}
 
 	auto stop = std::chrono::high_resolution_clock::now();
-	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-	std::cout << "Filtering took " << duration.count() << " milliseconds" << std::endl;
+	std::chrono::duration<double, std::milli> elapsedTime = stop - start;
+	std::cout << "Filtering took " << elapsedTime.count() << " milliseconds" << std::endl;
 
 	return CTScan(sinogramID+"F", paddedSinogram.block(startIndex,0, pixNum, numAngles),
 		detWidth, sinogram.getAnglesConstRef(), sinogram.getI0()) ;
 }
 
+/***
+ * Reconstruct an image with Filtered BackProjection method
+ * @param sinogramID The sinogram which has to be reconstructed
+ * @param numberOfRecPoints Number of reconstruction points in X and Y directions
+ * @param resolution Sepsize in X and Y directions
+ * @param filterType Type of the filter used for reconstruction
+ * @param cutOffFreq Cut off frequency [0-1]
+ * @param backProjectAlgo Type of backprojector
+ * @param imageID Label of the reconstructed image which will be used to store data
+ * @param referenceImage Reference image for calculation of L2 norm of error (optional)
+ */
 void Gen1CT::filteredBackProject(std::string sinogramID,
 			                    const std::array<int,2>& numberOfRecPoints,
 								const std::array<double,2>& resolution,
@@ -1239,6 +1238,9 @@ void Gen1CT::filteredBackProject(std::string sinogramID,
 								backprojectorType backProjectAlgo,
 								const std::string& imageID,
 								std::string referenceImage){
+	//Timing
+    std::cout << "Filtered Backprojection started" << std::endl;
+	auto start = std::chrono::high_resolution_clock::now();
 
 	if(scans.find(sinogramID) == scans.end()){
 			std::cout << std::endl << "ERROR!! sinogramID: \"" << sinogramID << "\" could not be found!! Abort mission";
@@ -1252,12 +1254,12 @@ void Gen1CT::filteredBackProject(std::string sinogramID,
 	sinogramID="tmpSinogram";
 
 	//Apply filter on the sinogram
-	CTScan filteredScan = applyFilter(sinogramID, Filter(filterType, cutOffFreq) );    //Ha az applyFilter nem helyben dolgozik akkor nem kell a "tmpSinogram"
-	//filteredScan.display(sinogramID + " filtered");
+	CTScan filteredScan = applyFilter(sinogramID, Filter(filterType, cutOffFreq) );
 
 	//Backproject the image
 	Reconst recImage(imageID, backProject(filteredScan, numberOfRecPoints,resolution, backProjectAlgo), resolution);
 
+	//Calculate the L2 norm of difference to reference image
 	double normError=0.0;
 	if(referenceImage != ""){
 		if(phantoms.find(referenceImage) == phantoms.end()){
@@ -1275,10 +1277,18 @@ void Gen1CT::filteredBackProject(std::string sinogramID,
 		reconsts.erase(it);
 	}
 
+	auto stop = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double, std::milli> elapsedTime = stop - start;
+	std::cout << "Reconstruction with Filtered BackProjection took " << elapsedTime.count()/1000.0 << " seconds" << std::endl;
+
 	reconsts.emplace(imageID, Reconst(imageID, recImage.getDataAsEigenMatrixRef(), resolution, std::vector<double>{normError}));
 	scans.erase("tmpSinogram");
 }
 
+/***
+ * Display a refonstruction from the library of reconstructions
+ * @param label The label of the reconstruction to be shown
+ */
 void Gen1CT::displayReconstruction(const std::string& label){
 	if(reconsts.find(label) != reconsts.end()){
 		reconsts[label].display(label);
@@ -1286,8 +1296,16 @@ void Gen1CT::displayReconstruction(const std::string& label){
 		std::cout << std::endl << "ERROR!! Label: \"" << label << "\" could not be found!! Skipping the display.";
 }
 
-/**
- * Implement the MLEM algorithm
+/***
+ * Run reconstruction with the emission ML-EM method. This method is not ideal for low-count measurements.
+ * @param sinogramID Label of the sinogram to be backprojected
+ * @param numberOfRecPoints Number of reconstruction points in X and Y direction
+ * @param resolution Distance between reconstruction points in X and Y direction
+ * @param projectAlgo Type of projector used for the projection step
+ * @param backprojectAlgo Type of projector used for the backprojection step
+ * @param imageID Label for the reconstructed image
+ * @param numberOfIterations Number of iteration steps performed
+ * @param referenceImage Reference image for error calculation
  */
 void Gen1CT::MLEMReconst(std::string sinogramID,
 			             const std::array<int,2>& numberOfRecPoints,
@@ -1297,6 +1315,9 @@ void Gen1CT::MLEMReconst(std::string sinogramID,
 						 const std::string& imageID,
 						 int numberOfIterations,
 						 std::string referenceImage){
+	//Timing
+	std::cout << "Reconstruction with emission ML-EM started" << std::endl;
+	auto start = std::chrono::high_resolution_clock::now();
 
 	if(scans.find(sinogramID) == scans.end()){
 				std::cout << std::endl << "ERROR!! sinogramID: \"" << sinogramID << "\" could not be found!! Abort mission";
@@ -1308,7 +1329,7 @@ void Gen1CT::MLEMReconst(std::string sinogramID,
 	//This is only an APPROXIMATION!! -> Not valid for low counts!!!
 	actualScan.convertToLineIntegrals();
 
-	//CT scan of const numbers:
+	//Sinorgam consisting of const ones for the normalization factor calculation
 	CTScan constOnes("constOnes",
 			         Eigen::MatrixXd::Ones(pixNum, actualScan.getNumberOfPixels()[1] ),
 					 detWidth,
@@ -1320,11 +1341,8 @@ void Gen1CT::MLEMReconst(std::string sinogramID,
 	normFactors = Phantom("normFactors",
 		      	          backProject(constOnes, numberOfRecPoints, resolution, backprojectAlgo),
 						  resolution);
-	if(normFactors.getDataAsEigenMatrixRef().minCoeff() < 0){
-		std::cout << "\n ERROR! negative value in normFactors!";
-	}
 
-	//initialize the image
+	//Initialize the reconstructed image with const ones
 	Phantom reconstImage("reconstructedImage",
 			             Eigen::MatrixXd::Ones(numberOfRecPoints[0], numberOfRecPoints[1])*muWater,
 						 resolution);
@@ -1341,10 +1359,6 @@ void Gen1CT::MLEMReconst(std::string sinogramID,
 					        actualScan.getAnglesConstRef(),
 							0.0); //I0=0 because the Poisson statistics is not applied
 
-		if(forwardProj.getDataAsEigenMatrixRef().minCoeff() < 0){
-			std::cout << "\n ERROR! negative value in forwardProj!";
-		}
-
 		//Create the correction image
 		//backproject the measurement elementwise divided with forwardprojection
 		Phantom corrImage;
@@ -1354,10 +1368,6 @@ void Gen1CT::MLEMReconst(std::string sinogramID,
 				                                   resolution,
 												   backprojectAlgo),
 		                   resolution);
-
-		if(corrImage.getDataAsEigenMatrixRef().minCoeff() < 0){
-					std::cout << "\n ERROR! negative value in corrImage!";
-		}
 
 		reconstImage = reconstImage / normFactors * corrImage;
 
@@ -1371,12 +1381,9 @@ void Gen1CT::MLEMReconst(std::string sinogramID,
 		}
 	}
 
-	//Show the convergence
-	/*if(referenceImage != ""){
-		auto h=matplot::figure();
-		matplot::plot( differenceNorms );
-		h->show();
-	}*/
+	auto stop = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double, std::milli> elapsedTime = stop - start;
+	std::cout << "Reconstruction with transmission ML-EM took " << elapsedTime.count()/1000.0 << " seconds" << std::endl;
 
 	//Move the backprojected image to reconsts map
 	auto it = reconsts.find(imageID);
@@ -1396,7 +1403,8 @@ void Gen1CT::MLEMReconst(std::string sinogramID,
  * @param phantomID  ID of the phantom
  * @param reconstID  ID of the reconstruction
  */
-void Gen1CT::compareRowPhantomAndReconst(char direction, double position, const std::string& phantomID, const std::string& reconstID){
+void Gen1CT::compareRowPhantomAndReconst(char direction, double position,
+		                                 const std::string& phantomID, const std::string& reconstID){
 
 	if(phantoms.find(phantomID) == phantoms.end()){
 		std::cout << std::endl << "ERROR!! phantomID: \"" << phantomID << "\" could not be found!! Aborting compareRowPhantomAndReconst function";
@@ -1429,13 +1437,13 @@ void Gen1CT::compareRowPhantomAndReconst(char direction, double position, const 
 		Eigen::VectorXd BPSlice = reconsts[reconstID].getDataAsEigenMatrixRef().col(recRowNum);
 		Eigen::VectorXd ObjSlice = phantoms[phantomID].getDataAsEigenMatrixRef().col(phantomRowNum);
 
-		std::vector<float> recXvals(recPixNum[1]);
+		std::vector<float> recXvals(static_cast<size_t>(recPixNum[1]));
 		for(int idx=0; idx<recPixNum[1]; ++idx){
-			recXvals[idx] = -1*recPixSizes[1]*recPixNum[1]/2 + (idx+0.5)*recPixSizes[1];
+			recXvals[static_cast<size_t>(idx)] = -1*recPixSizes[1]*recPixNum[1]/2 + (idx+0.5)*recPixSizes[1];
 		}
-		std::vector<float> phantomXvals(phantomPixNum[1]);
+		std::vector<float> phantomXvals(static_cast<size_t>(phantomPixNum[1]));
 		for(int idx=0; idx<phantomPixNum[1]; ++idx){
-			phantomXvals[idx] = -1*phantomPixSizes[1]*phantomPixNum[1]/2 + (idx+0.5)*phantomPixSizes[1];
+			phantomXvals[static_cast<size_t>(idx)] = -1*phantomPixSizes[1]*phantomPixNum[1]/2 + (idx+0.5)*phantomPixSizes[1];
 		}
 
 		auto h=matplot::figure();
@@ -1458,13 +1466,13 @@ void Gen1CT::compareRowPhantomAndReconst(char direction, double position, const 
 		Eigen::VectorXd BPSlice = reconsts[reconstID].getDataAsEigenMatrixRef().row(recColNum);
 		Eigen::VectorXd ObjSlice = phantoms[phantomID].getDataAsEigenMatrixRef().row(phantomColNum);
 
-		std::vector<float> recYvals(recPixNum[0]);
+		std::vector<float> recYvals(static_cast<size_t>(recPixNum[0]));
 		for(int idx=0; idx<recPixNum[0]; ++idx){
-			recYvals[idx] = recPixSizes[0]*recPixNum[0]/2 - (idx+0.5)*recPixSizes[0];
+			recYvals[static_cast<size_t>(idx)] = recPixSizes[0]*recPixNum[0]/2 - (idx+0.5)*recPixSizes[0];
 		}
-		std::vector<float> phantomYvals(phantomPixNum[0]);
+		std::vector<float> phantomYvals(static_cast<size_t>(phantomPixNum[0]));
 		for(int idx=0; idx<phantomPixNum[0]; ++idx){
-			phantomYvals[idx] = phantomPixSizes[0]*phantomPixNum[0]/2 - (idx+0.5)*phantomPixSizes[0];
+			phantomYvals[static_cast<size_t>(idx)] = phantomPixSizes[0]*phantomPixNum[0]/2 - (idx+0.5)*phantomPixSizes[0];
 		}
 
 		auto h=matplot::figure();
@@ -1480,13 +1488,37 @@ void Gen1CT::compareRowPhantomAndReconst(char direction, double position, const 
 	}
 }
 
+/***
+ * Print the parameters of a Phantom from the library
+ * @param phantomLabel Label of the phantom of which the parameters has to be printed
+ */
 void Gen1CT::printPhantomParams(const std::string& phantomLabel){
-
 	std::cout << "\n Phantom name: " << phantomLabel;
 	std::cout << "\n Number of pixels: " << phantoms[phantomLabel].getNumberOfPixels()[0] << " x " << phantoms[phantomLabel].getNumberOfPixels()[1];
 	std::cout << "\n Pixel sizes: " << phantoms[phantomLabel].getPixSizes()[0] << " x " << phantoms[phantomLabel].getPixSizes()[1];
 }
 
+/***
+ * Reconstruct the sinogram using the Separable Paraboloidal Surrogates (SPS) algorithm
+ * References: [1] H. Erdogan and J. A. Fessler. Ordered subsets algorithms for transmission tomography.
+ *                    Phys. Med. Biol., 44(11):2835–51, November 1999.
+ *             [2] J. A. Fessler. Grouped coordinate descent algorithms for robust edge-preserving image restoration.
+ *                    Proc. SPIE 3170 Im. Recon. and Restor. II, pages 184–94, 1997.
+ *             [3] J. Fessler Statistical Image Reconstruction MEthods for Transmission Tomography
+ *                    SPIE Handbook of Medical Imaging, Vol I.pp 1-70, 2000
+ *
+ * @param sinogramID Label of the sinogram to be backprojected
+ * @param numberOfRecPoints Number of reconstruction points in X and Y direction
+ * @param resolution Distance between reconstruction points in X and Y direction
+ * @param projectAlgo Type of projector used for the projection step
+ * @param backProjectAlgo Type of projector used for the backprojection step
+ * @param imageID Label for the reconstructed image
+ * @param numberOfIterations Number of iteration steps performed
+ * @param regularizerFunction Type of the regularization function
+ * @param beta Regularization parameter
+ * @param delta Regularization parameter
+ * @param referenceImage Reference image for error calculation
+ */
 void Gen1CT::SPSReconst(std::string sinogramID,
 						const std::array<int,2>& numberOfRecPoints,
 						const std::array<double,2>& resolution,
@@ -1498,9 +1530,13 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 						double beta,
 						double delta,
 						std::string referenceImage){
+	//Timing
+    std::cout << "Reconstruction with SPS method started" << std::endl;
+	auto start = std::chrono::high_resolution_clock::now();
+
 	if(scans.find(sinogramID) == scans.end()){
-					std::cout << std::endl << "ERROR!! sinogramID: \"" << sinogramID << "\" could not be found!! Abort mission";
-					return;
+		std::cout << std::endl << "ERROR!! sinogramID: \"" << sinogramID << "\" could not be found!! Abort mission";
+		return;
 	}
 	CTScan actualScan = scans.at(sinogramID);
 
@@ -1515,12 +1551,8 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 					   detWidth,
 					   actualScan.getAnglesConstRef(),
 					   0.0); //I0=0 because the Poisson statistics is not applied
-	if(normFactors.getDataAsEigenMatrixRef().minCoeff() < 0){
-		std::cout << "\n ERROR! negative value in normFactors!";
-	}
-	//normFactors.display("normFactors");
 
-
+	//Iteration converge slowly -> start with the FBP image
 	filteredBackProject(sinogramID, numberOfRecPoints,
 			resolution, FilterType::RamLak, 0.5, backProjectAlgo,
 			"FBPrecImage");
@@ -1528,17 +1560,9 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 	Phantom reconstImage("reconstructedImage",
 			             reconsts["FBPrecImage"].getDataAsEigenMatrixRef().cwiseMax(0.0),
 						 resolution);
-
 	reconsts.erase("FBPrecImage");
-	//reconstImage.display("InitialImage");
-	//std::cin.get();
-
-	//Phantom reconstImage("reconstructedImage",
-	//		             Eigen::MatrixXd::Ones(numberOfRecPoints[0], numberOfRecPoints[1])*muWater,
-	//					 resolution);
 
 	std::vector<double> differenceNorms;
-
 	//START the ITERATION
 	for(int itNumber = 0; itNumber < numberOfIterations; ++itNumber){
 
@@ -1572,8 +1596,6 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 							resolution);
 		//denominator.display();
 
-		beta = 2000.0;
-		delta = 0.004;
 		if(regularizerFunction == regularizerType::none){
 			reconstImage = Phantom("reconstructedImage",
 							        (reconstImage.getDataAsEigenMatrixRef().array() + (numerator.getDataAsEigenMatrixRef().array() )
@@ -1589,9 +1611,6 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 			for(int subIterNum=0; subIterNum < 1; ++subIterNum){
 				//Calculate the regularization terms
 				std::array<Phantom,2> regTerms = reconstImage.calculateHuberRegTerms(delta);
-				//regTerms[0].display("Reg numerator term");
-				//regTerms[1].display("Reg denominator term");
-				//std::cin.get();
 
 				reconstImage = Phantom("reconstructedImage",
 				               (reconstImage.getDataAsEigenMatrixRef().array() + (numerator.getDataAsEigenMatrixRef().array() - beta*regTerms[0].getDataAsEigenMatrixRef().array())
@@ -1602,18 +1621,19 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 			for(int subIterNum=0; subIterNum < 1; ++subIterNum){
 				//Calculate the regularization terms
 				std::array<Phantom,2> regTerms = reconstImage.calculateGibbsRegTerms(delta);
-				//regTerms[0].display("Reg numerator term");
-				//regTerms[1].display("Reg denominator term");
-				//std::cin.get();
 
 				reconstImage = Phantom("reconstructedImage",
 				                       (reconstImage.getDataAsEigenMatrixRef().array() + (numerator.getDataAsEigenMatrixRef().array() - beta*regTerms[0].getDataAsEigenMatrixRef().array())
 			                                                                           / (denominator.getDataAsEigenMatrixRef().array() + beta*regTerms[1].getDataAsEigenMatrixRef().array()) ).cwiseMax(0.0),
 				     				   resolution);
-						}
+			}
 		}
 		else{
-			std::cout << "\nERROR!! regularizer function not recognized";
+			std::cout << "\nERROR!! regularizer function not recognized, continue without regularization";
+			reconstImage = Phantom("reconstructedImage",
+										        (reconstImage.getDataAsEigenMatrixRef().array() + (numerator.getDataAsEigenMatrixRef().array() )
+						                              / (denominator.getDataAsEigenMatrixRef().array() ) ).cwiseMax(0.0),
+													   resolution);
 		}
 
 		if(referenceImage != ""){
@@ -1624,19 +1644,11 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 				differenceNorms.push_back(reconstImage.compareNorm(phantoms[referenceImage]));
 			}
 		}
-
-		//reconstImage.display();
-
-		//std::cin.get();
-
 	}
 
-	//Show the convergence
-	/*if(referenceImage != ""){
-		auto h=matplot::figure();
-		matplot::plot( differenceNorms );
-		h->show();
-	}*/
+	auto stop = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double, std::milli> elapsedTime = stop - start;
+	std::cout << "Reconstruction with SPS method took " << elapsedTime.count()/1000.0 << " seconds" << std::endl;
 
 	//Move the backprojected image to reconsts map
 	auto it = reconsts.find(imageID);
@@ -1656,7 +1668,7 @@ void Gen1CT::SPSReconst(std::string sinogramID,
  */
 Eigen::MatrixXd Gen1CT::project_rayDriven_GPU(const Phantom& actualPhantom,
 		                    const Eigen::VectorXd& angles){
-	std::cout << std::endl << "Projection with ray-driven method started" << std::endl;
+	std::cout << std::endl << "Projection with ray-driven method on GPU started" << std::endl;
 	auto start = std::chrono::high_resolution_clock::now();
 
 	int numAngles = angles.size();
@@ -1679,8 +1691,8 @@ Eigen::MatrixXd Gen1CT::project_rayDriven_GPU(const Phantom& actualPhantom,
 	////////////////////////////////////////////////////////////////////////////////
 
 	auto stop = std::chrono::high_resolution_clock::now();
-	auto duration = std::chrono::duration_cast<std::chrono::milliseconds >(stop - start);
-	std::cout << "\nProjection with ray-driven method took " << duration.count() << " milliseconds\n";
+	std::chrono::duration<double, std::milli> elapsedTime = stop - start;
+	std::cout << "\nProjection with ray-driven method on GPU took " << elapsedTime.count() << " milliseconds\n";
 
 	return sinogram;
 }
@@ -1689,7 +1701,7 @@ Eigen::MatrixXd Gen1CT::backProject_rayDriven_GPU(const CTScan& sinogram,
 						 const std::array<int,2>& numberOfRecPoints,
 		                 const std::array<double,2>& resolution){
 
-	std::cout << "Backprojection using ray-driven method  on GPU started" << std::endl;
+	std::cout << "Backprojection using ray-driven method on GPU started" << std::endl;
 	auto start = std::chrono::high_resolution_clock::now();
 
 	Eigen::MatrixXd backProjection = Eigen::MatrixXd::Zero(numberOfRecPoints[0], numberOfRecPoints[1]);
@@ -1710,10 +1722,9 @@ Eigen::MatrixXd Gen1CT::backProject_rayDriven_GPU(const CTScan& sinogram,
 	/// Backrojection with ray-driven method on GPU ENDS here !!
 	////////////////////////////////////////////////////////////////////////////////
 
-
 	auto stop = std::chrono::high_resolution_clock::now();
-	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-	std::cout << "Backprojection using ray-driven method took " << duration.count() << " milliseconds" << std::endl;
+	std::chrono::duration<double, std::milli> elapsedTime = stop - start;
+	std::cout << "Backprojection using ray-driven method on GPU took " << elapsedTime.count() << " milliseconds" << std::endl;
 
 	return backProjection;
 }
@@ -1743,17 +1754,6 @@ std::vector<double> Gen1CT::getConvergenceCurve(std::string label){
 	}
 
 	return convergenceCurve;
-
 }
-
-
-
-
-
-
-
-
-
-
 
 
