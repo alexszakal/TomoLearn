@@ -16,22 +16,7 @@
 
 void testRadonTransform(const std::string& phantomName, projectorType projectAlgo);
 
-//TODO: A ct.compareRowPhantomAndReconst() Mukodjon. HA fajlbol olvasunk, akkor 1000-et ki kell vonni, mert akkor kapjuk meg HU unitban!
-
-//DEBUG: A szurt szinogram eltunik amikor a visszaallitas megjelenik
-//TODO: Valahogy a szurt szinogramokat is el kell menteni (lehetne egy map, ahol a key a filter osztaly?? )
-
-//TODO: Visszavetitest felgyorsitani
-//TODO: Gyorsabb elorevetites a cache jobb hasznalataval
-
-//TTOK sanitizers:
-//-Dokumentacioba Properties -> C/C++Build -> CMake4eclipse -> Symbols -> Cmake cache entries -> ENABLE_SANITIZER_ADDRESS:BOOL:ON
-//- Az address symbolizer is kell ahhoz hogy kodsorokat irjon ki: LAunch config. -> Environmentbe:
-                                                           // -> ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer
-
-//Parallel geometry
 int main(){
-//	t
 
 #if ENABLE_CUDA
 	std::cout << "\n \n CUDA enabled!!!!" ;
@@ -39,15 +24,17 @@ int main(){
 	std::cout << "\n \n CUDA disabled!!!" ;
 #endif
 
-	testRadonTransform("SL", projectorType::rayDriven );
+	testRadonTransform("modSL", projectorType::rayDriven );
 
 	return 0;
 }
 
+/***
+ * Compare the numerical and analytic Radon transform of an ellipse
+ * @param phantomName Name of the phantom
+ * @param projectAlgo Type of projector used
+ */
 void testRadonTransform(const std::string& phantomName, projectorType projectAlgo){
-	/**
-	 * Compare the numerical and analytic Radon transform of an ellipse
-	 */
 
 	std::cout << "Parallel beam projection simulation" << std::endl;
 
@@ -121,7 +108,7 @@ void testRadonTransform(const std::string& phantomName, projectorType projectAlg
 						   centers,  //centers
 						   axes //axes
                            );
-	//ellipsePhantom.display();
+	ellipsePhantom.display();
 
 	Phantom centerDotPhantom( "centerDotPhantom",
 	            {1024, 1024},
@@ -131,7 +118,7 @@ void testRadonTransform(const std::string& phantomName, projectorType projectAlg
 				   std::vector<std::array<double,2>> {{0,0}},  //centers
 				   std::vector<std::array<double,2>> {{10,10}} //axes
 	            );
-	centerDotPhantom.display();
+	//centerDotPhantom.display();
 
 	//generate Radon Transform Numerically
 	int detWidthInMM { 110 };
@@ -146,7 +133,7 @@ void testRadonTransform(const std::string& phantomName, projectorType projectAlg
 	ct.addPhantom(ellipsePhantom);
 	ct.addPhantom(centerDotPhantom);
 
-	ct.measure("centerDotPhantom", angles, "Sinogram", projectAlgo);
+	ct.measure("ellipsePhantom", angles, "Sinogram", projectAlgo);
 
 	ct.displayMeasurement("Sinogram");
 
@@ -156,10 +143,10 @@ void testRadonTransform(const std::string& phantomName, projectorType projectAlg
 							detWidthInMM,
 							detPixNum,
 							angles,
-							std::vector<double>{1000}, //rhos
-							std::vector<double>{0.0}, //alphas
-							std::vector<std::array<double,2>> {{0,0}},  //centers
-							std::vector<std::array<double,2>> {{10,10}}, //axes
+							rhos, //rhos
+							alphas, //alphas
+							centers,  //centers
+							axes, //axes
 							0.0); //I0=0 -> do not draw Poisson statistics
 
 	analyticSinogram.display("AnalyticResult");
@@ -175,6 +162,8 @@ void testRadonTransform(const std::string& phantomName, projectorType projectAlg
 	std::cout << "\nDifference was normalized with the average of the corresponding pixel values.";
 	std::cout << "\nMaximal relative error: " << relativeError.cwiseAbs().maxCoeff() << "%";
 	std::cout << "\nAverage error: " << relativeError.cwiseAbs().mean() << "%";
+
+	metric.display();
 
 	std::cout<<"\n Press ENTER to continue";
 	std::cin.get();

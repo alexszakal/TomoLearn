@@ -1042,7 +1042,7 @@ Eigen::MatrixXd Gen1CT::backProject_pixelDriven_CPU(const CTScan& sinogram,
 
     auto stop = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsedTime = stop - start;
-	std::cout << "Backprojection with pixel-driven method took " << elapsedTime.count() << " milliseconds" << std::endl;
+	std::cout << "Backprojection with pixel-driven method took " << elapsedTime.count() << " milliseconds";
 
 	return backprojection;
 }
@@ -1239,7 +1239,7 @@ void Gen1CT::filteredBackProject(std::string sinogramID,
 								const std::string& imageID,
 								std::string referenceImage){
 	//Timing
-    std::cout << "Filtered Backprojection started" << std::endl;
+    std::cout << "\nFiltered Backprojection started";
 	auto start = std::chrono::high_resolution_clock::now();
 
 	if(scans.find(sinogramID) == scans.end()){
@@ -1266,7 +1266,7 @@ void Gen1CT::filteredBackProject(std::string sinogramID,
 			std::cout << std::endl << "ERROR!! referenceImage: \"" << referenceImage << "\" could not be found!! L2norm could not be calculated!";
 		} else{
 			normError = recImage.compareNorm(phantoms[referenceImage]);
-			std::cout << "L2 normalized error: " << normError;
+			std::cout << "\nL2 normalized error: " << normError;
 		}
 	}
 
@@ -1279,7 +1279,7 @@ void Gen1CT::filteredBackProject(std::string sinogramID,
 
 	auto stop = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double, std::milli> elapsedTime = stop - start;
-	std::cout << "Reconstruction with Filtered BackProjection took " << elapsedTime.count()/1000.0 << " seconds" << std::endl;
+	std::cout << "\nReconstruction with Filtered BackProjection took " << elapsedTime.count()/1000.0 << " seconds" << std::endl;
 
 	reconsts.emplace(imageID, Reconst(imageID, recImage.getDataAsEigenMatrixRef(), resolution, std::vector<double>{normError}));
 	scans.erase("tmpSinogram");
@@ -1668,7 +1668,7 @@ void Gen1CT::SPSReconst(std::string sinogramID,
  */
 Eigen::MatrixXd Gen1CT::project_rayDriven_GPU(const Phantom& actualPhantom,
 		                    const Eigen::VectorXd& angles){
-	std::cout << std::endl << "Projection with ray-driven method on GPU started" << std::endl;
+	std::cout << std::endl << "\nProjection with ray-driven method on GPU started";
 	auto start = std::chrono::high_resolution_clock::now();
 
 	int numAngles = angles.size();
@@ -1701,7 +1701,7 @@ Eigen::MatrixXd Gen1CT::backProject_rayDriven_GPU(const CTScan& sinogram,
 						 const std::array<int,2>& numberOfRecPoints,
 		                 const std::array<double,2>& resolution){
 
-	std::cout << "Backprojection using ray-driven method on GPU started" << std::endl;
+	std::cout << "\nBackprojection using ray-driven method on GPU started";
 	auto start = std::chrono::high_resolution_clock::now();
 
 	Eigen::MatrixXd backProjection = Eigen::MatrixXd::Zero(numberOfRecPoints[0], numberOfRecPoints[1]);
@@ -1724,7 +1724,7 @@ Eigen::MatrixXd Gen1CT::backProject_rayDriven_GPU(const CTScan& sinogram,
 
 	auto stop = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double, std::milli> elapsedTime = stop - start;
-	std::cout << "Backprojection using ray-driven method on GPU took " << elapsedTime.count() << " milliseconds" << std::endl;
+	std::cout << "Backprojection using ray-driven method on GPU took " << elapsedTime.count() << " milliseconds\n";
 
 	return backProjection;
 }

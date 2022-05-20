@@ -9,6 +9,8 @@
   #undef Success
 #endif
 
+#include <matplot/matplot.h>
+
 #include <Object2D.hpp>
 #include <Gen1CT.hpp>
 #include <Phantom.hpp>
@@ -21,17 +23,14 @@ void testMLEM(const std::string& phantomName, projectorType measureAlgo, project
 
 int main(){
 
-#if ENABLE_CUDA
-	std::cout << "\n \n CUDA enabled!!!!" ;
-#else
-	std::cout << "\n \n CUDA disabled!!!" ;
-#endif
+	#if ENABLE_CUDA
+		std::cout << "\n \n CUDA enabled!!!!" ;
+	#else
+		std::cout << "\n \n CUDA disabled!!!" ;
+	#endif
 
 	//Works: rayDriven Projector and pixelDriven BackProjector Standard config.
-	testMLEM("modSL_symm", projectorType::rayDriven, projectorType::rayDriven, backprojectorType::pixelDriven);
-
-	//Works: rayDriven Projector and rayDriven BackProjector running on the GPU.
-	//testMLEM("modSL_symm", projectorType::rayDriven, projectorType::rayDriven_GPU, backprojectorType::rayDriven_GPU);
+	//testMLEM("modSL_symm", projectorType::rayDriven, projectorType::rayDriven, backprojectorType::pixelDriven);
 
 	//Works
 	//testMLEM("modSL_symm", projectorType::rayDriven, projectorType::rayDriven, backprojectorType::rayDriven);
@@ -48,7 +47,13 @@ int main(){
 	//Works
 	//testMLEM("modSL_symm", projectorType::rayDriven, projectorType::Siddon, backprojectorType::rayDriven);
 
-	std::cin.ignore();
+	#if ENABLE_CUDA
+		//Works: rayDriven Projector and rayDriven BackProjector running on the GPU.
+		testMLEM("modSL_symm", projectorType::rayDriven, projectorType::rayDriven_GPU, backprojectorType::rayDriven_GPU);
+	#endif
+
+	std::cout<<"\nPress ENTER to finish!";
+	std::cin.get();
 
 	return 0;
 }
@@ -101,7 +106,7 @@ void testMLEM(const std::string& phantomName,
 	ct.displayMeasurement("Sinogram");
 
 	ct.MLEMReconst("Sinogram", std::array<int, 2> { 512, 512}, // 1024 x 1024 pixel, 0.1mm felbontas
-			std::array<double, 2> { 0.2, 0.2}, projectAlgo, backprojectAlgo, "RecImage", 110, phantomName);  //optimalis iteracio: ~60
+			std::array<double, 2> { 0.2, 0.2}, projectAlgo, backprojectAlgo, "RecImage", 110, phantomName);  //optimalis iteracio: ~30
 
 	//std::cout << "\n L2 norm: " << ct.compareReconToPhantom("RecImage", phantomName) <<'\n';
 
@@ -109,6 +114,10 @@ void testMLEM(const std::string& phantomName,
 
 	ct.compareRowPhantomAndReconst('Y', -31.0, phantomName, "RecImage");
 
-	std::cout<<"\n Press ENTER to continue";
-	std::cin.get();
+	auto h=matplot::figure(true);
+	auto p1 = matplot::plot( ct.getConvergenceCurve("RecImage"), "-og" );
+	matplot::title("Convergence of MLEM reconstruction");
+	matplot::xlabel("Iteration number [1]");
+	matplot::ylabel("Difference L2 norm [a.u.]");
+	h->show();
 }

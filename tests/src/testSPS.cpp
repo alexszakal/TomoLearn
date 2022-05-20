@@ -9,6 +9,8 @@
   #undef Success
 #endif
 
+#include <matplot/matplot.h>
+
 #include <Object2D.hpp>
 #include <Gen1CT.hpp>
 #include <Phantom.hpp>
@@ -18,7 +20,7 @@
 #include <matplot/matplot.h>
 
 
-void testMLEM(const std::string& phantomName, projectorType measureAlgo, projectorType projectAlgo,
+void testSPS(const std::string& phantomName, projectorType measureAlgo, projectorType projectAlgo,
 		  backprojectorType backprojectAlgo);
 
 int main(){
@@ -29,36 +31,34 @@ int main(){
 	std::cout << "\n \n CUDA disabled!!!" ;
 #endif
 
-	//Works: rayDriven Projector and pixelDriven BackProjector Standard config.
-	testMLEM("modSL_symm", projectorType::rayDriven, projectorType::rayDriven, backprojectorType::pixelDriven);
+	//rayDriven Projector and pixelDriven BackProjector Standard config.
+	//testSPS("modSL_symm", projectorType::rayDriven, projectorType::rayDriven, backprojectorType::pixelDriven);
 
-	//rayDriven Projector on GPU and pixelDriven BackProjector Standard config.
-	//testMLEM("modSL_symm", projectorType::rayDriven, projectorType::rayDriven_GPU, backprojectorType::pixelDriven);
+	#if ENABLE_CUDA
+		//rayDriven Projector on GPU and pixelDriven BackProjector Standard config.
+		//testSPS("modSL_symm", projectorType::rayDriven, projectorType::rayDriven_GPU, backprojectorType::pixelDriven);
 
-	//rayDriven Projector and Backprojector on GPU
-	//testMLEM("modSL_symm", projectorType::rayDriven, projectorType::rayDriven_GPU, backprojectorType::rayDriven_GPU);
+		//rayDriven Projector and Backprojector on GPU
+		testSPS("modSL_symm", projectorType::rayDriven, projectorType::rayDriven_GPU, backprojectorType::rayDriven_GPU);
+	#endif
 
-	//Works
-	//testMLEM("modSL_symm", projectorType::rayDriven, projectorType::rayDriven, backprojectorType::rayDriven);
+	//testSPS("modSL_symm", projectorType::rayDriven, projectorType::rayDriven, backprojectorType::rayDriven);
 
-	//Works
-	//testMLEM("modSL_symm", projectorType::rayDriven, projectorType::pixelDriven, backprojectorType::pixelDriven);
+	//testSPS("modSL_symm", projectorType::rayDriven, projectorType::pixelDriven, backprojectorType::pixelDriven);
 
-	//Works
-	//testMLEM("modSL_symm", projectorType::rayDriven, projectorType::pixelDriven, backprojectorType::rayDriven);
+	//testSPS("modSL_symm", projectorType::rayDriven, projectorType::pixelDriven, backprojectorType::rayDriven);
 
-	//Works
-	//testMLEM("modSL_symm", projectorType::rayDriven, projectorType::Siddon, backprojectorType::pixelDriven);
+	//testSPS("modSL_symm", projectorType::rayDriven, projectorType::Siddon, backprojectorType::pixelDriven);
 
-	//Works
-	//testMLEM("modSL_symm", projectorType::rayDriven, projectorType::Siddon, backprojectorType::rayDriven);
+	//testSPS("modSL_symm", projectorType::rayDriven, projectorType::Siddon, backprojectorType::rayDriven);
 
-	std::cin.ignore();
+	std::cout<<"\n Press ENTER to finish";
+	std::cin.get();
 
 	return 0;
 }
 
-void testMLEM(const std::string& phantomName,
+void testSPS(const std::string& phantomName,
 		      projectorType measureAlgo,
 			  projectorType projectAlgo,
 			  backprojectorType backprojectAlgo){
@@ -107,13 +107,19 @@ void testMLEM(const std::string& phantomName,
 
 	std::cout<<"\nStart SPS reconstruction";
 	ct.SPSReconst("Sinogram", std::array<int, 2> { 512, 512}, // 1024 x 1024 pixel, 0.1mm felbontas
-			std::array<double, 2> { 0.199, 0.199}, projectAlgo, backprojectAlgo, "RecImage", 10,
-			regularizerType::Huber, 3000, 0.004, phantomName);
+			std::array<double, 2> { 0.199, 0.199}, projectAlgo, backprojectAlgo, "RecImage", 110,
+			regularizerType::Huber, 1000, 0.004, phantomName);
 
 	ct.Gen1CT::displayReconstruction("RecImage");
 
 	ct.compareRowPhantomAndReconst('Y', -31.0, phantomName, "RecImage");
 
-	std::cout<<"\n Press ENTER to continue";
-	std::cin.get();
+	auto h=matplot::figure(true);
+	auto p1 = matplot::plot( ct.getConvergenceCurve("RecImage"), "-og" );
+	matplot::title("Convergence of SPSreconstruction");
+	matplot::xlabel("Iteration number [1]");
+	matplot::ylabel("Difference L2 norm [a.u.]");
+	h->show();
+
+
 }

@@ -17,26 +17,13 @@
 
 void testRayDrivenProj( const std::string& phantomName, bool useGPU );
 
-//TODO: A ct.compareRowPhantomAndReconst() Mukodjon. HA fajlbol olvasunk, akkor 1000-et ki kell vonni, mert akkor kapjuk meg HU unitban!
-
-//DEBUG: A szurt szinogram eltunik amikor a visszaallitas megjelenik
-//TODO: Valahogy a szurt szinogramokat is el kell menteni (lehetne egy map, ahol a key a filter osztaly?? )
-
-//TODO: Visszavetitest felgyorsitani
-//TODO: Gyorsabb elorevetites a cache jobb hasznalataval
-
-//TTOK sanitizers:
-//-Dokumentacioba Properties -> C/C++Build -> CMake4eclipse -> Symbols -> Cmake cache entries -> ENABLE_SANITIZER_ADDRESS:BOOL:ON
-//- Az address symbolizer is kell ahhoz hogy kodsorokat irjon ki: LAunch config. -> Environmentbe:
-                                                           // -> ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer
-
-//Parallel geometry
 int main(){
 
 	//testHaoGaoTransform_CPU( "SD" );
-	testRayDrivenProj( "modSL", false );
+	testRayDrivenProj( "modSL", true );
 
-	std::cin.ignore();
+	std::cout<<"Press ENTER to continue";
+	std::cin.get();
 
 	return 0;
 }
@@ -137,12 +124,12 @@ void testRayDrivenProj(const std::string& phantomName, bool useGPU){
 	ct.displayPhantom(phantomName);
 
 	if(useGPU){
-#if ENABLE_CUDA
-		ct.measure(phantomName, angles, "HaoGaoSinogram", projectorType::rayDriven_GPU);
-#else
-		std::cout << "\nCUDA is not allowed, fallback to CPU projector!!";
-		ct.measure(phantomName, angles, "HaoGaoSinogram", projectorType::rayDriven);
-#endif
+		#if ENABLE_CUDA
+			ct.measure(phantomName, angles, "HaoGaoSinogram", projectorType::rayDriven_GPU);
+		#else
+			std::cout << "\nCUDA is not allowed, fallback to CPU projector!!";
+			ct.measure(phantomName, angles, "HaoGaoSinogram", projectorType::rayDriven);
+		#endif
 	}
 	else{
 		ct.measure(phantomName, angles, "HaoGaoSinogram", projectorType::rayDriven);
@@ -173,13 +160,11 @@ void testRayDrivenProj(const std::string& phantomName, bool useGPU){
 		const Eigen::MatrixXd relativeError((numRes.array()-anRes.array())/((numRes.array() + anRes.array()+0.000001) * 0.5)*100); // @suppress("Invalid arguments")
 
 		CTScan metric("metric", relativeError.cwiseAbs(), detWidthInMM, angles, 0.0);
-		metric.display();
 
 		std::cout << "\nDifference was normalized with the average of the corresponding pixel values.";
 		std::cout << "\nMaximal relative error: " << relativeError.cwiseAbs().maxCoeff() << "%";
 		std::cout << "\nAverage error: " << relativeError.cwiseAbs().mean() << "%";
-	}
 
-	//int tmpi;
-	//std::cin>>tmpi;
+		metric.display("Relative error");
+	}
 }

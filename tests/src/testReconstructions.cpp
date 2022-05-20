@@ -28,8 +28,13 @@ int main(){
 	//Test configuration
 	std::string phantomFileName = "Phantoms/ModifiedSheppLogan_HU.png";
 	projectorType measureAlgo = projectorType::pixelDriven;
+#if ENABLE_CUDA
+	projectorType projectAlgo = projectorType::rayDriven_GPU;
+	backprojectorType backprojectAlgo = backprojectorType::rayDriven_GPU;
+#else
 	projectorType projectAlgo = projectorType::rayDriven;
 	backprojectorType backprojectAlgo = backprojectorType::rayDriven;
+#endif
 	double I0 = 3e2;
 
 	int MLEM_numIterations=100;
@@ -82,7 +87,7 @@ int main(){
 	//Reconstuct with SPS
 	ct.SPSReconst("Sinogram", std::array<int, 2> { 512, 512}, // 1024 x 1024 pixel, 0.1mm felbontas
 						std::array<double, 2> { 0.199, 0.199}, projectAlgo, backprojectAlgo, "SPS_RecImage", SPS_numIterations,
-						regularizerType::Huber, 3000, 0.004, "Phantom");
+						regularizerType::Huber, 1000, 0.004, "Phantom");
 	ct.displayReconstruction("SPS_RecImage");
 
 	auto p2 = matplot::plot( ct.getConvergenceCurve("SPS_RecImage"), "-ob" );
@@ -90,6 +95,5 @@ int main(){
 	h->draw();
 
 	std::cin.get();
-
 }
 

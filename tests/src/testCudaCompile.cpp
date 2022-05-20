@@ -25,27 +25,22 @@ int main(){
 	std::cout << "\n \n CUDA disabled!!!" ;
 #endif
 
-	std::cin.ignore();
+	std::cout << "\nPress ENTER to continue!";
+	std::cin.get();
 
 	return 0;
 }
 
 #if ENABLE_CUDA
 void testCudaCompile(){
-	/**
-	 * Test the Filtered Backprojection algorithm with a Shepp-Logan phantom
-	 */
 
-	std::cout << "\nTest if compilation with Cuda works" << std::endl;
+	std::cout << "\nTest if Cuda device query works" << std::endl;
 
 	int detWidthInMM { 110 };
 	int detPixNum { 512 };
 	Gen1CT ct(detWidthInMM, detPixNum);
 
 	ct.printGpuParameters();
-
-	int tmpi;
-	std::cin>>tmpi;
 }
 #endif
 

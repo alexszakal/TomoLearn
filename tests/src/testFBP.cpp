@@ -16,24 +16,16 @@
 
 void testFBP(const std::string& phantomName, projectorType projectAlgo, backprojectorType backprojectAlgo);
 
-//DEBUG: A szurt szinogram eltunik amikor a visszaallitas megjelenik
-//TODO: Valahogy a szurt szinogramokat is el kell menteni (lehetne egy map, ahol a key a filter osztaly?? )
-
-//Parallel geometry
 int main(){
-//	testRadonTransform("SL", "swithInterpolation");
 
-#if ENABLE_CUDA
-	std::cout << "\n \n CUDA enabled!!!!" ;
-#else
-	std::cout << "\n \n CUDA disabled!!!" ;
-#endif
+	#if ENABLE_CUDA
+		std::cout << "\n \n CUDA enabled!!!!" ;
+	#else
+		std::cout << "\n \n CUDA disabled!!!" ;
+	#endif
 
 	//Works: rayDriven Projector and pixelDriven BackProjector
 	testFBP("modSL_symm", projectorType::rayDriven, backprojectorType::pixelDriven);
-
-	//Works: rayDriven Projector and pixelDriven BackProjector
-	//testFBP("modSL_symm", projectorType::rayDriven_GPU, backprojectorType::rayDriven_GPU);
 
 	//Works: rayDriven Projector and rayDriven BackProjector
 	//testFBP("modSL_symm", projectorType::rayDriven, backprojectorType::rayDriven);
@@ -50,11 +42,16 @@ int main(){
 	//Works: Siddon Projector and rayDriven BackProjector
 	//testFBP("modSL_symm", projectorType::Siddon, backprojectorType::rayDriven);
 
-	std::cin.ignore();
+	#if ENABLE_CUDA
+		//Works: rayDriven Projector and pixelDriven BackProjector
+		//testFBP("modSL_symm", projectorType::rayDriven_GPU, backprojectorType::rayDriven_GPU);
+	#endif
+
+	std::cout << "Press ENTER to continue!";
+	std::cin.get();
 
 	return 0;
 }
-
 
 /***
  * Test the filtered backprojection algorithm
@@ -67,7 +64,7 @@ void testFBP(const std::string& phantomName,
 		     projectorType projectAlgo,
 			backprojectorType backprojectAlgo){
 
-	std::cout << "Parallel beam FBP simulation" << std::endl;
+	std::cout << "Parallel beam FBP simulation";
 
 	double detWidthInMM { 145.3 };
 	int detPixNum { 1453 };
@@ -101,9 +98,6 @@ void testFBP(const std::string& phantomName,
 	ct.Gen1CT::displayReconstruction("RecImage");
 
 	ct.compareRowPhantomAndReconst('Y', -31.0, phantomName, "RecImage");
-
-	std::cout<<"\n Press ENTER to continue";
-	std::cin.get();
 }
 
 
