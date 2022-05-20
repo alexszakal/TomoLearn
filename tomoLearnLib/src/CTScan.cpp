@@ -9,7 +9,7 @@
 CTScan::CTScan():Object2D(),scanID("Empty"),angles(),I0(0){
 }
 
-/**
+/***
  * CTScan constructor to initialize a CTScan object from an Eigen matrix data source holding the sinogram data
  * @param scanID  Identifier ID of the scan
  * @param sinogram Sinogram data
@@ -30,7 +30,7 @@ CTScan::CTScan(std::string scanID,
 
 }
 
-/**
+/***
  * CTScan constructor which calculates the sum of analytical sinograms of ellises.
  * @param scanID Identifier ID of the scan
  * @param detWidth Width of the detector array [mm]
@@ -85,7 +85,7 @@ CTScan::CTScan(std::string scanID,
 	}
 }
 
-/**
+/***
  * Returns a const reference to the vector holding the projection angle values
  * @return Const reference holding the projection angle values
  */
@@ -93,7 +93,7 @@ const Eigen::VectorXd& CTScan::getAnglesConstRef() const{
 	return angles;
 }
 
-/**
+/***
  * Getter function of the detector width
  * @return Detector width in [mm]
  */
@@ -101,7 +101,7 @@ double CTScan::getDetWidth() const{
 	return getNumberOfPixels()[0] * getPixSizes()[0];
 }
 
-/**
+/***
  * Getter function of the source strength used for the scan
  * @return Source strength [1]
  */
@@ -109,7 +109,7 @@ double CTScan::getI0() const{
 	return I0;
 }
 
-/**
+/***
  * Elementwise add two CTScan objects
  * @param lhs CTScan object on the left handside
  * @param rhs CTScan object on the right handside
@@ -123,7 +123,7 @@ CTScan operator+(const CTScan& lhs, double rhs){
 			   lhs.I0);
 }
 
-/**
+/***
  * Elementwise division of two CTScan objects
  * @param lhs CTScan object on the left handside
  * @param rhs CTScan object on the right handside
@@ -137,7 +137,7 @@ CTScan operator/(const CTScan& lhs, const CTScan& rhs){
 			   lhs.I0);
 }
 
-/**
+/***
  * Elementwise subtract two CTScan objects
  * @param lhs CTScan object on the left handside
  * @param rhs CTScan object on the right handside
@@ -151,7 +151,7 @@ CTScan operator-(const CTScan& lhs, const CTScan& rhs){
 			   lhs.I0);
 }
 
-/**
+/***
  * Convert the data held in CTScan from counts to line integral values.
  *
  * Converts the values IN PLACE!!!!!
@@ -215,35 +215,6 @@ CTScan CTScan::exp(){
 				  angles,
 				  I0);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

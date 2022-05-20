@@ -4,13 +4,16 @@
 
 #include <Eigen/Dense>
 
-//Phantom::Phantom():Object2D(){
-//
-//}
-
 Phantom::Phantom():Object2D(),label("Empty"){
 }
 
+/***
+ * Constructs the Phantom using data from an image file on disk
+ * @param label Identifier label of the phantom
+ * @param imageFilePath Path to the file to the initializer image
+ * @param objPixSizes Size of the pixels in X and Y directions
+ * @param convertFromHUtoLA Switch to convert from HU to Linear Attenuation units
+ */
 Phantom::Phantom(const std::string& label,
 		         const std::string& imageFilePath,
 				 const std::array<double, 2>& objPixSizes,
@@ -19,6 +22,12 @@ Phantom::Phantom(const std::string& label,
 														  label{label}{
 }
 
+/***
+* Constructs the Phantom using data from a matrix
+* @param label Identifier label of the phantom
+* @param inData Data which is used for initialization
+* @param objPixSizes Size of the pixels in X and Y directions
+*/
 Phantom::Phantom(const std::string& label,
 		         const Eigen::MatrixXd inData,
 				 const std::array<double, 2> objPixSizes):
@@ -26,10 +35,25 @@ Phantom::Phantom(const std::string& label,
 														  label{label}{
 }
 
+/***
+ * Constructs the Phantom using data form an Object2D
+ * @param label Identifier label of the phantom
+ * @param dataPar Object2D type which is used for initialization
+ */
 Phantom::Phantom(std::string label, const Object2D& dataPar):Object2D{dataPar},
 		                                                     label{label}{
 }
 
+/***
+ * Constructs the phantom as the sum of ellipses
+ * @param label Identifier label of the Phantom
+ * @param numberOfPixels Number of pixels in X and Y directions
+ * @param objPixSizes Pixel size in X and Y direction
+ * @param rhos Values inside the ellipses
+ * @param alphas Inclination of the ellipses
+ * @param centers Positions of ellipe centers
+ * @param axes Size of the axes of the ellipses
+ */
 Phantom::Phantom(std::string label,
 		const std::array<int,2>& numberOfPixels,
 		const std::array<double,2>& objPixSizes,
@@ -41,7 +65,7 @@ Phantom::Phantom(std::string label,
 
         const Eigen::MatrixXd& objDataRef = getDataAsEigenMatrixRef();
 
-        for(int ellipseIdx =0; ellipseIdx<rhos.size(); ++ellipseIdx){
+        for(size_t ellipseIdx =0; ellipseIdx<rhos.size(); ++ellipseIdx){
         	for(int i=0; i<numberOfPixels[0]; ++i){
         		for(int j=0; j<numberOfPixels[1]; ++j){
         			double xEllipse=   (getXValueAtPix(i)-centers[ellipseIdx][0])*cos(alphas[ellipseIdx]) + (getYValueAtPix(j)-centers[ellipseIdx][1])*sin(alphas[ellipseIdx]);
@@ -187,34 +211,71 @@ std::array<Phantom,2> Phantom::calculateGibbsRegTerms(double delta) const{
         		                  Phantom("denomTerm", denomTerm) };
 }
 
+/***
+ * Get the identifier label of the Phantom
+ * @return Identifier label
+ */
 std::string Phantom::getLabel() const{
 	return label;
 }
 
+/***
+ * Multiply the Phantom with a scalar
+ * @param coeff Scalar used for the multiplication
+ * @return Copy of the Phantom with the new values
+ */
 Phantom Phantom::operator*(double coeff) const {
 	return Phantom{label, static_cast<Object2D>(*this) * coeff};
 }
 
+/***
+ * Add a scalar value to the Phantom
+ * @param addVal Scalar value to be added
+ * @return Copy of the phantom with the new values
+ */
 Phantom Phantom::operator+(double addVal) const {
 	return Phantom{label, static_cast<Object2D>(*this) + addVal};
 }
 
+/***
+ * Subtract a scalar value from Phantom
+ * @param subVal Scalar value to be subtracted
+ * @return Copy of the phantom with the new values
+ */
 Phantom Phantom::operator-(double subVal) const {
 	return *this + (-1.0*subVal);
 }
 
+/***
+ * Divide the elements of two Phantom objects
+ * @param lhs Operand on the left handside
+ * @param rhs Operand on the right handside
+ * @return A Phantom object with the new values
+ */
 Phantom operator/(const Phantom& lhs, const Phantom& rhs){
 	return Phantom(lhs.label,
 		         lhs.getDataAsEigenMatrixRef().array() / (rhs.getDataAsEigenMatrixRef().array()),
 				 lhs.getPixSizes());
 }
 
+/***
+ * Multiply the elements of two Phantom objects
+ * @param lhs Operand on the left handside
+ * @param rhs Operand on the right handside
+ * @return A Phantom object with the new values
+ */
 Phantom operator*(const Phantom& lhs, const Phantom& rhs){
 	return Phantom(lhs.label,
 		         lhs.getDataAsEigenMatrixRef().array() * (rhs.getDataAsEigenMatrixRef().array()),
 				 lhs.getPixSizes());
 }
 
+/***
+ * Add the elements of two Phantom objects
+ * @param lhs Operand on the left handside
+ * @param rhs Operand on the right handside
+ * @return A Phantom object with the new values
+ */
 Phantom operator+(const Phantom& lhs, const Phantom& rhs){
 	return Phantom(lhs.label,
 		         lhs.getDataAsEigenMatrixRef().array() + (rhs.getDataAsEigenMatrixRef().array()),

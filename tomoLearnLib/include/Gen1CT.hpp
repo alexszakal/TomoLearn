@@ -34,10 +34,12 @@ enum class regularizerType{none,
 						   Huber,
 						   Gibbs
 						   };
-
+/**
+ * @brief Gen1CT class implements the projectors, backprojectors, reconstruction algorithms and data storage.
+ */
 class Gen1CT{
 public:
-	Gen1CT();      //REGI
+	Gen1CT();
 	Gen1CT(double detWidth, int pixNum);
 
 	void addPhantom(const std::string& label,
@@ -131,19 +133,18 @@ public:
 
 	double compareReconToPhantom(std::string reconLabel, std::string phantomLabel) const;
 
-	std::vector<double> getConvergenceCurve(std::string label);
+	std::vector<double> getConvergenceCurve(std::string label) const;
 
 private:
-	const double detWidth;
-	const int pixNum;
-	std::vector<double> pixPositions; ///Positon of the pixel centers
+	const double detWidth;  /** Detector width [mm] */
+	const int pixNum; /** Number of detector pixels [1] */
+	std::vector<double> pixPositions; /** Positon of the pixel centers */
 
-	double I0 = 3.0;   //Intensity of the tube
+	double I0 = 3.0;   /** Intensity of the tube */
 
-	double muWater = 0.02; //Linear attenuation coeff. of water [1/mm]!!!!
+	double muWater = 0.02; /** Linear attenuation coeff. of water [1/mm] */
 
-	std::map<std::string, Phantom> phantoms;
-	std::map<std::string, CTScan> scans;
-	std::map<std::string, Reconst> reconsts;
-
+	std::map<std::string, Phantom> phantoms;  /** Library storing the Phantoms*/
+	std::map<std::string, CTScan> scans;      /** Library storing the Scans*/
+	std::map<std::string, Reconst> reconsts;  /** Library storing the Reconstructions*/
 };

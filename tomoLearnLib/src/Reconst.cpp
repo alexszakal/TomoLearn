@@ -1,6 +1,10 @@
 #include <vector>
 #include <Reconst.hpp>
 
-std::vector<double> Reconst::getConvergenceCurve(){
+/***
+ * Returns the convergence curve
+ * @return Returns the convergence curve or an empty vector if it is not available
+ */
+std::vector<double> Reconst::getConvergenceCurve() const{
 	return convergenceCurve;
 }

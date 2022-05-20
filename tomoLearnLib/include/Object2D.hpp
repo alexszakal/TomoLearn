@@ -12,12 +12,16 @@
 #include <vector>
 #include <thread>
 
+/***
+ * @brief Base class to hold 2D maps of data with axes information and display capabilities.
+ */
 class Object2D{
 public:
 	//Default constructor, initialize an empty image
 	Object2D():numberOfPixels{0,0},objPixSizes{1,1},objWidthHeightInMM{0,0}{}
 	//Constructor for init with data from file
-	Object2D(const std::string& imageFilePath, const std::array<double, 2>& objPixSizes={0.1, 0.1}, bool convertFromHUtoLA = false);
+	Object2D(const std::string& imageFilePath, const std::array<double, 2>& objPixSizes={0.1, 0.1},
+			 bool convertFromHUtoLA = false, double muWater=0.02);
 	//Constructor of a zero-initialized Object2D
 	Object2D(const std::array<int, 2>& numberOfPixels, const std::array<double, 2>& objPixSizes);
 	//Constructor for initializing with Eigen::Matrix for Sinogram
@@ -40,11 +44,11 @@ public:
 	//Set data
 	void setData(int i, int j, double setValue);
 
+	//Getter functions
 	std::array<double, 2> getPixSizes() const;
 	std::array<int, 2> getNumberOfPixels() const;
 	std::vector<double> getXPixCentreCoords() const;
 	std::vector<double> getYPixCentreCoords() const;
-
 	const Eigen::MatrixXd& getDataAsEigenMatrixRef() const;
 
 	//Functions for measurement
@@ -61,27 +65,30 @@ private:
 	//Raw Data
 	//1st index (row number) -> X direction
 	//2nd index (col number) -> Y direction
-	Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> objData;
+	Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> objData; /** The that is stored */
 
 	//Axes parameters
-	std::array<int, 2> numberOfPixels;
-	std::array<double, 2> objPixSizes;   //Size of a single pixel
-	std::array<double, 2> objWidthHeightInMM;
+	std::array<int, 2> numberOfPixels;  /** Number of data pixels in X and Y directions */
+	std::array<double, 2> objPixSizes;   /** Sizes of a single pixel */
+	std::array<double, 2> objWidthHeightInMM; /** Total size of the data in X and Y directions */
 
-	std::vector<double> xPixCentreCoords;
-	std::vector<double> yPixCentreCoords;
+	std::vector<double> xPixCentreCoords; /**Coordinates of pixel centers in X direction */
+	std::vector<double> yPixCentreCoords; /**Coordinates of pixel centers in Y direction */
 
 	//Display
-	cimg_library::CImg<double> cimg_image;
-	cimg_library::CImgDisplay cimg_window;
-	std::thread displayThread;
+	cimg_library::CImg<double> cimg_image;  /** cimg object used for the display */
+	cimg_library::CImgDisplay cimg_window;  /** cimg_window used for the display */
+	std::thread displayThread;              /** Separate thread where the diplay function runs */
 
 };
 
+/***
+ * Linear interpolation in Y direction at yCoordinateInMM exactly at xPixelValue
+ * @param xPixelValue The number of X pixel where the interpolation performed
+ * @param yCoordinateInMM Y coordinate in [mm] where the interpolated value is requested
+ * @return Interpolated value
+ */
 inline double Object2D::linear_atY(int xPixelValue, double yCoordinateInMM) const{
-	/** Linear interpolation in X direction at yCoordinateInMM exactly at xPixelValue
-	 *
-	 */
 
 	double yCoordinateInPixel = ( (objWidthHeightInMM[1]/2 - objPixSizes[1]/2) - yCoordinateInMM) / objPixSizes[1]; //Hany pixelre vagyunk a 0. pixeltol
 
@@ -99,10 +106,13 @@ inline double Object2D::linear_atY(int xPixelValue, double yCoordinateInMM) cons
 	}
 }
 
+/***
+ * Linear interpolation in X direction at xCoordinateInMM exactly at yPixelValue
+ * @param yPixelValue The number of Y pixel where the interpolation performed
+ * @param xCoordinateInMM X coordinate in [mm] where the interpolated value is requested
+ * @return Interpolated value
+ */
 inline double Object2D::linear_atX(int yPixelValue, double xCoordinateInMM) const{
-	/** Linear interpolation in X direction at xCoordinateInMM exactly at yPixelValue
-	 *
-	 */
 
 	double xCoordinateInPixel = (   (objWidthHeightInMM[0]/2 - objPixSizes[0]/2) + xCoordinateInMM  ) / objPixSizes[0];
 

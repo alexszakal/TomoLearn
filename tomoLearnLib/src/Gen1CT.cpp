@@ -1745,12 +1745,12 @@ double Gen1CT::compareReconToPhantom(std::string reconLabel, std::string phantom
 	return reconsts.at(reconLabel).compareNorm(phantoms.at(phantomLabel));
 }
 
-std::vector<double> Gen1CT::getConvergenceCurve(std::string label){
+std::vector<double> Gen1CT::getConvergenceCurve(std::string label) const{
 	std::vector<double> convergenceCurve(0);
 	if(reconsts.find(label) == reconsts.end()){
 		std::cout << std::endl << "ERROR!! Label: \"" << label << "\" could not be found!! Can not return the convergence curve!";
 	}else{
-		convergenceCurve = reconsts[label].getConvergenceCurve();
+		convergenceCurve = reconsts.at(label).getConvergenceCurve();
 	}
 
 	return convergenceCurve;

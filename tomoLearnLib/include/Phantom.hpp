@@ -1,12 +1,4 @@
-/*
- * Phantom.hpp
- *
- *  Created on: 2021. febr. 16.
- *      Author: szakal
- */
-
-#ifndef PHANTOM_HPP_
-#define PHANTOM_HPP_
+#pragma once
 
 #include <CImg.h>
 
@@ -14,6 +6,9 @@
 #include <string>
 #include <thread>
 
+/***
+ * @brief The Phantom class represents a 2D digital phantom. Initialization with a matrix of analytical functions is possible.
+ */
 class Phantom : public Object2D{
 public:
 	Phantom();
@@ -46,10 +41,6 @@ public:
 	friend Phantom operator+(const Phantom& lhs, const Phantom& rhs);
 
 private:
-	std::string label;
+	std::string label; /** Label of the phantom for identification */
 };
 
-
-
-
-#endif /* PHANTOM_HPP_ */

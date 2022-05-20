@@ -6,7 +6,7 @@
 
 #if ENABLE_CUDA
 
-#include <cuda_runtime.h>
+//#include <cuda_runtime.h>
 //#include <device_launch_parameters.h>
 
 #define checkCudaErrors(val) check( (val), #val, __FILE__, __LINE__)
@@ -95,7 +95,7 @@ void rayDrivenProjectionKernel(const double* phantom, int numberOfPixelsX, int n
 	    	}
 	    	else{
 	    		if ( (Yi_minusIdx < numberOfPixelsY) and (Yi_minusIdx >= 0) ){
-	    			l_minus=(max(Yi_minusIdx, Yi_plusIdx)-yi_minus) / (yi_plus - yi_minus) * pathInSinglePixel;
+	    			l_minus=( max(Yi_minusIdx, Yi_plusIdx)-yi_minus) / (yi_plus - yi_minus) * pathInSinglePixel;
 
 	    			sinoPointValue += l_minus * phantom[Yi_minusIdx*numberOfPixelsX + colIdx];
 	    			//We have l_minus -> we can calculate l_plus with only a subtraction from pathInSinglePixel

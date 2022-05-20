@@ -6,6 +6,11 @@
 #include <iostream>
 #include <cmath>
 
+/***
+ * Constructor of the Filter object
+ * @param filterType Type of the filter
+ * @param cutOffIn cut-off frequency [0-1]
+ */
 Filter::Filter(FilterType filterType, double cutOffIn):filterType{filterType}{
 	if( cutOffIn>0.0 && cutOffIn<=1.0){
 		cutOff=cutOffIn;
@@ -73,7 +78,6 @@ void Filter::SheppLoganFilter(Eigen::MatrixXcd& freqFilter){
 	int pixNumPadded= static_cast<int>(freqFilter.rows());
 
 	int maxFreq=static_cast<int>(std::lround(pixNumPadded*cutOff/2));
-	//freqFilter(0) *=1; //Shepp-Logan is 1 at x=0
 	for (int i=1; i<=pixNumPadded/2; ++i){
 		if(i>maxFreq){
 			freqFilter(i)=0;
@@ -91,7 +95,6 @@ void Filter::CosineFilter(Eigen::MatrixXcd& freqFilter){
 	int pixNumPadded=freqFilter.rows();
 
 	int maxFreq=pixNumPadded*cutOff/2;
-	//freqFilter(0) *=1; //Cosine is 1 at x=0
 	for (int i=1; i<=pixNumPadded/2; ++i){
 		if(i>maxFreq){
 			freqFilter(i)=0;
@@ -111,7 +114,6 @@ void Filter::HannFilter(Eigen::MatrixXcd& freqFilter){
 	int pixNumPadded=freqFilter.rows();
 
 	int maxFreq=pixNumPadded*cutOff/2;
-	//freqFilter(0) *=1; //Hann is 1 at x=0
 	for (int i=1; i<=pixNumPadded/2; ++i){
 		if(i>maxFreq){
 			freqFilter(i)=0;
@@ -131,7 +133,6 @@ void Filter::HammingFilter(Eigen::MatrixXcd& freqFilter){
 	double alpha = 25.0/46;
 
 	int maxFreq=pixNumPadded*cutOff/2;
-	//freqFilter(0) *=1; //HAmming is 1 at x=0
 	for (int i=1; i<=pixNumPadded/2; ++i){
 		if(i>maxFreq){
 			freqFilter(i)=0;

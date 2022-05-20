@@ -6,7 +6,12 @@
 
 int main(int argc, char* argv[]){
 
-	std::cout<<"program: " << argv[0];
+	if(argc!=2){
+		std::cout << "\nWrong number of parameters!! Aborting.";
+		return 1;
+	}
+
+	std::cout<<"\nprogram: " << argv[0];
 
 	double detWidthInMM { 145.3 };
 	int detPixNum { 1453 };

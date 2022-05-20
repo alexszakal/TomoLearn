@@ -65,7 +65,7 @@ int main(){
 				"FBP_RecImage", "Phantom");
 	ct.displayReconstruction("FBP_RecImage");
 	auto h=matplot::figure(true);
-	auto p0 = matplot::plot( std::vector<double>(std::max(MLEM_numIterations, SPS_numIterations), ct.getConvergenceCurve("FBP_RecImage")[0]), "-xr" );
+	auto p0 = matplot::plot( std::vector<double>(static_cast<size_t>(std::max(MLEM_numIterations, SPS_numIterations)), ct.getConvergenceCurve("FBP_RecImage")[0]), "-xr" );
 	matplot::hold(true);
 	matplot::title("Convergence of different reconstructions");
 	matplot::xlabel("Iteration number [1]");
