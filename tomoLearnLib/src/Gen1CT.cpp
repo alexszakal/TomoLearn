@@ -1552,6 +1552,15 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 					   actualScan.getAnglesConstRef(),
 					   0.0); //I0=0 because the Poisson statistics is not applied
 
+	//Calculate the curvatures
+	//This is not the optimal curvature but advantageous because it does not depend on the iteration
+	CTScan curvatures("curvatures",
+					(-1.0 * actualScan + actualScan.getI0()).getDataAsEigenMatrixRef().cwiseMax(0.0),
+					detWidth,
+					actualScan.getAnglesConstRef(),
+					0.0); //I0=0 because the Poisson statistics is not applied
+	//curvatures.display("Curvtures");
+
 	//Iteration converge slowly -> start with the FBP image
 	filteredBackProject(sinogramID, numberOfRecPoints,
 			resolution, FilterType::RamLak, 0.5, backProjectAlgo,
@@ -1582,14 +1591,6 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 						  backProject(hi_dot, numberOfRecPoints, resolution, backProjectAlgo),
 						  resolution);
 		//numerator.display("hi_dot");
-
-		//Calculate the curvatures
-		CTScan curvatures("curvatures",
-				(-1.0 * actualScan + actualScan.getI0()).getDataAsEigenMatrixRef().cwiseMax(0.0),
-				detWidth,
-				actualScan.getAnglesConstRef(),
-				0.0); //I0=0 because the Poisson statistics is not applied
-		//curvatures.display("Curvtures");
 
 		Phantom denominator("Denominator",
 							backProject(normFactors*curvatures, numberOfRecPoints, resolution, backProjectAlgo),
@@ -1648,7 +1649,7 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 
 	auto stop = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double, std::milli> elapsedTime = stop - start;
-	std::cout << "Reconstruction with SPS method took " << elapsedTime.count()/1000.0 << " seconds" << std::endl;
+	std::cout << "\nReconstruction with SPS method took " << elapsedTime.count()/1000.0 << " seconds" << std::endl;
 
 	//Move the backprojected image to reconsts map
 	auto it = reconsts.find(imageID);
