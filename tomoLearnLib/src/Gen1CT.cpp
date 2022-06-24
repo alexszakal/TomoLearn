@@ -1437,13 +1437,13 @@ void Gen1CT::compareRowPhantomAndReconst(char direction, double position,
 		Eigen::VectorXd BPSlice = reconsts[reconstID].getDataAsEigenMatrixRef().col(recRowNum);
 		Eigen::VectorXd ObjSlice = phantoms[phantomID].getDataAsEigenMatrixRef().col(phantomRowNum);
 
-		std::vector<float> recXvals(static_cast<size_t>(recPixNum[1]));
-		for(int idx=0; idx<recPixNum[1]; ++idx){
-			recXvals[static_cast<size_t>(idx)] = -1*recPixSizes[1]*recPixNum[1]/2 + (idx+0.5)*recPixSizes[1];
+		std::vector<float> recXvals(static_cast<size_t>(recPixNum[0]));
+		for(int idx=0; idx<recPixNum[0]; ++idx){
+			recXvals[static_cast<size_t>(idx)] = -1*recPixSizes[0]*recPixNum[0]/2 + (idx+0.5)*recPixSizes[0];
 		}
-		std::vector<float> phantomXvals(static_cast<size_t>(phantomPixNum[1]));
-		for(int idx=0; idx<phantomPixNum[1]; ++idx){
-			phantomXvals[static_cast<size_t>(idx)] = -1*phantomPixSizes[1]*phantomPixNum[1]/2 + (idx+0.5)*phantomPixSizes[1];
+		std::vector<float> phantomXvals(static_cast<size_t>(phantomPixNum[0]));
+		for(int idx=0; idx<phantomPixNum[0]; ++idx){
+			phantomXvals[static_cast<size_t>(idx)] = -1*phantomPixSizes[0]*phantomPixNum[0]/2 + (idx+0.5)*phantomPixSizes[0];
 		}
 
 		auto h=matplot::figure();
@@ -1466,13 +1466,13 @@ void Gen1CT::compareRowPhantomAndReconst(char direction, double position,
 		Eigen::VectorXd BPSlice = reconsts[reconstID].getDataAsEigenMatrixRef().row(recColNum);
 		Eigen::VectorXd ObjSlice = phantoms[phantomID].getDataAsEigenMatrixRef().row(phantomColNum);
 
-		std::vector<float> recYvals(static_cast<size_t>(recPixNum[0]));
-		for(int idx=0; idx<recPixNum[0]; ++idx){
-			recYvals[static_cast<size_t>(idx)] = recPixSizes[0]*recPixNum[0]/2 - (idx+0.5)*recPixSizes[0];
+		std::vector<float> recYvals(static_cast<size_t>(recPixNum[1]));
+		for(int idx=0; idx<recPixNum[1]; ++idx){
+			recYvals[static_cast<size_t>(idx)] = recPixSizes[1]*recPixNum[1]/2 - (idx+0.5)*recPixSizes[1];
 		}
-		std::vector<float> phantomYvals(static_cast<size_t>(phantomPixNum[0]));
-		for(int idx=0; idx<phantomPixNum[0]; ++idx){
-			phantomYvals[static_cast<size_t>(idx)] = phantomPixSizes[0]*phantomPixNum[0]/2 - (idx+0.5)*phantomPixSizes[0];
+		std::vector<float> phantomYvals(static_cast<size_t>(phantomPixNum[1]));
+		for(int idx=0; idx<phantomPixNum[1]; ++idx){
+			phantomYvals[static_cast<size_t>(idx)] = phantomPixSizes[1]*phantomPixNum[1]/2 - (idx+0.5)*phantomPixSizes[1];
 		}
 
 		auto h=matplot::figure();
