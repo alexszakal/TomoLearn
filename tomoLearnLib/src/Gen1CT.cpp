@@ -1553,7 +1553,8 @@ void Gen1CT::SPSReconst(std::string sinogramID,
 					   0.0); //I0=0 because the Poisson statistics is not applied
 
 	//Calculate the curvatures
-	//This is not the optimal curvature but advantageous because it does not depend on the iteration
+	//This is not the optimal curvature but advantageous because it does not depend on l_i thus
+	//can be computed outside of the iteration
 	CTScan curvatures("curvatures",
 					(-1.0 * actualScan + actualScan.getI0()).getDataAsEigenMatrixRef().cwiseMax(0.0),
 					detWidth,
