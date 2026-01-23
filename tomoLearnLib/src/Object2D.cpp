@@ -349,10 +349,10 @@ double Object2D::compareNorm(Object2D compData) const{
 				double y1 = compData.yPixCentreCoords[ceil(yCoord-0.5)];
 				double y2 = compData.yPixCentreCoords[floor(yCoord-0.5)];
 
-				double Q11=compData.objData(floor(xCoord), ceil(yCoord));
-				double Q21=compData.objData(ceil(xCoord), ceil(yCoord));
-				double Q12=compData.objData(floor(xCoord), floor(yCoord));
-				double Q22=compData.objData(ceil(xCoord), floor(yCoord));
+				double Q11=compData.objData(static_cast<Eigen::Index>(floor(xCoord)), static_cast<Eigen::Index>(ceil(yCoord)));
+				double Q21=compData.objData(static_cast<Eigen::Index>(ceil(xCoord)), static_cast<Eigen::Index>(ceil(yCoord)));
+				double Q12=compData.objData(static_cast<Eigen::Index>(floor(xCoord)), static_cast<Eigen::Index>(floor(yCoord)));
+				double Q22=compData.objData(static_cast<Eigen::Index>(ceil(xCoord)), static_cast<Eigen::Index>(floor(yCoord)));
 
 				double interpVal=1/compData.objPixSizes[0]/compData.objPixSizes[1]*
 						                 (Q11*(x2-x)*(y2-y)+
