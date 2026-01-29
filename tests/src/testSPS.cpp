@@ -92,7 +92,7 @@ void testSPS(const std::string& phantomName,
 			);
 	ct.addPhantom(centerDotPhantom);
 
-	ct.displayPhantom(phantomName);
+	// ct.displayPhantom(phantomName);
 
 	const int numProjections{180*2};
 	Eigen::VectorXd angles = Eigen::VectorXd::LinSpaced(numProjections, 0.0/180.0 * M_PI,
@@ -103,23 +103,23 @@ void testSPS(const std::string& phantomName,
 
 	ct.measure(phantomName, angles, "Sinogram", measureAlgo);
 
-	ct.displayMeasurement("Sinogram");
+	// ct.displayMeasurement("Sinogram");
 
 	std::cout<<"\nStart SPS reconstruction";
 	ct.SPSReconst("Sinogram", std::array<int, 2> { 512, 512}, // 1024 x 1024 pixel, 0.1mm felbontas
 			std::array<double, 2> { 0.199, 0.199}, projectAlgo, backprojectAlgo, "RecImage", 110,
 			regularizerType::Huber, 1000, 0.004, phantomName);
 
-	ct.Gen1CT::displayReconstruction("RecImage");
+	// ct.Gen1CT::displayReconstruction("RecImage");
 
-	ct.compareRowPhantomAndReconst('Y', -31.0, phantomName, "RecImage");
+	// ct.compareRowPhantomAndReconst('Y', -31.0, phantomName, "RecImage");
 
-	auto h=matplot::figure(true);
-	auto p1 = matplot::plot( ct.getConvergenceCurve("RecImage"), "-og" );
-	matplot::title("Convergence of SPSreconstruction");
-	matplot::xlabel("Iteration number [1]");
-	matplot::ylabel("Difference L2 norm [a.u.]");
-	h->show();
+	// auto h=matplot::figure(true);
+	// auto p1 = matplot::plot( ct.getConvergenceCurve("RecImage"), "-og" );
+	// matplot::title("Convergence of SPSreconstruction");
+	// matplot::xlabel("Iteration number [1]");
+	// matplot::ylabel("Difference L2 norm [a.u.]");
+	// h->show();
 
 
 }
