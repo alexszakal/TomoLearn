@@ -29,7 +29,7 @@ if(ENABLE_CUDA)
 	
     target_sources(tomoLearnLib PRIVATE src/cudaFunctions.cu)
 
-    set_property(TARGET tomoLearnLib PROPERTY CUDA_ARCHITECTURES OFF)
+    set_property(TARGET tomoLearnLib PROPERTY CUDA_ARCHITECTURES all-major)
     message(STATUS "Cmake include directories: " ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
     target_include_directories(tomoLearnLib SYSTEM PRIVATE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
     target_link_libraries(tomoLearnLib PUBLIC CUDA::cudart)
